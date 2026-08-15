@@ -71,11 +71,12 @@ export default function Dashboard({ ctx, onQuickAdd }) {
               <span className="meta">{m.setupSteps.filter((s) => s.done).length} of {m.setupSteps.length} done</span>
             </div>
             {m.setupSteps.map((s) => (
-              <div className={"check" + (s.done ? " done" : "")} key={s.key}>
+              <button className={"check" + (s.done ? " done" : "")} key={s.key}
+                onClick={() => setView(s.view)}>
                 <span className="box">✓</span>
                 <span className="t">{s.label}</span>
-                {!s.done && <button className="btn ghost tiny go" onClick={() => setView(s.view)}>Go</button>}
-              </div>
+                <span className={"go " + (s.done ? "muted" : "btn ghost tiny")}>{s.done ? "›" : "Go"}</span>
+              </button>
             ))}
           </div>
         )}

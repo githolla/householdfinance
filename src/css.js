@@ -129,9 +129,10 @@ export const CSS = `
 .tc .step.later .steplabel{color:var(--soft);font-weight:600;}
 .tc .stepdetail{display:block;font-size:12px;color:var(--soft);margin-top:2px;font-weight:500;line-height:1.45;}
 
-/* getting-started checklist */
-.tc .check{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--surface2);
- font-weight:600;font-size:13.5px;}
+/* getting-started checklist — the whole row is the tap target */
+.tc .check{display:flex;align-items:center;gap:11px;padding:9px 2px;border:none;
+ border-bottom:1px solid var(--surface2);font-weight:600;font-size:13.5px;
+ width:100%;text-align:left;background:none;color:var(--ink);font-family:inherit;border-radius:0;}
 .tc .check:last-child{border-bottom:none;}
 .tc .check .box{width:22px;height:22px;border-radius:8px;flex:none;display:grid;place-items:center;
  font-size:12px;font-weight:800;border:2px solid var(--line);color:transparent;}
@@ -361,7 +362,7 @@ export const CSS = `
  .tc .btn.ghost:hover{background:var(--surface2);border-color:var(--brand);color:var(--brand);}
  .tc .chip:hover{background:var(--brand-soft);color:var(--brand);}
  .tc .chip.on:hover{background:var(--brand-deep);color:#fff;}
- .tc .envrow:hover,.tc .morelist button:hover{background:var(--surface2);}
+ .tc .envrow:hover,.tc .morelist button:hover,.tc .check:hover{background:var(--surface2);}
 }
 
 /* ==================================================================
