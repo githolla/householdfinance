@@ -617,7 +617,8 @@ export function waterfall({ state, plan, m, cfg, tax }) {
   const efNeed = efGoal
     ? Math.min(Math.max(0, efGoal.monthly), Math.max(0, efTarget - efGoal.saved))
     : 0;
-  const efFunded = efGoal ? efGoal.saved >= efTarget : false;
+  // a $0 target is "not set up yet", never "funded"
+  const efFunded = efGoal ? efTarget > 0 && efGoal.saved >= efTarget : false;
 
   // goalMonthly already counts the emergency fund — don't fund it twice
   const otherGoals = goals.filter((g) => !efGoal || g.id !== efGoal.id)

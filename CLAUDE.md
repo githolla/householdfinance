@@ -49,6 +49,26 @@ anything with that prefix is inlined into the client bundle and is public.
 It was one 1,700-line file until the engines landed; splitting by view is what the previous
 version of this note asked for. `model()` and the shared components stayed together.
 
+## The planner layer
+
+The information architecture copies how financial planners actually present to clients
+(one-page plan + order of operations + next best action):
+
+- **`m.nextAction`** — the single thing to do next, with the why and the view to open.
+  Severity order: overdue bill → overdue tax quarter → debt that never clears → tax
+  reserve behind → plan shortfall → envelope over → unassigned money → late goal →
+  the current money step → all clear. The hero card on Home and The plan renders it.
+- **`m.steps`** — the money-steps ladder, adapted for a 1099 household: essentials →
+  tax set-aside (nobody withholds for them) → first $1,000 → debt above 8% → full
+  emergency fund → 15% saved. Every step's `detail` uses their real numbers; the
+  current step is the first not-done. Never assert a step done that the numbers
+  don't support.
+- **`m.setupSteps`** — the getting-started checklist; the card hides itself once done.
+- The sidebar is sectioned **Every day / The plan / Step back** (`SECTIONS` in App.jsx).
+
+All of it is computed in `model()` like every other number. If you add a warning,
+decide where it ranks in `nextAction` — the point is one action, not a pile.
+
 ## The one thing that matters architecturally
 
 **`model(state, plan, month)` is the whole computation layer.** Every derived number in the app — totals, per-envelope spend, goal projections, the debt simulation, the tax reserve, the allocation waterfall, planner notes, the headline sentence, the fair-split read — is computed there and passed down as `m`. View components render; they don't calculate.

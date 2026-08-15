@@ -44,6 +44,9 @@ export const CSS = `
 .tc .mark .nm{font-weight:800;font-size:15.5px;letter-spacing:-.01em;display:block;}
 .tc .mark .who{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-weight:600;}
 .tc .side nav{display:flex;flex-direction:column;gap:3px;}
+.tc .navsec{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);
+ font-weight:700;padding:12px 12px 4px;}
+.tc .navsec:first-child{padding-top:0;}
 .tc .side nav button{display:flex;align-items:center;gap:11px;text-align:left;background:none;border:none;
  padding:10px 12px;border-radius:12px;font-size:13.5px;font-weight:600;color:var(--soft);}
 .tc .side nav button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;
@@ -106,6 +109,35 @@ export const CSS = `
 .tc .trend{font-size:11.5px;font-weight:700;white-space:nowrap;}
 .tc .trend.up{color:var(--warn);}
 .tc .trend.down{color:var(--ok);}
+
+/* the one thing to do next — the hero of the one-page plan */
+.tc .nextcard{background:linear-gradient(135deg,#5A3BE0 0%,#7C5CFC 100%);color:#fff;box-shadow:var(--pop);}
+.tc .nextcard .nlab{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;font-weight:700;opacity:.75;}
+.tc .nextcard .ntitle{font-size:18px;font-weight:800;letter-spacing:-.015em;margin:7px 0 6px;line-height:1.25;}
+.tc .nextcard .nwhy{font-size:12.5px;font-weight:500;opacity:.88;line-height:1.5;margin-bottom:13px;}
+.tc .nextcard .btn{background:#fff;color:var(--brand);box-shadow:none;}
+.tc .nextcard .nstep{font-size:11px;font-weight:700;opacity:.75;}
+
+/* the money-steps ladder */
+.tc .step{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--surface2);}
+.tc .step:last-child{border-bottom:none;}
+.tc .stepdot{width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
+ font-size:12.5px;font-weight:700;background:var(--surface2);color:var(--soft);}
+.tc .step.done .stepdot{background:#E5F6EC;color:#0E7A38;}
+.tc .step.current .stepdot{background:var(--brand);color:#fff;}
+.tc .steplabel{display:block;font-weight:700;font-size:13.5px;}
+.tc .step.later .steplabel{color:var(--soft);font-weight:600;}
+.tc .stepdetail{display:block;font-size:12px;color:var(--soft);margin-top:2px;font-weight:500;line-height:1.45;}
+
+/* getting-started checklist */
+.tc .check{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--surface2);
+ font-weight:600;font-size:13.5px;}
+.tc .check:last-child{border-bottom:none;}
+.tc .check .box{width:22px;height:22px;border-radius:8px;flex:none;display:grid;place-items:center;
+ font-size:12px;font-weight:800;border:2px solid var(--line);color:transparent;}
+.tc .check.done .box{background:#E5F6EC;border-color:#E5F6EC;color:#0E7A38;}
+.tc .check.done .t{color:var(--soft);}
+.tc .check .go{margin-left:auto;}
 
 /* envelope card grid (Budget) */
 .tc .cardgrid{display:grid;gap:14px;grid-template-columns:repeat(3,minmax(0,1fr));}
@@ -383,11 +415,12 @@ export const CSS = `
  .tc .monthnav .m{font-size:15px;min-width:0;}
  .tc .g23{grid-template-columns:minmax(0,1fr);}
 
- .tc .d-state{order:1;} .tc .d-pace{order:2;} .tc .d-envs{order:3;}
- .tc .d-due{order:4;}   .tc .d-budget{order:5;} .tc .d-most{order:6;}
- .tc .d-notes{order:7;} .tc .d-recent{order:8;}
- .tc .d-goals{order:9;} .tc .d-kpis{order:10;}  .tc .d-rail{order:11;}
- .tc .d-cats{order:12;} .tc .d-flow{order:13;}
+ .tc .d-state{order:1;} .tc .d-setup{order:2;} .tc .d-next{order:3;}
+ .tc .d-pace{order:4;}  .tc .d-envs{order:5;}  .tc .d-due{order:6;}
+ .tc .d-budget{order:7;} .tc .d-most{order:8;} .tc .d-steps{order:9;}
+ .tc .d-notes{order:10;} .tc .d-recent{order:11;}
+ .tc .d-goals{order:12;} .tc .d-kpis{order:13;} .tc .d-rail{order:14;}
+ .tc .d-cats{order:15;}  .tc .d-flow{order:16;}
 }
 
 @media(max-width:599px){

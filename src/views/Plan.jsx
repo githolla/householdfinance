@@ -6,7 +6,7 @@
    ================================================================== */
 
 import { money, num, C } from "../lib/format.js";
-import { Head, Kpi } from "../components.jsx";
+import { Head, Kpi, Stepper } from "../components.jsx";
 
 export default function Plan({ ctx }) {
   const { m, state, patch, setView } = ctx;
@@ -28,6 +28,27 @@ export default function Plan({ ctx }) {
       <Head title="The plan" sub="Where every dollar goes, in the order you want it to go there." />
 
       <p className="thesis">{f.sentence}</p>
+
+      <div className="grid g23" style={{ marginBottom: 16, alignItems: "start" }}>
+        <div className="card">
+          <div className="chead">
+            <h3>Your money steps</h3>
+            <span className="meta">the order planners fund things — essentials first, taxes next, then the ladder</span>
+          </div>
+          <Stepper steps={m.steps} />
+        </div>
+        <div className="card nextcard">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span className="nlab">Do this next</span>
+            <span className="nstep">{m.nextAction.step}</span>
+          </div>
+          <div className="ntitle">{m.nextAction.title}</div>
+          <div className="nwhy">{m.nextAction.why}</div>
+          {m.nextAction.view !== "plan" && (
+            <button className="btn tiny" onClick={() => setView(m.nextAction.view)}>{m.nextAction.cta}</button>
+          )}
+        </div>
+      </div>
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
         <Kpi label="Coming in" value={money(f.pool)} foot={`${m.pA.name} and ${m.pB.name} together`} />

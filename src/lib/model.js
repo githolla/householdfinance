@@ -225,6 +225,127 @@ export function model(state, plan, month) {
 
   const jointCost = plan.envelopes.filter((e) => e.owner === "joint").reduce((n, e) => n + e.planned, 0) + goalMonthly;
 
+  /* ---- the money steps ladder --------------------------------------
+     The order financial planners walk clients through, adapted for a
+     1099 household: essentials, then the tax set-aside (nobody withholds
+     for you), then a starter emergency fund, then expensive debt, then
+     the full fund, then saving for what's next. The current step is the
+     first one that isn't done — everything on this ladder is computed
+     from their real numbers, never asserted.
+     ------------------------------------------------------------------ */
+  const efGoal = flow.efGoal;
+  const efSaved = efGoal ? efGoal.saved : 0;
+  const stageOk = (key) => {
+    const r = flow.rows.find((x) => x.key === key);
+    return r ? r.shortfall < 1 : true;
+  };
+  const HIGH_APR = 8;
+  const highDebts = debts.filter((d) => (d.apr || 0) >= HIGH_APR && d.balance > 0);
+  const worstDebt = [...highDebts].sort((x, y) => (y.apr || 0) - (x.apr || 0))[0];
+  const worstPayoff = worstDebt && debt.avalanche.perDebt[worstDebt.id]
+    ? debt.avalanche.perDebt[worstDebt.id].payoffMonth : null;
+
+  const stepDefs = [
+    {
+      key: "essentials", label: "Cover the essentials",
+      ok: income > 0 && stageOk("fixedBills") && stageOk("essentials"),
+      detail: income <= 0 ? "Start with what you each bring home."
+        : stageOk("fixedBills") && stageOk("essentials")
+          ? "Bills and essentials are covered by what comes in."
+          : `The plan runs out before essentials are covered — ${money(flow.totalShortfall)} short.`,
+    },
+    {
+      key: "tax", label: "Set aside for taxes",
+      ok: !tax.incomplete && tax.reserveDelta > -1,
+      detail: tax.incomplete ? "Add what you each bill and the app sizes it."
+        : tax.reserveDelta > -1
+          ? `On pace — ${money(tax.monthlyReserve)} a month.`
+          : `${money(-tax.reserveDelta)} behind — about ${money(tax.catchUpPerMonth)} a month catches up.`,
+    },
+    {
+      key: "starter", label: "Save the first $1,000",
+      ok: efSaved >= 1000,
+      detail: !efGoal ? "Add an emergency fund goal to start."
+        : efSaved >= 1000 ? `${money(efSaved)} in ${efGoal.name}.`
+          : `${money(efSaved)} saved — this is what keeps a flat tire off the credit card.`,
+    },
+    {
+      key: "highDebt", label: "Clear the expensive debt",
+      ok: highDebts.length === 0,
+      detail: highDebts.length === 0 ? `Nothing left above ${HIGH_APR}%.`
+        : `${worstDebt.name} at ${worstDebt.apr}% costs more than saving earns${worstPayoff ? ` — clears ${monthLabel(worstPayoff)} at the current pace` : ""}.`,
+    },
+    {
+      key: "fullFund", label: `Build the full emergency fund`,
+      ok: !!efGoal && efSaved >= flow.efTarget && flow.efTarget > 0,
+      detail: !efGoal ? "Add an emergency fund goal to start."
+        : efSaved >= flow.efTarget && flow.efTarget > 0
+          ? `${money(efSaved)} — ${state.waterfall.emergencyMonths} months of essentials.`
+          : `${money(efSaved)} of ${money(flow.efTarget)} — ${state.waterfall.emergencyMonths} months of keeping the lights on.`,
+    },
+    {
+      key: "save15", label: "Put 15% toward what's next",
+      ok: savingsRate >= 15,
+      detail: savingsRate >= 15
+        ? `Saving ${Math.round(savingsRate)}% of income.`
+        : `Saving ${Math.round(savingsRate)}% now — most plans get comfortable at 15–20%.`,
+    },
+  ];
+  let currentIdx = stepDefs.findIndex((s) => !s.ok);
+  if (currentIdx === -1) currentIdx = stepDefs.length;
+  const steps = stepDefs.map((s, i) => ({
+    ...s, n: i + 1,
+    state: s.ok ? "done" : i === currentIdx ? "current" : "later",
+  }));
+  const currentStep = steps[Math.min(currentIdx, steps.length - 1)];
+
+  /* ---- the one thing to do next ------------------------------------
+     A planner leads with a single action, not a pile of warnings.
+     Severity order matches the ladder; ties break toward whatever is
+     costing money right now.
+     ------------------------------------------------------------------ */
+  const overdueQ = !tax.incomplete && tax.quarters.find((q) => q.past && !q.paid && q.amount > 0);
+  const firstOverdueBill = bills.find((b) => b.overdue);
+  const overEnv = plan.envelopes.find((e) => e.planned > 0 && (spentBy[e.id] || 0) > e.planned);
+  const lateGoal = state.goals.map((g) => ({ g, st: goalStatus(g) })).find((x) => x.st.late);
+
+  let nextAction;
+  if (income === 0)
+    nextAction = { title: "Add what you each bring home", why: "The budget, the tax set-aside, and the payoff date all build from that one number.", view: "settings", cta: "Open settings" };
+  else if (firstOverdueBill)
+    nextAction = { title: `Pay ${firstOverdueBill.name}`, why: `It was due the ${ordinal(firstOverdueBill.day)} — ${money(firstOverdueBill.amount)}.`, view: "bills", cta: "Open bills" };
+  else if (overdueQ)
+    nextAction = { title: `Send the ${overdueQ.label} tax payment`, why: `${money(overdueQ.amount)} was due ${overdueQ.dueDate}. Late payments accrue penalties monthly.`, view: "taxes", cta: "Open taxes" };
+  else if (debt.avalanche.never && debt.avalanche.neverReason === "budget-below-interest")
+    nextAction = { title: "Raise the minimums on your debt", why: "At these payments the balances grow faster than you pay them down — no payoff date exists yet.", view: "worth", cta: "Open debts" };
+  else if (!tax.incomplete && tax.reserveDelta < -1)
+    nextAction = { title: `Move ${money(Math.min(-tax.reserveDelta, tax.catchUpPerMonth))} to the tax reserve`, why: `You're ${money(-tax.reserveDelta)} behind on setting tax money aside.`, view: "taxes", cta: "Open taxes" };
+  else if (flow.totalShortfall > 1)
+    nextAction = { title: "Rebalance the plan", why: flow.sentence, view: "plan", cta: "Open the plan" };
+  else if (overEnv)
+    nextAction = { title: `Cover ${overEnv.name}`, why: `It's ${money((spentBy[overEnv.id] || 0) - overEnv.planned)} over — move that from a lighter envelope.`, view: "budget", cta: "Open budget" };
+  else if (unallocated > 1)
+    nextAction = { title: `Give ${money(unallocated)} a job`, why: "Unassigned money gets spent by accident. An envelope, a goal, or a payment against what you owe.", view: "plan", cta: "Open the plan" };
+  else if (lateGoal)
+    nextAction = { title: `${lateGoal.g.name} needs ${money(lateGoal.st.needed)}/mo`, why: `At ${money(lateGoal.g.monthly)} a month it misses ${monthLabel(lateGoal.g.due)}.`, view: "goals", cta: "Open goals" };
+  else if (currentStep && currentStep.state === "current")
+    nextAction = { title: currentStep.label, why: currentStep.detail, view: "plan", cta: "See the steps" };
+  else
+    nextAction = { title: "Nothing needs you today", why: "Log spending as it happens and the plan keeps itself honest.", view: "txn", cta: "Open spending" };
+  nextAction.step = `Step ${Math.min(currentIdx + 1, steps.length)} of ${steps.length}`;
+
+  /* ---- getting-started checklist (shown while the household is thin) ---- */
+  const anyEntry = Object.values(state.months).some((mm) => (mm.entries || []).length > 0);
+  const setupSteps = [
+    { key: "income", label: "Add what you each bring home", done: income > 0, view: "settings" },
+    { key: "bills", label: "List the bills that repeat", done: state.bills.length > 0, view: "bills" },
+    { key: "tax", label: "Add your 1099 income", done: !tax.incomplete, view: "taxes" },
+    { key: "accounts", label: "Add accounts and debts", done: state.accounts.length > 0, view: "worth" },
+    { key: "goal", label: "Give a goal a target", done: state.goals.some((g) => g.target > 0), view: "goals" },
+    { key: "first", label: "Log your first expense", done: anyEntry, view: "txn" },
+  ];
+  const setupDone = setupSteps.every((s) => s.done);
+
   /* ---- the headline sentence ---- */
   let thesis;
   if (income === 0) thesis = ["Start with what you each bring home.", "The plan, the goals, and the read on your month all build from that one number."];
@@ -254,6 +375,7 @@ export function model(state, plan, month) {
     tax, flow, debt, fundedExtra,
     dayOfMonth, daysLeft, daysInMonth: dim, pacePct, expectedSpend, paceDelta,
     envRemaining, tightest, recentEnvIds, topSpend, stateLine, live,
+    steps, currentStep, nextAction, setupSteps, setupDone,
     envByName, matchEnvelope, merchantFavourites,
     merchantCount: Object.keys(merchantMap).length,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),

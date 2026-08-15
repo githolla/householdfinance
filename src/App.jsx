@@ -38,7 +38,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 const NAV = [
-  ["dash", "Dashboard", "Home"],
+  ["dash", "Home", "Home"],
   ["txn", "Spending", "Spending"],
   ["budget", "Budget", "Budget"],
   ["bills", "Bills", "Bills"],
@@ -47,10 +47,18 @@ const NAV = [
   ["worth", "Net worth"],
   ["taxes", "Taxes"],
   ["reports", "Reports"],
-  ["planner", "Planner"],
+  ["planner", "Ask the planner"],
   ["settings", "Settings"],
 ];
 const PRIMARY = ["dash", "txn", "budget", "bills"];
+/* Grouped the way a planner walks a client through it: the daily loop,
+   the plan itself, then stepping back. */
+const SECTIONS = [
+  ["Every day", ["dash", "txn", "budget", "bills"]],
+  ["The plan", ["plan", "goals", "worth", "taxes"]],
+  ["Step back", ["reports", "planner"]],
+  ["", ["settings"]],
+];
 
 const ICON = {
   dash: <svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6" /><path d="M6 10v9h12v-9" /></svg>,
@@ -172,10 +180,18 @@ export default function App() {
             </span>
           </div>
           <nav>
-            {NAV.map(([k, label]) => (
-              <button key={k} className={view === k ? "on" : ""} onClick={() => setView(k)}>
-                {ICON[k]}<span>{label}</span>
-              </button>
+            {SECTIONS.map(([sec, keys]) => (
+              <div key={sec || "misc"} style={{ display: "contents" }}>
+                {sec && <div className="navsec">{sec}</div>}
+                {keys.map((k) => {
+                  const item = NAV.find((n) => n[0] === k);
+                  return (
+                    <button key={k} className={view === k ? "on" : ""} onClick={() => setView(k)}>
+                      {ICON[k]}<span>{item[1]}</span>
+                    </button>
+                  );
+                })}
+              </div>
             ))}
           </nav>
           <div className="sidefoot">
@@ -246,12 +262,24 @@ export default function App() {
           </div>
         )}
         <div className="morelist">
-          {NAV.filter(([k]) => !PRIMARY.includes(k)).map(([k, label]) => (
-            <button key={k} onClick={() => go(k)}>
-              <span>{label}</span>
-              <span className="muted">›</span>
-            </button>
-          ))}
+          {SECTIONS.map(([sec, keys]) => {
+            const items = keys.filter((k) => !PRIMARY.includes(k));
+            if (!items.length) return null;
+            return (
+              <div key={sec || "misc"}>
+                {sec && <div className="lbl" style={{ marginTop: 12 }}>{sec}</div>}
+                {items.map((k) => {
+                  const item = NAV.find((n) => n[0] === k);
+                  return (
+                    <button key={k} onClick={() => go(k)}>
+                      <span>{item[1]}</span>
+                      <span className="muted">›</span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       </Sheet>
 

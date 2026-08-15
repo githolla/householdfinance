@@ -65,6 +65,25 @@ export function Ring({ pct, size = 84, stroke = 10, color = C.brand, track = C.b
   );
 }
 
+/** The money-steps ladder. Every state pairs a mark with words — never colour alone. */
+export function Stepper({ steps }) {
+  return (
+    <div>
+      {steps.map((s) => (
+        <div className={"step " + s.state} key={s.key}>
+          <span className="stepdot">{s.state === "done" ? "✓" : s.n}</span>
+          <span style={{ minWidth: 0 }}>
+            <span className="steplabel">{s.label}
+              {s.state === "current" && <span className="schip warn" style={{ marginLeft: 8 }}>! you are here</span>}
+            </span>
+            <span className="stepdetail">{s.detail}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Status chip. Always a symbol plus a word — colour never carries state alone. */
 export function SChip({ tone, children }) {
   const mark = tone === "ok" || tone === "done" ? "✓" : "!";

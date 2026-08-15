@@ -11,7 +11,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
 import { money, compact, monthLabel, ordinal, C } from "../lib/format.js";
-import { Head, MonthNav, Kpi, Tip, Rail, Notes, Ring, SChip, axis } from "../components.jsx";
+import { Head, MonthNav, Kpi, Tip, Rail, Notes, Ring, SChip, Stepper, axis } from "../components.jsx";
 
 const GROUP_GLYPH = {
   Home: "🏠", Daily: "🛒", Lifestyle: "🍜", Health: "💊", Giving: "💛", Other: "📦",
@@ -49,7 +49,7 @@ export default function Dashboard({ ctx, onQuickAdd }) {
   return (
     <>
       <Head
-        title="Dashboard"
+        title="Home"
         sub={`${monthLabel(month)} · ${plan.entries.length} transactions logged`}
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
@@ -62,6 +62,23 @@ export default function Dashboard({ ctx, onQuickAdd }) {
           <div className={"fig " + (m.leftToSpend < 0 ? "down" : "")}>{m.stateLine[0]}</div>
           <div className="say">{m.stateLine[2]} <span>{m.stateLine[3]}</span></div>
         </div>
+
+        {/* getting-started checklist, only while the household is thin */}
+        {!m.setupDone && (
+          <div className="card wideblock d-setup">
+            <div className="chead">
+              <h3>Set the table</h3>
+              <span className="meta">{m.setupSteps.filter((s) => s.done).length} of {m.setupSteps.length} done</span>
+            </div>
+            {m.setupSteps.map((s) => (
+              <div className={"check" + (s.done ? " done" : "")} key={s.key}>
+                <span className="box">✓</span>
+                <span className="t">{s.label}</span>
+                {!s.done && <button className="btn ghost tiny go" onClick={() => setView(s.view)}>Go</button>}
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="card phone-only wideblock d-pace">
           <div className="chead"><h3>Pace</h3><span className="meta">{m.daysLeft} days to go</span></div>
@@ -192,6 +209,16 @@ export default function Dashboard({ ctx, onQuickAdd }) {
         </div>
 
         <div className="colside">
+        <div className="card nextcard d-next">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span className="nlab">Do this next</span>
+            <span className="nstep">{m.nextAction.step}</span>
+          </div>
+          <div className="ntitle">{m.nextAction.title}</div>
+          <div className="nwhy">{m.nextAction.why}</div>
+          <button className="btn tiny" onClick={() => setView(m.nextAction.view)}>{m.nextAction.cta}</button>
+        </div>
+
         <div className="card d-budget">
           <div className="chead"><h3>Monthly budget</h3>
             {m.planned > 0 && (m.spent > m.planned
@@ -238,6 +265,14 @@ export default function Dashboard({ ctx, onQuickAdd }) {
                 </span>
               </div>
             ))}
+        </div>
+
+        <div className="card d-steps">
+          <div className="chead">
+            <h3>Your money steps</h3>
+            <button className="btn ghost tiny" onClick={() => setView("plan")}>The plan</button>
+          </div>
+          <Stepper steps={m.steps} />
         </div>
 
         <div className="card d-notes">
