@@ -30,6 +30,25 @@ generated history, or set up a real one. Data persists in localStorage; **Start 
 Built for the phone first — bottom tab bar, thumb-reachable quick-add, safe-area aware — and it
 still opens as a full dashboard on a desktop.
 
+## Deploying
+
+The Anthropic key is held server-side in two places: `vite.config.js` for `npm run dev`,
+and `api/anthropic/[...path].js` for the deployed site. Vite's proxy does not survive a
+build, so the serverless function is what makes receipt reading and the planner work in
+production.
+
+On Vercel, set **`ANTHROPIC_API_KEY`** in Project → Settings → Environment Variables, then
+redeploy so the function picks it up. Without it the app still runs — budget, bills, debt,
+taxes and the waterfall are all local arithmetic — and only the two AI features report that
+they can't reach the reader.
+
+Do **not** name it `VITE_ANTHROPIC_API_KEY`. Anything prefixed `VITE_` is compiled into the
+browser bundle and is readable by anyone who opens devtools.
+
+The route is unauthenticated — it only forwards `v1/messages`, but anyone with the URL can
+spend your tokens. Fine for a two-person app on an unadvertised URL; put auth in front of it
+before it goes anywhere public.
+
 ## Not what it does
 
 Investment advice, credit monitoring, more than two people, and **tax filing or tax advice**. The

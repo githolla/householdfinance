@@ -16,7 +16,11 @@ const LONG_EDGE = 2000;
 const QUALITY = 0.75;
 const RETRY_EDGE = 1400;
 const RETRY_QUALITY = 0.6;
-const MAX_BYTES = 3_500_000; // base64 inflates ~1.37x; the hard API ceiling is 5MB
+/* Base64 inflates ~1.37x, so this lands around 3.4MB on the wire. The binding
+   limit is the serverless function's 4.5MB request body, not Anthropic's 5MB
+   image ceiling. A 2000px JPEG at q0.75 is normally 200–400KB, so the retry
+   rung below effectively never fires — it's here for a pathological photo. */
+const MAX_BYTES = 2_500_000;
 
 async function decode(file) {
   // imageOrientation honours the EXIF flag — without it a portrait phone

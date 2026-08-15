@@ -1,9 +1,13 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
-// The planner panel calls the Anthropic API. In the browser that would leak the key
-// and get blocked by CORS, so dev requests to /api/anthropic are proxied here and the
-// key is attached server-side. Swap this for a real backend route before shipping.
+// The planner and receipt reading call the Anthropic API. In the browser that would
+// leak the key and get blocked by CORS, so dev requests to /api/anthropic are proxied
+// here and the key is attached server-side.
+//
+// This block is dev-only — `server.proxy` does not exist in a built site. Production
+// is served by the matching serverless function in api/anthropic/[...path].js. Change
+// one and change the other, or the app works in dev and 404s once deployed.
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   return {

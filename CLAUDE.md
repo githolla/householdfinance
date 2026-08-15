@@ -35,9 +35,16 @@ src/lib/useReceipt.js the capture → read → review flow as a hook
 src/lib/draft.js      the draft shape EntrySheet is seeded with
 
 src/views/*.jsx       one file per view, plus EntrySheet (the only write path)
-vite.config.js        dev proxy that attaches the Anthropic key server-side
+vite.config.js        DEV proxy that attaches the Anthropic key server-side
+api/anthropic/        the same thing for production, as a serverless function
 docs/                 data model + roadmap
 ```
+
+**The Anthropic key has two server-side homes and they must agree.** `vite.config.js`
+covers `npm run dev`; `api/anthropic/[...path].js` covers the deployed site, because
+`server.proxy` does not exist in a built bundle. Change one, change the other — otherwise
+the app works locally and 404s in production. Never move the key to a `VITE_` variable:
+anything with that prefix is inlined into the client bundle and is public.
 
 It was one 1,700-line file until the engines landed; splitting by view is what the previous
 version of this note asked for. `model()` and the shared components stayed together.
@@ -117,7 +124,7 @@ There's no runner installed, but the engines are pure and exact. Before changing
 
 1. **Single-browser storage.** Both partners can't use it. This is the big one — see `docs/roadmap.md`.
 2. **Manual transaction entry.** A receipt photo fills the form in; there's still no bank feed.
-3. **API key exposure.** The dev proxy is dev-only, and it now has two consumers, one of them posting ~300KB images. Both need a real backend route before this is deployed anywhere.
+3. **The API route is unauthenticated.** `api/anthropic/[...path].js` keeps the key off the client, and only forwards `v1/messages` so it isn't a general-purpose passthrough — but anyone who finds the deployed URL can spend your tokens. It needs a rate limit and a session check once Phase 1 puts real accounts behind it.
 4. **No test runner.** The engines deserve Vitest; the sanity script is a stopgap.
 5. Net worth is a live snapshot, not a tracked series. There's no history to chart yet.
 6. Tax constants are the published 2026 figures in `TAX_TABLES`, overridable per household via `state.tax.constants`. They change every January and nothing reminds you but a note in the UI.
