@@ -82,10 +82,13 @@ When a simulation can't terminate — minimums below interest — it returns `ne
 - Month keys are `"YYYY-MM"` strings. Use `shiftMonth`, `monthsBetween`, `monthLabel`, `daysInMonth` — never do date math inline.
 - `owner` is `"a" | "b" | "joint"` everywhere (envelopes, entries, bills, accounts). Resolve with `m.ownerName()` / `m.ownerColor()`.
 - All user input goes through `num()`, which strips currency formatting and never returns NaN. Pasted URLs go through `safeUrl()`, which only lets `http(s)` through.
-- Colours live in the `C` object and the CSS variables — pine `#2E6F63` is partner A, iris `#6B5CA5` is partner B, brass `#B9862B` is shared/goals, rust `#A93E2F` is the only alarm colour. Don't introduce new hues. Every colour added in the mobile pass is `--ink` at an alpha.
-- **Rust means something is wrong**, not merely notable. Over plan, overdue, a shortfall, a minimum that doesn't cover interest. Being ahead of an even pace is not an alarm.
-- Type: Fraunces (headings, numbers-as-statements), Karla (UI), IBM Plex Mono (all figures, tabular). Loaded via `@import` in the CSS string.
+- Colours live in the `C` object and the CSS variables. Violet `#6C4CF1` is partner A **and** the brand; teal `#0E9888` is partner B; amber `#E09112` is shared/goals; red `#D93A4C` is the only alarm colour; green `#17A24A` means confirmed-good. The set was validated as a categorical palette (CVD + normal-vision separation, all pairs, on the white card surface) — if you change a hue, re-validate, don't eyeball.
+- **Red means something is wrong**, not merely notable. Over plan, overdue, a shortfall, a minimum that doesn't cover interest. Being ahead of an even pace is not an alarm, and an envelope spent to exactly its plan is *done* ("fully spent", neutral), not hot.
+- Status chips (`SChip`) always pair a symbol with a word — colour never carries state alone. Same rule for series colours: every colored mark sits beside its name.
+- Surfaces: lavender page `--page`, white cards with the `--shadow` token, radius 16–18px, pill buttons. New tints come from the existing tokens (`--surface2`, `--brand-soft`), not new hues.
+- Type: Plus Jakarta Sans everywhere, IBM Plex Mono for all figures (tabular). Loaded via `@import` in the CSS string.
 - No `<form>` elements — click handlers and Enter keydowns only. Carried over from the artifact; harmless to keep.
+- Watch class-name collisions in the one-file stylesheet: `.mid` is the amber KPI *tone*; layout classes need their own names (`.midrow`). Same trap as the `.side nav` scoping.
 
 ## Layout
 
@@ -113,6 +116,8 @@ Two calls, both through the dev proxy in `vite.config.js`, both on `claude-opus-
 - **Planner** (`src/views/Planner.jsx`) — same model at `effort: "medium"`, `max_tokens: 8000`.
 
 The photo is a **prefill and nothing more**. Every failure path — no key, offline, unreadable, refusal, garbage JSON — ends with the review sheet open and the amount focused. Base64 lives in a `useRef` and never enters persisted state; one photo would eat a fifth of the localStorage budget.
+
+The entry sheet has two amount inputs on purpose: a real `<input>` on desktop, and a display + custom keypad at `≤899px`. The keypad is why phone logging needs no OS keyboard (and can't trigger iOS zoom); both bind to the same draft state, and a late-arriving receipt read never overwrites an amount the person has started typing.
 
 Correcting the envelope in the review sheet is what teaches `state.merchantMap`. Same code path, no extra tap.
 

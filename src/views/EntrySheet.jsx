@@ -63,6 +63,23 @@ export default function EntrySheet({ ctx, open, seed, busy, error, onClose, onLo
   const amt = num(d.amount);
   const canLog = amt > 0 && !!d.envId;
 
+  /* The phone keypad. No OS keyboard to summon, no zoom, 56px keys —
+     this is what makes logging faster than typing. */
+  const press = (k) => {
+    setTouchedAmount(true);
+    setD((x) => {
+      let a = String(x.amount || "");
+      if (k === "back") a = a.slice(0, -1);
+      else if (k === ".") { if (!a.includes(".")) a = (a || "0") + "."; }
+      else {
+        if (/\.\d\d$/.test(a)) return x;              // two decimal places max
+        if (a.replace(/\D/g, "").length >= 7) return x; // nobody logs eight figures
+        a = a === "0" ? k : a + k;
+      }
+      return { ...x, amount: a };
+    });
+  };
+
   const commit = () => {
     if (!canLog) return;
     const env = plan.envelopes.find((e) => e.id === d.envId);
@@ -137,16 +154,18 @@ export default function EntrySheet({ ctx, open, seed, busy, error, onClose, onLo
         onKeyDown={(e) => e.key === "Enter" && commit()}
         aria-label="Amount"
       />
-
-      <label className="lbl" style={{ marginTop: 14 }}>What was it for?</label>
-      <input
-        className="field"
-        placeholder={d.merchant || "Weekly shop"}
-        value={d.note}
-        onChange={(e) => set("note", e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && commit()}
-        aria-label="Note"
-      />
+      {/* phone: a display plus a keypad instead of the OS keyboard */}
+      <div className={"amtdisplay num" + (busy && !d.amount ? " shimmer" : "")} aria-live="polite">
+        {d.amount ? `$${d.amount}` : <span className="ph">$0</span>}
+      </div>
+      <div className="padgrid" aria-label="Amount keypad">
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"].map((k) => (
+          <button key={k} className="padkey" onClick={() => press(k)}
+            aria-label={k === "back" ? "Delete" : k}>
+            {k === "back" ? "⌫" : k}
+          </button>
+        ))}
+      </div>
 
       <label className="lbl" style={{ marginTop: 14 }}>Envelope {why && <span className="muted" style={{ textTransform: "none", letterSpacing: 0 }}>· {why}</span>}</label>
       <div className="chiprow">
@@ -174,6 +193,16 @@ export default function EntrySheet({ ctx, open, seed, busy, error, onClose, onLo
           </button>
         ))}
       </div>
+
+      <label className="lbl" style={{ marginTop: 14 }}>What was it for? <span className="muted" style={{ textTransform: "none", letterSpacing: 0 }}>· optional</span></label>
+      <input
+        className="field"
+        placeholder={d.merchant || "Weekly shop"}
+        value={d.note}
+        onChange={(e) => set("note", e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && commit()}
+        aria-label="Note"
+      />
 
       {wrongMonth && (
         <button className="chip" style={{ marginTop: 14, borderColor: C.joint, color: C.joint }}

@@ -90,14 +90,40 @@ export function model(state, plan, month) {
 
   const envRemaining = {};
   plan.envelopes.forEach((e) => { envRemaining[e.id] = e.planned - (spentBy[e.id] || 0); });
+  /* The quick-log targets: tightest envelopes that still have money moving.
+     A rent envelope sitting at exactly $0 left is finished, not tight — it
+     would waste one of the three slots on something nobody logs against. */
   const tightest = plan.envelopes
-    .filter((e) => e.planned > 0)
+    .filter((e) => e.planned > 0 && Math.abs(envRemaining[e.id]) > 0.005)
     .sort((a, b) => envRemaining[a.id] - envRemaining[b.id])
     .slice(0, 3);
 
   const entryCount = {};
   plan.entries.forEach((t) => { entryCount[t.envId] = (entryCount[t.envId] || 0) + 1; });
   const recentEnvIds = Object.keys(entryCount).sort((a, b) => entryCount[b] - entryCount[a]).slice(0, 3);
+
+  /* Most expenses: this month's biggest envelopes, with the change against last
+     month. Matched by name — envelope ids are per-month. */
+  const prevMM = state.months[shiftMonth(month, -1)];
+  const prevByName = {};
+  if (prevMM) {
+    const prevSpent = {};
+    (prevMM.entries || []).forEach((t) => { prevSpent[t.envId] = (prevSpent[t.envId] || 0) + t.amount; });
+    (prevMM.envelopes || []).forEach((e) => { prevByName[e.name] = (prevByName[e.name] || 0) + (prevSpent[e.id] || 0); });
+  }
+  const topSpend = plan.envelopes
+    .map((e) => ({ id: e.id, name: e.name, group: e.group, owner: e.owner, amount: spentBy[e.id] || 0 }))
+    .filter((x) => x.amount > 0)
+    .sort((x, y) => y.amount - x.amount)
+    .slice(0, 6)
+    .map((x) => {
+      const prev = prevByName[x.name] || 0;
+      return {
+        ...x,
+        pct: spent > 0 ? (x.amount / spent) * 100 : 0,
+        deltaPct: prev > 0 ? ((x.amount - prev) / prev) * 100 : null,
+      };
+    });
 
   const envByName = (name) => plan.envelopes.find((e) => e.name === name);
 
@@ -227,7 +253,7 @@ export function model(state, plan, month) {
     goalStatus, history, bills, billsTotal, billsLeft, dueSoonList, payoff, notes, thesis, shareA, jointCost,
     tax, flow, debt, fundedExtra,
     dayOfMonth, daysLeft, daysInMonth: dim, pacePct, expectedSpend, paceDelta,
-    envRemaining, tightest, recentEnvIds, stateLine, live,
+    envRemaining, tightest, recentEnvIds, topSpend, stateLine, live,
     envByName, matchEnvelope, merchantFavourites,
     merchantCount: Object.keys(merchantMap).length,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),

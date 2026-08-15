@@ -1,13 +1,20 @@
 /* ==================================================================
    budget — plan the month before it happens
+
+   One card per envelope: a spent-ring, what's left against the plan,
+   and a status chip. Tap any number to change it.
    ================================================================== */
 
 import { money, num, uid, shiftMonth, GROUPS, C } from "../lib/format.js";
-import { Head, MonthNav, Kpi, Rail } from "../components.jsx";
+import { Head, MonthNav, Kpi, Rail, Ring, SChip } from "../components.jsx";
 
 export default function Budget({ ctx }) {
   const { m, plan, writeMonth, month, setMonth, state } = ctx;
   const set = (i, field, val) => writeMonth((mm) => { mm.envelopes[i][field] = val; return mm; });
+
+  /* stable order: grouped, then by name — the grid stays put as amounts change */
+  const ordered = [...plan.envelopes].sort((a, b) =>
+    GROUPS.indexOf(a.group || "Other") - GROUPS.indexOf(b.group || "Other") || a.name.localeCompare(b.name));
 
   return (
     <>
@@ -23,67 +30,83 @@ export default function Budget({ ctx }) {
 
       <div className="card" style={{ marginBottom: 16 }}><Rail m={m} plan={plan} /></div>
 
-      <div className="card">
-        {GROUPS.filter((g) => m.byGroup[g]).map((g) => {
-          const grp = m.byGroup[g];
+      <div className="cardgrid">
+        {ordered.map((e) => {
+          const i = plan.envelopes.findIndex((x) => x.id === e.id);
+          const s = m.spentBy[e.id] || 0;
+          const left = e.planned - s;
+          const over = e.planned > 0 && s > e.planned;
+          const pct = e.planned > 0 ? Math.min(100, (s / e.planned) * 100) : s > 0 ? 100 : 0;
+          /* Rent paid in full on the 1st is done, not "running hot" — hot means
+             ahead of the month's pace with money still left to burn through. */
+          const spentUp = e.planned > 0 && Math.abs(left) < 0.005;
+          const attention = !over && !spentUp && e.planned > 0 && (s / e.planned) * 100 > m.pacePct + 10;
           return (
-            <div key={g}>
-              <div className="grouphead">
-                <span>{g}</span>
-                <span className="num">{money(grp.spent)} of {money(grp.planned)}</span>
+            <div className="card envcard" key={e.id}>
+              <div className="toprow">
+                <input value={e.name} onChange={(ev) => set(i, "name", ev.target.value)} aria-label="Envelope name" />
+                <button className="kill" onClick={() => writeMonth((mm) => { mm.envelopes.splice(i, 1); return mm; })} aria-label={`Remove ${e.name}`}>×</button>
               </div>
-              {grp.items.map((e) => {
-                const i = plan.envelopes.findIndex((x) => x.id === e.id);
-                const s = m.spentBy[e.id] || 0;
-                const over = e.planned > 0 && s > e.planned;
-                const pct = e.planned > 0 ? Math.min(100, (s / e.planned) * 100) : s > 0 ? 100 : 0;
-                return (
-                  <div className="row" key={e.id}>
-                    <div className="rowname">
-                      <input value={e.name} onChange={(ev) => set(i, "name", ev.target.value)} aria-label="Envelope name" />
-                      <select className="tag hideS" value={e.group || "Other"} onChange={(ev) => set(i, "group", ev.target.value)} aria-label="Group">
-                        {GROUPS.map((x) => <option key={x}>{x}</option>)}
-                      </select>
-                      <button className="tag" title="Essential envelopes get funded before goals and spending money"
-                        style={e.essential ? { borderColor: C.a, color: C.a } : undefined}
-                        onClick={() => set(i, "essential", !e.essential)}>
-                        {e.essential ? "Essential" : "Flexible"}
-                      </button>
-                      <button className="tag" onClick={() => {
-                        const order = ["joint", "a", "b"];
-                        set(i, "owner", order[(order.indexOf(e.owner) + 1) % 3]);
-                      }} title="Who covers this">{m.ownerName(e.owner)}</button>
-                      <button className="kill" onClick={() => writeMonth((mm) => { mm.envelopes.splice(i, 1); return mm; })} aria-label={`Remove ${e.name}`}>×</button>
-                    </div>
-                    <div className="amt">
-                      <input className="num" inputMode="decimal" value={e.planned || ""} placeholder="0"
-                        onChange={(ev) => set(i, "planned", num(ev.target.value))} aria-label={`${e.name} planned`} />
-                    </div>
-                    <div className={"amt num " + (over ? "over" : "muted")}>{money(s)}</div>
-                    <div className="bar"><i style={{ width: pct + "%", background: over ? C.warn : m.ownerColor(e.owner) }} /></div>
+              <div className="midrow">
+                <Ring pct={pct} size={86} stroke={11}
+                  color={over ? C.warn : m.ownerColor(e.owner)}
+                  track={over ? "#FBE7EA" : C.brandSoft}>
+                  <div>
+                    <div className="num" style={{ fontSize: 15, fontWeight: 600 }}>{Math.round(pct)}%</div>
+                    <div style={{ fontSize: 9.5, color: C.soft, fontWeight: 600 }}>spent</div>
                   </div>
-                );
-              })}
+                </Ring>
+                <div style={{ minWidth: 0 }}>
+                  <div className="leftlab">{over ? "Over by" : "Left"}</div>
+                  <div className={"leftfig" + (over ? " over" : "")}>
+                    {money(Math.abs(left), true)}
+                  </div>
+                  <div className="of" style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 4 }}>
+                    <span className="muted" style={{ fontSize: 12 }}>of</span>
+                    <input className="num" inputMode="decimal" value={e.planned || ""} placeholder="0"
+                      onChange={(ev) => set(i, "planned", num(ev.target.value))} aria-label={`${e.name} planned`} />
+                  </div>
+                </div>
+              </div>
+              <div className="foot">
+                {over ? <SChip tone="over">over plan</SChip>
+                  : spentUp ? <SChip tone="done">fully spent</SChip>
+                    : attention ? <SChip tone="warn">running hot</SChip>
+                      : <SChip tone="ok">on track</SChip>}
+                <button className="tag" onClick={() => {
+                  const order = ["joint", "a", "b"];
+                  set(i, "owner", order[(order.indexOf(e.owner) + 1) % 3]);
+                }} title="Who covers this">{m.ownerName(e.owner)}</button>
+                <button className="tag" title="Essential envelopes get funded before goals and spending money"
+                  style={e.essential ? { background: C.brandSoft, color: C.brand } : undefined}
+                  onClick={() => set(i, "essential", !e.essential)}>
+                  {e.essential ? "Essential" : "Flexible"}
+                </button>
+                <select className="tag hideS" value={e.group || "Other"} onChange={(ev) => set(i, "group", ev.target.value)} aria-label="Group">
+                  {GROUPS.map((x) => <option key={x}>{x}</option>)}
+                </select>
+              </div>
             </div>
           );
         })}
-        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-          <button className="btn ghost tiny" onClick={() => writeMonth((mm) => {
-            mm.envelopes.push({ id: uid(), name: "New envelope", group: "Other", planned: 0, owner: "joint" });
-            return mm;
-          })}>Add an envelope</button>
-          <button className="btn ghost tiny" onClick={() => writeMonth((mm) => {
-            const prev = state.months[shiftMonth(month, -1)];
-            if (!prev) return mm;
-            mm.envelopes.forEach((e) => {
-              const match = prev.envelopes.find((x) => x.name === e.name);
-              if (!match) return;
-              const s = prev.entries.filter((t) => t.envId === match.id).reduce((n, t) => n + t.amount, 0);
-              if (s > 0) e.planned = Math.round(s);
-            });
-            return mm;
-          })}>Match last month's actuals</button>
-        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+        <button className="btn tiny" onClick={() => writeMonth((mm) => {
+          mm.envelopes.push({ id: uid(), name: "New envelope", group: "Other", planned: 0, owner: "joint" });
+          return mm;
+        })}>+ Add an envelope</button>
+        <button className="btn ghost tiny" onClick={() => writeMonth((mm) => {
+          const prev = state.months[shiftMonth(month, -1)];
+          if (!prev) return mm;
+          mm.envelopes.forEach((e) => {
+            const match = prev.envelopes.find((x) => x.name === e.name);
+            if (!match) return;
+            const s = prev.entries.filter((t) => t.envId === match.id).reduce((n, t) => n + t.amount, 0);
+            if (s > 0) e.planned = Math.round(s);
+          });
+          return mm;
+        })}>Match last month's actuals</button>
       </div>
     </>
   );

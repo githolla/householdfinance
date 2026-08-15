@@ -45,6 +45,32 @@ export const Tip = ({ active, payload, label }) => {
 
 export const axis = { stroke: C.soft, fontSize: 11, tickLine: false, axisLine: false };
 
+/** Donut progress ring. Children render centred inside it. */
+export function Ring({ pct, size = 84, stroke = 10, color = C.brand, track = C.brandSoft, children }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const p = Math.max(0, Math.min(100, Number(pct) || 0));
+  return (
+    <div className="ringbox" style={{ width: size, height: size }}>
+      <svg width={size} height={size} aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
+        {p > 0 && (
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+            strokeLinecap="round" strokeDasharray={`${(p / 100) * c} ${c}`}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+        )}
+      </svg>
+      <div className="ringlabel">{children}</div>
+    </div>
+  );
+}
+
+/** Status chip. Always a symbol plus a word — colour never carries state alone. */
+export function SChip({ tone, children }) {
+  const mark = tone === "ok" || tone === "done" ? "✓" : "!";
+  return <span className={"schip " + tone}>{mark} {children}</span>;
+}
+
 export function Rail({ m, plan }) {
   const base = Math.max(m.income, m.allocated, 1);
   const segs = plan.envelopes.filter((e) => e.planned > 0)

@@ -99,9 +99,13 @@ export const hostOf = (v) => {
 export const GROUPS = ["Home", "Daily", "Lifestyle", "Health", "Giving", "Other"];
 
 /* pine = partner A, iris = partner B, brass = shared & goals, rust = the only alarm colour */
+/* violet = partner A and the brand, teal = partner B, amber = shared/goals,
+   red = the only alarm colour, green = confirmed-good. Validated as a set with
+   a CVD + normal-vision separation checker, all pairs, on the white card surface. */
 export const C = {
-  a: "#2E6F63", b: "#6B5CA5", joint: "#B9862B", warn: "#A93E2F",
-  soft: "#5C6864", ink: "#16211F", line: "#D2D6CC",
+  a: "#6C4CF1", b: "#0E9888", joint: "#E09112", warn: "#D93A4C", ok: "#17A24A",
+  soft: "#6F6C8F", ink: "#1B1B2F", line: "#E7E4F4",
+  brand: "#6C4CF1", brandSoft: "#EDE8FE",
 };
 
-export const PIE = ["#2E6F63", "#6B5CA5", "#B9862B", "#4C8C7E", "#8C7BC0", "#A93E2F", "#3F5C57", "#C9A227"];
+export const PIE = ["#6C4CF1", "#0E9888", "#E09112", "#9B85F6", "#54C2B4", "#8A8AA3", "#C4B5FD", "#D9C58A"];

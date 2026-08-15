@@ -61,7 +61,7 @@ export default function Goals({ ctx }) {
         return (
           <div className="card" key={g.id} style={{ marginBottom: 14 }}>
             <div className="chead">
-              <input className="field" style={{ border: "none", background: "none", fontFamily: "Fraunces, Georgia, serif", fontSize: 19, padding: 0 }}
+              <input className="field" style={{ border: "none", background: "none", fontWeight: 700, fontSize: 18, padding: 0 }}
                 value={g.name} onChange={(e) => set("name", e.target.value)} aria-label="Goal name" />
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <select className="tag" value={g.role || ""} onChange={(e) => {

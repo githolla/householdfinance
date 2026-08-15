@@ -57,6 +57,13 @@ const ICON = {
   txn: <svg viewBox="0 0 24 24"><path d="M6 3v18l2-1.5L10 21l2-1.5L14 21l2-1.5L18 21V3z" /><path d="M9 8h6M9 12h6" /></svg>,
   budget: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 8l9 5 9-5" /></svg>,
   bills: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>,
+  plan: <svg viewBox="0 0 24 24"><path d="M4 5h16M7 12h10M10 19h4" /></svg>,
+  goals: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.5" /></svg>,
+  worth: <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M16 12h5M7 6V4.5A1.5 1.5 0 0 1 8.5 3H17" /></svg>,
+  taxes: <svg viewBox="0 0 24 24"><path d="M5 19L19 5" /><circle cx="7.5" cy="7.5" r="2.4" /><circle cx="16.5" cy="16.5" r="2.4" /></svg>,
+  reports: <svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-6" /></svg>,
+  planner: <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z" /></svg>,
+  settings: <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2.2" /><circle cx="7" cy="17" r="2.2" /></svg>,
   more: <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" /></svg>,
 };
 
@@ -158,12 +165,17 @@ export default function App() {
       <div className="shell">
         <aside className="side">
           <div className="mark">
-            <span className="nm">{state.household.name}</span>
-            <span className="who">{m.pA.name} &amp; {m.pB.name}</span>
+            <span className="logo">{(state.household.name || "H").trim().charAt(0).toUpperCase()}</span>
+            <span>
+              <span className="nm">{state.household.name}</span>
+              <span className="who">{m.pA.name} &amp; {m.pB.name}</span>
+            </span>
           </div>
           <nav>
             {NAV.map(([k, label]) => (
-              <button key={k} className={view === k ? "on" : ""} onClick={() => setView(k)}>{label}</button>
+              <button key={k} className={view === k ? "on" : ""} onClick={() => setView(k)}>
+                {ICON[k]}<span>{label}</span>
+              </button>
             ))}
           </nav>
           <div className="sidefoot">
@@ -212,7 +224,9 @@ export default function App() {
         </button>
       </nav>
 
-      <button className="fab" onClick={() => quickAdd()} aria-label="Log spending">+</button>
+      <button className="fab" onClick={() => quickAdd()} aria-label="Log spending">
+        <span className="fabplus">+</span><span className="fablabel">Add expense</span>
+      </button>
 
       <Sheet open={more} onClose={() => setMore(false)} title={state.household.name}>
         <div style={{ marginBottom: 14 }}>
