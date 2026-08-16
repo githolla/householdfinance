@@ -45,6 +45,34 @@ export const STEW_VERSES = {
   },
 };
 
+/* One more for the moment of deciding — wisdom, asked for out loud. */
+export const DECIDE_VERSE = {
+  ref: "James 1:5",
+  text: "If any of you lacks wisdom, let him ask of God, who gives to all liberally.",
+};
+
+/* The meeting walks its steps through the same framework. */
+export const MEETING_VERSES = {
+  gratitude: STEW_VERSES.provision,
+  stand: STEW_VERSES.needs,
+  celebrate: STEW_VERSES.enjoyment,
+  conversation: STEW_VERSES.giving,
+  decide: DECIDE_VERSE,
+  close: STEW_VERSES.enough,
+};
+
+/* Short prayer prompts for the moments a decision is actually made.
+   Static and optional — offered as "if it's your practice", never
+   required, never AI-written. */
+export const PRAYERS = {
+  gratitude: "Thank You for what came into our hands this week — it was enough for today.",
+  decision: "Lord, this money was Yours before it was ours. Give us wisdom and one mind — and peace with whatever we choose together.",
+  close: "Keep us faithful with what we have, content with what we don't, and generous either way. Amen.",
+};
+
 /** Whether verses should render at all, per the household's own setting. */
 export const versesOn = (state) =>
   !!(state.faith && state.faith.enabled) && (state.faith.scripture || "relevant") !== "off";
+
+/** Prayer prompts follow the faith layer itself, not the scripture dial. */
+export const prayersOn = (state) => !!(state.faith && state.faith.enabled);

@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { money, compact, monthLabel, ordinal, C } from "../lib/format.js";
 import { buildSnapshot, buildSystem, callPlanner } from "../lib/planner.js";
-import { STEW_VERSES, versesOn } from "../lib/verses.js";
+import { STEW_VERSES, PRAYERS, versesOn, prayersOn } from "../lib/verses.js";
 import { Head, MonthNav, Tip, Ring, SChip, axis } from "../components.jsx";
 
 /* Quick what-ifs: question for the Planner, amount for the offline
@@ -106,6 +106,11 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
      the numbers. Faith layer only; every chip opens Stewardship. */
   const faith = !!(state.faith && state.faith.enabled);
   const STEW_GLYPH = { provision: "🌾", needs: "🏠", giving: "💛", obligations: "🧾", saving: "🛟", enjoyment: "🍜", future: "🌱" };
+  /* One verse a day, rotating through the framework — visible, not
+     hidden behind a hover. */
+  const verseKeys = Object.keys(STEW_VERSES);
+  const dayVerseKey = verseKeys[new Date().getDate() % verseKeys.length];
+  const dayVerse = versesOn(state) ? STEW_VERSES[dayVerseKey] : null;
 
   const catData = plan.envelopes
     .map((e) => ({ name: e.name, spent: m.spentBy[e.id] || 0, planned: e.planned }))
@@ -179,6 +184,11 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
               );
             })}
           </div>
+        )}
+        {dayVerse && (
+          <p className="verse" style={{ marginTop: 12 }}>
+            "{dayVerse.text}" <span className="vref">— {dayVerse.ref}</span>
+          </p>
         )}
       </div>
 
@@ -296,6 +306,10 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
         <div className="card" style={{ marginBottom: 16, borderLeft: `4px solid ${C.joint}` }}>
           <div className="chead"><h3>One thing to decide together</h3></div>
           <p className="empty" style={{ fontSize: 14.5, color: "var(--ink)", fontWeight: 600 }}>{decide}</p>
+          {prayersOn(state) && (
+            <p className="prayer"><span className="plead">If it's your practice</span>
+              <span className="ptext">"{PRAYERS.decision}"</span></p>
+          )}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
             <button className="btn tiny" onClick={() => setView("meeting")}>Take it to the meeting</button>
             <button className="btn ghost tiny" onClick={() => {

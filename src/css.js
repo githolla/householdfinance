@@ -389,9 +389,19 @@ export const CSS = `
  font-size:26px;letter-spacing:-.02em;line-height:1.15;}
 .tc .herofoot{display:block;font-size:11px;color:var(--soft);margin-top:3px;font-weight:500;line-height:1.4;}
 
-/* a verse beside a number — guidance, never a verdict */
-.tc .verse{font-size:12px;font-style:italic;color:var(--soft);margin-top:8px;line-height:1.55;}
-.tc .verse .vref{font-style:normal;font-weight:600;white-space:nowrap;}
+/* a verse beside a number — guidance, never a verdict. Harvest-gold
+   accent: scripture reads as shared light, not an alarm and not brand. */
+.tc .verse{font-size:13px;font-style:italic;color:#6B5A2E;margin-top:10px;line-height:1.6;
+ background:#FBF6E8;border-left:3px solid var(--joint);border-radius:0 12px 12px 0;
+ padding:9px 13px;text-align:left;}
+.tc .verse .vref{font-style:normal;font-weight:700;white-space:nowrap;font-size:11.5px;}
+
+/* a prayer for the moment of deciding — offered, never required */
+.tc .prayer{font-size:13px;color:var(--soft);margin-top:10px;line-height:1.6;
+ background:var(--surface2);border-radius:12px;padding:10px 13px;text-align:left;}
+.tc .prayer .plead{display:block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+ font-weight:700;margin-bottom:4px;color:var(--soft);}
+.tc .prayer .ptext{font-style:italic;color:var(--ink);}
 
 /* the stewardship strip under the hero numbers */
 .tc .stewrow{display:flex;gap:7px;flex-wrap:wrap;margin-top:16px;padding-top:14px;

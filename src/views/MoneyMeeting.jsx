@@ -10,14 +10,23 @@
 
 import { useState } from "react";
 import { money, monthLabel } from "../lib/format.js";
+import { MEETING_VERSES, PRAYERS, versesOn, prayersOn } from "../lib/verses.js";
 import { Head, SChip } from "../components.jsx";
 
 const STEPS = ["Gratitude", "Where we stand", "Celebrate", "One conversation", "Decide", "Close"];
 
 export default function MoneyMeeting({ ctx }) {
   const { m, state, patch, setView } = ctx;
-  const faith = !!(state.faith && state.faith.enabled);
-  const scripture = faith ? (state.faith.scripture || "relevant") : "off";
+  const faith = !!(state.faith && state.faith.enabled); // vote labels + copy
+  const showVerses = versesOn(state);
+  const showPrayers = prayersOn(state);
+  const Verse = ({ k }) => showVerses && MEETING_VERSES[k] ? (
+    <p className="verse">"{MEETING_VERSES[k].text}" <span className="vref">— {MEETING_VERSES[k].ref}</span></p>
+  ) : null;
+  const Prayer = ({ k }) => showPrayers && PRAYERS[k] ? (
+    <p className="prayer"><span className="plead">If it's your practice</span>
+      <span className="ptext">"{PRAYERS[k]}"</span></p>
+  ) : null;
   const [step, setStep] = useState(0);
 
   const meeting = state.meeting || {};
@@ -120,7 +129,9 @@ export default function MoneyMeeting({ ctx }) {
             {m.bills.some((b) => b.overdue) ? "" : ", and every bill so far is current"}.
             {faith && m.week.giving > 0 ? ` ${money(m.week.giving)} of it went to giving.` : ""}
           </p>
-          <label className="lbl" style={{ marginTop: 10 }}>What's one thing you're grateful for this week? <span style={{ textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
+          <Verse k="gratitude" />
+          <Prayer k="gratitude" />
+          <label className="lbl" style={{ marginTop: 12 }}>What's one thing you're grateful for this week? <span style={{ textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
           {[["a", m.pA.name], ["b", m.pB.name]].map(([slot, name]) => (
             <div key={slot} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
               <span style={{ minWidth: 64, fontWeight: 700, fontSize: 13, color: m.ownerColor(slot) }}>{name}</span>
@@ -154,6 +165,7 @@ export default function MoneyMeeting({ ctx }) {
               <span style={{ textAlign: "right", fontWeight: 600 }}>{v}</span>
             </div>
           ))}
+          <Verse k="stand" />
           {nav()}
         </div>
       )}
@@ -164,6 +176,7 @@ export default function MoneyMeeting({ ctx }) {
           {m.celebrate
             ? <p className="empty" style={{ fontSize: 15, color: "var(--ink)", fontWeight: 600 }}>{m.celebrate}</p>
             : <p className="empty">Nothing to celebrate loudly this week — and that's fine. Steady is enough.</p>}
+          <Verse k="celebrate" />
           {nav()}
         </div>
       )}
@@ -177,6 +190,7 @@ export default function MoneyMeeting({ ctx }) {
                 About {money(D)} is available this month beyond the plan. Where should it go?
                 Answer separately — then compare.
               </p>
+              <Verse k="conversation" />
               {[["a", m.pA.name], ["b", m.pB.name]].map(([slot, name]) => (
                 <div key={slot} style={{ display: "flex", alignItems: "center", gap: 6, margin: "8px 0", flexWrap: "wrap" }}>
                   <span style={{ minWidth: 64, fontWeight: 700, fontSize: 13, color: m.ownerColor(slot) }}>{name}</span>
@@ -203,6 +217,8 @@ export default function MoneyMeeting({ ctx }) {
       {step === 4 && (
         <div className="card" style={{ maxWidth: 680 }}>
           <div className="meetbig">Decide</div>
+          {D >= 20 && <Prayer k="decision" />}
+          {D >= 20 && <Verse k="decide" />}
           {D < 20 ? (
             <p className="empty">Nothing to decide this week. On to the close.</p>
           ) : agree ? (
@@ -250,13 +266,9 @@ export default function MoneyMeeting({ ctx }) {
               ? `You said you were grateful for: ${[gratitude.a, gratitude.b].filter(Boolean).join(" — and — ")}.`
               : ""}
           </p>
-          {scripture !== "off" && (
-            <p className="empty">
-              If it's your practice, close with a short prayer of thanks for what came in this week —
-              and for the patience to steward it together.
-            </p>
-          )}
-          <p className="empty" style={{ color: "var(--soft)" }}>See you next week. Same table.</p>
+          <Verse k="close" />
+          <Prayer k="close" />
+          <p className="empty" style={{ color: "var(--soft)", marginTop: 10 }}>See you next week. Same table.</p>
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button className="btn tiny" onClick={() => setView("dash")}>Done</button>
             <button className="btn ghost tiny" onClick={() => setStep(0)}>Run it again</button>

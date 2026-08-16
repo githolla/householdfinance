@@ -13,6 +13,7 @@
 import { useState, useRef, useEffect } from "react";
 import { money, monthLabel, num, C } from "../lib/format.js";
 import { buildSnapshot, buildSystem, callPlanner } from "../lib/planner.js";
+import { PRAYERS, prayersOn } from "../lib/verses.js";
 import { Head, Notes, SChip } from "../components.jsx";
 
 const SCENARIOS = [
@@ -187,6 +188,10 @@ export default function Planner({ ctx }) {
                 <button className="chip" onClick={talkItThrough} disabled={busy}>Talk about it</button>
                 <button className="chip" onClick={setAside}>{faith ? "Pray on it" : "Sleep on it"}</button>
               </div>
+              {prayersOn(state) && (
+                <p className="prayer"><span className="plead">If it's your practice, before you decide</span>
+                  <span className="ptext">"{PRAYERS.decision}"</span></p>
+              )}
               <p className="empty" style={{ marginTop: 6, fontSize: 12 }}>
                 {faith
                   ? "Pray on it sets this aside for a week. It won't come up again until then — patience is part of the plan."
