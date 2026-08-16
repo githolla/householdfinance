@@ -77,12 +77,14 @@ The information architecture copies how financial planners actually present to c
   `.herofig.big`) off `m.today`, plus budget left → Envelopes and bills still due → Bills
   (caption carries the `m.billsCovered` read); a small SVG sparkline of six-month spending;
   the stewardship split as a segmented strip + legend (faith on, monthly buckets, light
-  tints) clicking through to Stewardship; and Today's thread. Under the hero: the fused
-  In / Out / Kept row (`.fusedrow`, 2px seams), then log + what-if, then the mockup-style
-  charts — "Where it went" as a proportional `PIE`-colored strip with rows (over-plan rows
-  flagged in words), "Monthly spend" as quiet gray bars with the live month in brand blue
-  and a dashed income line — then goal rings. `m.monthOutlook.rec` is still computed and
-  feeds the Planner snapshot; it just doesn't render on Home. Directly under it, the **log card**: snap a receipt (camera capture input), upload
+  tints) clicking through to Stewardship; and Today's thread. Under the hero, in this
+  order: log + what-if, then the visualization block — the fused In / Out / Kept row
+  (`.fusedrow`, 2px seams) leading the mockup-style charts ("Where it went" as a
+  proportional `PIE`-colored strip with rows, over-plan rows flagged in words; "Monthly
+  spend" as quiet gray bars with the live month in brand blue and a dashed income line) —
+  then goal rings, then Do-this-next and Coming due. The one-thing-to-decide card was
+  removed from Home (the meeting owns that moment); `m.monthOutlook.rec` is still computed
+  and feeds the Planner snapshot without rendering here. Directly under it, the **log card**: snap a receipt (camera capture input), upload
   a photo, type it in — all driving the same `receipt` hook and EntrySheet — plus one-tap
   envelope chips and the last few entries. Beside it, the **quick what-if chat**: same
   `state.chat` and system prompt as Ask the Planner (via `src/lib/planner.js`), scenario
