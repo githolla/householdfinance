@@ -32,6 +32,13 @@ export default function Setup({ onDone, Frame }) {
   return (
     <Frame>
       <div className="setup">
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+          <span style={{ width: 38, height: 38, borderRadius: 12, background: "var(--brand)", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 18 }}>M</span>
+          <span>
+            <span style={{ display: "block", fontWeight: 800, fontSize: 15.5, letterSpacing: "-.01em" }}>Marching Forth</span>
+            <span style={{ display: "block", fontSize: 10.5, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--soft)", fontWeight: 600 }}>Financial Planner</span>
+          </span>
+        </div>
         <h1>Two people,<br />one month at a time.</h1>
         <p className="sub">
           Tell it who's in the household and what you each bring home. The budget, the bills, the goals, the debt payoff,

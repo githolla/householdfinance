@@ -4,7 +4,7 @@ Read this before touching anything. Keep it current — if you change the archit
 
 ## What this is
 
-A shared-finances app for a couple: budget, spending, bills, goals, debt payoff, a 1099 tax set-aside, net worth, reports, and an AI planner panel that answers with the household's own numbers. It was prototyped as a single Claude artifact and lifted into Vite. Everything works today; nothing is mocked except the data source.
+**Marching Forth Financial Planner** — a shared-finances app for a couple: budget, spending, bills, goals, debt payoff, a 1099 tax set-aside, net worth, reports, and an AI planner panel that answers with the household's own numbers. It was prototyped as a single Claude artifact and lifted into Vite. Everything works today; nothing is mocked except the data source.
 
 ## Stack
 
@@ -84,15 +84,12 @@ The information architecture copies how financial planners actually present to c
   spend" as quiet gray bars with the live month in brand blue and a dashed income line) —
   then goal rings, then Do-this-next and Coming due. The one-thing-to-decide card was
   removed from Home (the meeting owns that moment); `m.monthOutlook.rec` is still computed
-  and feeds the Planner snapshot without rendering here. Directly under it, the **log card**: snap a receipt (camera capture input), upload
-  a photo, type it in — all driving the same `receipt` hook and EntrySheet — plus one-tap
-  envelope chips and the last few entries. Beside it, the **quick what-if chat**: same
-  `state.chat` and system prompt as Ask the Planner (via `src/lib/planner.js`), scenario
-  chips, and a deterministic offline fallback that answers amount-based what-ifs from
-  `m.today` when the API is unreachable. Below: three compact charts (budget ring, where
-  the month went, six-month flow — the `chartsrow` grid goes single-column on phones), then
-  Do-this-next and Coming due. "Since you were last here" and "One thing to decide together"
-  appear only when there's something real. Everything else (steps, notes, goals, rail, most
+  and feeds the Planner snapshot without rendering here. The log card drives the same
+  `receipt` hook and EntrySheet as everywhere else (snap / say it / upload / type it in,
+  one-tap envelope chips, recent entries); the quick what-if chat shares `state.chat` and
+  the system prompt via `src/lib/planner.js`, with a deterministic offline fallback off
+  `m.today`. "Set the table" and "Since you were last here" appear only when real. The
+  `chartsrow` grid goes single-column on phones. Everything else (steps, notes, rail, most
   expenses) lives on its own view — don't move it back; Home stays scannable.
 - **The Money Meeting is its own guided view** (MoneyMeeting.jsx): gratitude → where we stand →
   celebrate (`m.celebrate`, null when nothing is honestly worth naming) → one conversation →

@@ -1,4 +1,4 @@
-# Couple Finance
+# Marching Forth Financial Planner
 
 Shared money for two people on 1099 income: budget, spending, bills, goals, debt payoff, a tax
 set-aside, net worth, reports, and an AI planner that answers with the household's own numbers.

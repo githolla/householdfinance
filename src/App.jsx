@@ -248,6 +248,9 @@ export default function App() {
             )}
             <div className="num" style={{ fontSize: 15, color: C.ink }}>{money(m.netWorth)}</div>
             net worth today
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--surface2)", fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 700 }}>
+              Marching Forth <span style={{ fontWeight: 500 }}>Financial Planner</span>
+            </div>
           </div>
         </aside>
 
