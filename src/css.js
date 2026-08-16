@@ -37,9 +37,24 @@ export const CSS = `
 .tc .lockscroll{overflow:hidden;}
 
 /* shell — the sidebar sits on the page surface, not in a white column;
-   the content column caps its width so huge monitors don't stretch it */
+   the content column caps its width so huge monitors don't stretch it.
+   The hamburger collapses it to an icon rail; the choice persists in
+   state.ui.sideCollapsed. */
 .tc .shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh;min-height:100dvh;
- max-width:1520px;margin:0 auto;}
+ max-width:1520px;margin:0 auto;transition:grid-template-columns .18s ease;}
+.tc .shell.collapsed{grid-template-columns:72px minmax(0,1fr);}
+.tc .sidetop{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.tc .hamb{background:none;border:none;border-radius:10px;padding:8px;color:var(--soft);
+ display:grid;place-items:center;flex:none;}
+.tc .hamb svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;}
+.tc .shell.collapsed .side{padding:26px 12px 22px;}
+.tc .shell.collapsed .sidetop{flex-direction:column;gap:10px;}
+.tc .shell.collapsed .markname{display:none;}
+.tc .shell.collapsed .navsec{height:1px;padding:0;margin:9px 8px;background:var(--line);overflow:hidden;
+ color:transparent;}
+.tc .shell.collapsed .side nav button{justify-content:center;padding:11px 0;}
+.tc .shell.collapsed .side nav button span{display:none;}
+.tc .shell.collapsed .sidefoot{display:none;}
 .tc .side{background:transparent;border-right:none;padding:26px 18px 22px 22px;
  position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:24px;}
 .tc .mark{line-height:1.2;display:flex;align-items:center;gap:10px;}
@@ -480,6 +495,7 @@ export const CSS = `
  .tc .calcell:hover{border-color:var(--brand);}
  .tc .calcell:hover .calpop{display:block;}
  .tc .herofig:hover{background:rgba(255,255,255,.09);}
+ .tc .hamb:hover{background:var(--surface2);color:var(--ink);}
  .tc .stewstrip:hover,.tc .stewlegend:hover{opacity:.85;}
 }
 

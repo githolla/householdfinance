@@ -199,16 +199,25 @@ export default function App() {
     receipt.openBlank({ ...blankDraft(m, envId, state.ui.defaultWho), ...(dateISO ? { dateISO } : {}) });
   const go = (k) => { setView(k); setMore(false); };
 
+  const collapsed = !!state.ui.sideCollapsed;
+  const toggleSide = () => patch((s) => { s.ui.sideCollapsed = !s.ui.sideCollapsed; return s; });
+
   return (
     <Frame>
-      <div className="shell">
+      <div className={"shell" + (collapsed ? " collapsed" : "")}>
         <aside className="side">
-          <div className="mark">
-            <span className="logo">{(state.household.name || "H").trim().charAt(0).toUpperCase()}</span>
-            <span>
-              <span className="nm">{state.household.name}</span>
-              <span className="who">{m.pA.name} &amp; {m.pB.name}</span>
-            </span>
+          <div className="sidetop">
+            <div className="mark">
+              <span className="logo">{(state.household.name || "H").trim().charAt(0).toUpperCase()}</span>
+              <span className="markname">
+                <span className="nm">{state.household.name}</span>
+                <span className="who">{m.pA.name} &amp; {m.pB.name}</span>
+              </span>
+            </div>
+            <button className="hamb" onClick={toggleSide} aria-expanded={!collapsed}
+              aria-label={collapsed ? "Expand menu" : "Collapse menu"} title={collapsed ? "Expand menu" : "Collapse menu"}>
+              <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+            </button>
           </div>
           <nav>
             {SECTIONS.map(([sec, keys]) => (
@@ -217,7 +226,8 @@ export default function App() {
                 {keys.filter(navVisible).map((k) => {
                   const item = NAV.find((n) => n[0] === k);
                   return (
-                    <button key={k} className={view === k ? "on" : ""} onClick={() => setView(k)}>
+                    <button key={k} className={view === k ? "on" : ""} onClick={() => setView(k)}
+                      title={collapsed ? item[1] : undefined} aria-label={item[1]}>
                       {ICON[k]}<span>{item[1]}</span>
                     </button>
                   );

@@ -26,8 +26,9 @@ One JSON object, persisted whole under `twocolumn:v2`.
     "lastSeen": "2026-08-16",         // stamped on Home mount; drives "since you were last here"
     "agreedRec": "2026-08",           // month whose Planner split was marked "use this plan" —
                                       // a recorded agreement, it moves no money
-    "plannerSeed": "…"                // one-shot question handed to Ask the Planner; consumed on
+    "plannerSeed": "…",               // one-shot question handed to Ask the Planner; consumed on
                                       // mount into the input box, never auto-sent
+    "sideCollapsed": false            // desktop sidebar collapsed to the icon rail
   },
 
   "months": {
