@@ -67,6 +67,9 @@ export function newState({ name, aName, bName, aIncome, bIncome, aGross, bGross 
     merchantMap: {},
     rules: [],
     meeting: { key: "", briefing: "", votes: { a: null, b: null } },
+    faith: { enabled: true },
+    decisions: [],
+    enough: { note: "" },
     chat: [],
   };
 }
@@ -230,6 +233,11 @@ export function demoState() {
       { id: uid(), text: "Flag it if eating out passes $350 in a month" },
     ],
     meeting: { key: "", briefing: "", votes: { a: null, b: null } },
+    faith: { enabled: true },
+    decisions: [],
+    enough: {
+      note: "Enough for us: the emergency fund full, taxes always set aside, and 15% going somewhere that matters. Past that, money is for giving and living, not stacking.",
+    },
     chat: [],
   };
 }
@@ -302,6 +310,9 @@ export function withDefaults(s) {
     merchantMap: s.merchantMap || {},
     rules: Array.isArray(s.rules) ? s.rules : [],
     meeting: { key: "", briefing: "", votes: { a: null, b: null }, ...(s.meeting || {}) },
+    faith: { enabled: true, ...(s.faith || {}) },
+    decisions: Array.isArray(s.decisions) ? s.decisions : [],
+    enough: { note: "", ...(s.enough || {}) },
     chat: s.chat || [],
   };
 }

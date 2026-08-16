@@ -90,6 +90,32 @@ person spent theirs on; the app watches the *household* discretionary total and 
 "Household spending money is $X past the agreed amount", never "Josh spent $73 at Target".
 Keep this when adding any copy that touches individual spending.
 
+The stewardship layer (`state.faith.enabled`, on by default, toggled in Settings) reframes
+the same numbers for a household that holds money as stewardship — positioned around three
+relationships: money ↔ God, money ↔ marriage, money ↔ future:
+
+- **`m.stewardship`** — seven buckets (provision / needs / giving / obligations / saving /
+  enjoyment / future), assigned from declared structure (groups, roles, `essential` flags),
+  never inferred from spending. The Stewardship view renders them; the nav entry hides when
+  the layer is off (`navVisible()` in App.jsx).
+- **`m.enough`** — the money-steps ladder doubling as the household's definition of enough,
+  plus their own words in `state.enough.note`. Surplus past the line opens give / save /
+  enjoy / invest / help family — chips that seed a planner question through
+  `state.ui.plannerSeed` (seeded into the box, never auto-sent). The app never picks.
+- **`state.decisions`** — decisions set aside ("Pray on it", or "Sleep on it" with the layer
+  off): parked a week, surfaced once as a note when due, listed on the planner with
+  Revisit / Let it go. The planner prompt says not to advocate for a parked decision.
+- The weekly meeting becomes gratitude-first with a "Give some" vote; the afford verdict adds
+  one quiet "set aside instead, that's N months of <goal>" line — space between wanting and
+  buying, not a lecture.
+
+**The AI never speaks for God.** It may offer at most one relevant biblical principle when a
+question genuinely touches worry, contentment, generosity, disagreement, or a weighty
+decision — introduced as a principle that may be relevant, never a verdict, never decoration,
+never shame. It never says or implies what God wants, and big decisions end with the
+reminder that the two of them decide. This is a hard rule with the same standing as the
+no-surveillance rule: keep it in any prompt or copy you touch.
+
 All of it is computed in `model()` like every other number. If you add a warning,
 decide where it ranks in `nextAction` — the point is one action, not a pile.
 

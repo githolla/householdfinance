@@ -5,8 +5,10 @@
    AI phrasing), the weekly money meeting (briefing + one decision each
    partner votes on), and open questions against the full snapshot.
 
-   House rule the code enforces, not just the prompt: the planner talks
-   about household money, never about what one person spent.
+   House rules the code enforces, not just the prompt: the planner talks
+   about household money, never about what one person spent — and when
+   the faith layer is on, it offers biblical principles but never claims
+   to speak for God. The decision is always theirs, made together.
    ================================================================== */
 
 import { useState, useRef, useEffect } from "react";
@@ -14,13 +16,25 @@ import { money, monthLabel, num, C } from "../lib/format.js";
 import { API_URL } from "../lib/receipt.js";
 import { Head, Notes, SChip } from "../components.jsx";
 
-const VOTE_LABELS = { savings: "Savings", debt: "Debt", cushion: "Keep it available" };
-
 export default function Planner({ ctx }) {
   const { m, state, patch, plan, month } = ctx;
+  const faith = !!(state.faith && state.faith.enabled);
+  const VOTE_LABELS = faith
+    ? { savings: "Save it", give: "Give some", debt: "Debt", cushion: "Keep it available" }
+    : { savings: "Savings", debt: "Debt", cushion: "Keep it available" };
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+
+  /* A question handed over from another view (the Stewardship surplus
+     chips) lands in the box, never auto-sent — a person presses Ask. */
+  useEffect(() => {
+    const seed = state.ui && state.ui.plannerSeed;
+    if (seed) {
+      setQ(seed);
+      patch((s) => { delete s.ui.plannerSeed; return s; });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // can we afford it?
   const [what, setWhat] = useState("");
@@ -119,9 +133,20 @@ export default function Planner({ ctx }) {
     thisWeek: m.week ? {
       spent: m.week.spent, weeklyAverage: Math.round(m.week.weeklyAvg),
       vsAverage: m.week.delta === null ? null : Math.round(m.week.delta),
+      givenThisWeek: m.week.giving,
       upcomingBills: m.week.upcoming.map((b) => ({ name: b.name, amount: b.amount, dueInDays: b.dueIn })),
       extraAvailableThisMonth: m.week.decision,
     } : null,
+    decisionsSetAside: m.decisions.map((d) => ({
+      what: d.what, cost: d.cost, revisitOn: d.until, readyToRevisit: d.due,
+    })),
+    stewardship: m.stewardship.map((b) => ({ bucket: b.label, monthlyFigure: Math.round(b.figure), state: b.sentence })),
+    enough: {
+      householdsOwnDefinition: m.enough.note || null,
+      thresholds: m.enough.thresholds.map((t) => ({ threshold: t.label, met: t.done })),
+      allThresholdsMet: m.enough.met,
+      surplusBeyondEnoughThisMonth: Math.round(m.enough.surplus),
+    },
   };
 
   const SYSTEM =
@@ -133,7 +158,15 @@ export default function Planner({ ctx }) {
     `Their house rules are in the snapshot — hold every answer against them, and say so when an idea would break one. ` +
     `Personal spending money is agreed and private: never report, total, or comment on what one person spent theirs on. Talk about household discretionary money as a whole. ` +
     `The tax figures are a set-aside estimate, not a filing — say so if you quote them. ` +
-    `You are not a licensed advisor: for tax, legal, insurance, or investment-product decisions, say so in one line and point them to a professional.\n\n` +
+    `You are not a licensed advisor: for tax, legal, insurance, or investment-product decisions, say so in one line and point them to a professional. ` +
+    `Decisions listed as set aside in the snapshot are deliberately resting: do not advocate for or against them unless asked about one directly.\n\n` +
+    (faith
+      ? `This household practices Christian stewardship, and asked for money to be held that way. Frame things, where it fits naturally, around three relationships: money and God (stewardship and generosity), money and their marriage (unity, one household, decisions made together), and money and the future (wisdom, preparation, legacy). You may explain why the household handles money this way — giving off the top, patience before big purchases, contentment over comparison — rather than presenting rules as arbitrary. ` +
+      `Scripture: offer it only when a question genuinely touches worry, contentment, generosity, disagreement, or a weighty decision — at most one short passage, reference plus a phrase, introduced as a biblical principle that may be relevant. Never as decoration, never to shame. ` +
+      `The line you never cross: you do not speak for God. Never say or imply that God wants, approves of, or disapproves of a specific choice. Offer principles; then the decision is theirs, made together — say so when the decision is big. ` +
+      `Purchases they can afford: say so plainly, then stop. No cheering consumption, no guilt over enjoying what they have. If they want to go deeper, walk through it with them: can we afford it, is the debt wise, why do we want it, does it crowd out what we've committed to, is this contentment or comparison. ` +
+      `Their definition of enough is in the snapshot. When the numbers pass it, the conversation is give, save, enjoy, invest, or help family — never simply "maximise returns".\n\n`
+      : ``) +
     `Snapshot (monthly amounts unless noted):\n${JSON.stringify(snapshot, null, 2)}`;
 
   const callPlanner = async (messages, maxTokens = 8000) => {
@@ -182,28 +215,38 @@ export default function Planner({ ctx }) {
         content:
           `We're deciding whether to spend ${money(r.cost)}${what.trim() ? ` on ${what.trim()}` : ""} this month. ` +
           `The deterministic verdict is "${r.label}" for these reasons: ${r.reasons.join(" ")} ` +
-          `In 60 words or less: confirm or soften that verdict in your own voice, check it against the house rules by name if any apply, and give one practical suggestion. No headings.`,
+          `In 60 words or less: confirm or soften that verdict in your own voice and check it against the house rules by name if any apply. ` +
+          `If the answer is yes, state it plainly and stop — no cheering the purchase, no guilt. No headings.`,
       }], 3000);
       setVerdictAi(ai);
     } catch (e) { /* deterministic verdict already on screen */ }
     setBusyAfford(false);
   };
 
-  /* ---- the weekly money meeting ---- */
+  /* ---- the weekly money meeting ----
+     Two formats for one meeting: the stewardship version opens with
+     gratitude and closes with a question to discuss, the neutral version
+     sticks to the numbers. Both are the same five minutes. */
   const runMeeting = async () => {
     if (!m.week) return;
     setBusyMeeting(true);
+    const prompt = faith
+      ? `Write this week's stewardship meeting briefing for us. Use exactly these short sections, in this order, no headings other than the bold words: ` +
+        `**Gratitude** — open with what's held, from the snapshot only: whether the bills are current, where the emergency fund stands, and that ${money(m.week.spent)} of provision was put to use this week. Plain thankfulness, no preaching. ` +
+        `**Giving** — ${money(m.week.giving)} went to giving this week; one factual line. ` +
+        `**Stewardship** — what we spent against our weekly average (${money(m.week.weeklyAvg)}), and the envelope that drove the difference. ` +
+        `**Coming up** — bills due in the next two weeks from the snapshot. ` +
+        `**One decision** — about ${money(m.week.decision)} is available this month beyond plan; lay out saving it, giving some, putting it toward debt, or keeping it available in one sentence each using our numbers, and close that section with "the two of you decide." ` +
+        `**To talk about** — one gentle question for us to discuss together, in the spirit of "what's one thing you're grateful came through this month?" ` +
+        `Under 170 words total. No exclamation marks. Never claim to know what God wants.`
+      : `Write this week's five-minute money briefing for us. Use exactly these short sections, in this order, no headings other than the bold words: ` +
+        `**This week** — what we spent (${money(m.week.spent)}) against our weekly average (${money(m.week.weeklyAvg)}), and the one or two envelopes that drove it. ` +
+        `**Coming up** — bills due in the next two weeks from the snapshot. ` +
+        `**Goals** — one line on the emergency fund and the next goal. ` +
+        `**One decision** — we have about ${money(m.week.decision)} more available this month than planned; lay out savings vs debt vs keeping it available in one sentence each, using our numbers. ` +
+        `Under 150 words total. No exclamation marks.`;
     try {
-      const briefing = await callPlanner([{
-        role: "user",
-        content:
-          `Write this week's five-minute money briefing for us. Use exactly these short sections, in this order, no headings other than the bold words: ` +
-          `**This week** — what we spent (${money(m.week.spent)}) against our weekly average (${money(m.week.weeklyAvg)}), and the one or two envelopes that drove it. ` +
-          `**Coming up** — bills due in the next two weeks from the snapshot. ` +
-          `**Goals** — one line on the emergency fund and the next goal. ` +
-          `**One decision** — we have about ${money(m.week.decision)} more available this month than planned; lay out savings vs debt vs keeping it available in one sentence each, using our numbers. ` +
-          `Under 150 words total. No exclamation marks.`,
-      }], 4000);
+      const briefing = await callPlanner([{ role: "user", content: prompt }], 4000);
       patch((s) => {
         s.meeting = { key: m.weekKey, briefing, votes: { a: null, b: null } };
         return s;
@@ -222,6 +265,38 @@ export default function Planner({ ctx }) {
   const bothVoted = votes.a && votes.b;
   const agree = bothVoted && votes.a === votes.b;
 
+  /* ---- setting a decision aside --------------------------------------
+     "Pray on it" (or "sleep on it") parks the decision for a week. The
+     planner is told not to push it; the app brings it back once, on the
+     agreed day, as a note — patience by design. */
+  const setAside = () => {
+    if (!verdict) return;
+    const until = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    patch((s) => {
+      s.decisions.push({
+        id: Math.random().toString(36).slice(2, 9),
+        what: verdict.what || "a purchase", cost: verdict.cost, until,
+        created: new Date().toISOString().slice(0, 10),
+      });
+      return s;
+    });
+    setVerdict(null); setVerdictAi(""); setWhat(""); setCost("");
+  };
+
+  const talkItThrough = () => {
+    if (!verdict) return;
+    ask(
+      `We're deciding together about spending ${money(verdict.cost)}${verdict.what ? ` on ${verdict.what}` : ""}. ` +
+      `Help us talk it through — whether we can afford it, whether any debt or tradeoff is wise, why we want it, ` +
+      `and whether it crowds out anything we've committed to. Stay neutral between us and end with the reminder that the decision is ours.`
+    );
+  };
+
+  const dropDecision = (id) => patch((s) => {
+    s.decisions = s.decisions.filter((d) => d.id !== id);
+    return s;
+  });
+
   const chips = [
     "Can we afford $600 for a trip next month?",
     "Why are we spending so much this month?",
@@ -229,6 +304,7 @@ export default function Planner({ ctx }) {
     "What happens if we buy a $35,000 car in October?",
     "Are we holding back enough for taxes?",
     "Pay down the credit card or build the emergency fund?",
+    ...(faith ? ["We're feeling anxious about money — where do we actually stand?"] : []),
   ];
 
   const toneFor = (v) => (v === "yes" ? "ok" : v === "no" ? "over" : "warn");
@@ -267,14 +343,26 @@ export default function Planner({ ctx }) {
                 <p className="empty" key={i} style={{ padding: "3px 0" }}>{r}</p>
               ))}
               {verdictAi && <div className="msg them" style={{ marginTop: 8 }}>{verdictAi}</div>}
+              <div className="chips" style={{ marginTop: 10 }}>
+                <button className="chip" onClick={() => { setVerdict(null); setVerdictAi(""); setWhat(""); setCost(""); }}>
+                  We agree
+                </button>
+                <button className="chip" onClick={talkItThrough} disabled={busy}>Talk about it</button>
+                <button className="chip" onClick={setAside}>{faith ? "Pray on it" : "Sleep on it"}</button>
+              </div>
+              <p className="empty" style={{ marginTop: 6, fontSize: 12 }}>
+                {faith
+                  ? "Pray on it sets this aside for a week. It won't come up again until then — patience is part of the plan."
+                  : "Sleep on it sets this aside for a week before it comes back up."}
+              </p>
             </div>
           )}
         </div>
 
         <div className="card">
           <div className="chead">
-            <h3>This week's money meeting</h3>
-            <span className="meta">five minutes, once a week, nobody is the budget cop</span>
+            <h3>{faith ? "This week's stewardship meeting" : "This week's money meeting"}</h3>
+            <span className="meta">{faith ? "five minutes, once a week — gratitude first" : "five minutes, once a week, nobody is the budget cop"}</span>
           </div>
           {!m.week ? (
             <p className="empty">The meeting runs on the current month — flip back to it to hold one.</p>
@@ -338,6 +426,32 @@ export default function Planner({ ctx }) {
           )}
         </div>
         <div>
+          {m.decisions.length > 0 && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="chead"><h3>{faith ? "Set aside to pray on" : "Set aside for now"}</h3></div>
+              {m.decisions.map((d) => (
+                <div className="note" key={d.id} style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <span style={{ fontWeight: 600 }}>{d.what}</span>
+                    <span className="num">{money(d.cost)}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {d.due ? "the agreed time has come" : `quiet for ${d.daysLeft} more ${d.daysLeft === 1 ? "day" : "days"}`}
+                    </span>
+                    <span style={{ display: "flex", gap: 6 }}>
+                      <button className="btn ghost tiny" disabled={busy}
+                        onClick={() => { dropDecision(d.id); ask(`We set aside a decision about spending ${money(d.cost)} on ${d.what}, and we're ready to talk about it now. Walk us through it fresh — afford, wisdom, why we want it — and leave the decision with us.`); }}>
+                        Revisit
+                      </button>
+                      <button className="btn ghost tiny" onClick={() => dropDecision(d.id)}>Let it go</button>
+                    </span>
+                  </div>
+                </div>
+              ))}
+              <p className="empty" style={{ fontSize: 12 }}>It won't bring these up on its own until the day comes.</p>
+            </div>
+          )}
           <div className="card" style={{ marginBottom: 16 }}>
             <div className="chead"><h3>House rules it holds you to</h3></div>
             {(state.rules || []).length === 0

@@ -237,15 +237,20 @@ export function model(state, plan, month) {
     const mm = state.months[k];
     if (!mm) continue;
     const [yy, mo] = k.split("-").map(Number);
-    const nameOf = {};
-    (mm.envelopes || []).forEach((e) => { nameOf[e.id] = e.name; });
+    const nameOf = {}, metaOf = {};
+    (mm.envelopes || []).forEach((e) => { nameOf[e.id] = e.name; metaOf[e.id] = e; });
     (mm.entries || []).forEach((t) => {
       if (!t.day) return;
-      dated.push({ amount: t.amount, name: nameOf[t.envId] || "Spending", d: new Date(yy, mo - 1, t.day) });
+      const env = metaOf[t.envId];
+      dated.push({
+        amount: t.amount, name: nameOf[t.envId] || "Spending", d: new Date(yy, mo - 1, t.day),
+        giving: !!env && (env.group === "Giving" || env.role === "tithe"),
+      });
     });
   }
   const inLast = (days, e) => now - e.d >= 0 && now - e.d < days * dayMs;
   const spent7 = dated.filter((e) => inLast(7, e)).reduce((n, e) => n + e.amount, 0);
+  const giving7 = dated.filter((e) => inLast(7, e) && e.giving).reduce((n, e) => n + e.amount, 0);
   const spent28 = dated.filter((e) => inLast(28, e)).reduce((n, e) => n + e.amount, 0);
   const weekByName = {};
   dated.filter((e) => inLast(7, e)).forEach((e) => { weekByName[e.name] = (weekByName[e.name] || 0) + e.amount; });
@@ -268,6 +273,7 @@ export function model(state, plan, month) {
   const week = live ? {
     key: weekKey,
     spent: spent7,
+    giving: giving7,
     weeklyAvg: spent28 / 4,
     delta: spent28 > 0 ? spent7 - spent28 / 4 : null,
     rows: weekRows.sort((a, b) => b.spent - a.spent).slice(0, 5),
@@ -324,9 +330,105 @@ export function model(state, plan, month) {
     });
   }
 
-  /* ---- can we afford it? ---- */
+  /* ---- the stewardship read: the whole picture in seven buckets ------
+     Provision, needs, giving, obligations, saving, enjoyment, future.
+     Buckets are assigned from what the household already declared —
+     essential flags, groups, roles — never inferred from spending. ---- */
+  const bucketOf = (e) => {
+    if (e.group === "Giving" || e.role === "tithe") return "giving";
+    if (e.role === "tax" || e.name === "Debt payments") return "obligations";
+    if (e.role === "spending" || e.group === "Lifestyle") return "enjoyment";
+    if (e.essential) return "needs";
+    return "needs";
+  };
+  const bSum = { giving: [0, 0], obligations: [0, 0], enjoyment: [0, 0], needs: [0, 0] };
+  plan.envelopes.forEach((e) => {
+    const b = bSum[bucketOf(e)];
+    b[0] += e.planned; b[1] += spentBy[e.id] || 0;
+  });
+  const givingPct = income > 0 ? (bSum.giving[0] / income) * 100 : 0;
+  const invested = assets.filter((a) => a.type === "invest").reduce((n, a) => n + a.balance, 0);
+  const stewardship = [
+    {
+      key: "provision", label: "Provision", figure: income, foot: "comes in each month",
+      sentence: income > 0
+        ? `${money(pA.income)} from ${pA.name}'s work, ${money(pB.income)} from ${pB.name}'s — all of it arrives with a job to do.`
+        : "Add what you each bring home in Settings.",
+      tone: income > 0 ? "" : "warn",
+    },
+    {
+      key: "needs", label: "Needs", figure: bSum.needs[0], foot: `planned · ${money(bSum.needs[1])} spent`,
+      sentence: bSum.needs[1] > bSum.needs[0] && bSum.needs[0] > 0
+        ? `Housing, food, and the rest of the essentials are ${money(bSum.needs[1] - bSum.needs[0])} over plan this month.`
+        : "Housing, food, transport, health — covered before anything else is.",
+      tone: bSum.needs[1] > bSum.needs[0] && bSum.needs[0] > 0 ? "warn" : "ok",
+    },
+    {
+      key: "giving", label: "Giving", figure: bSum.giving[0], foot: `planned · ${money(bSum.giving[1])} given so far`,
+      sentence: bSum.giving[0] > 0
+        ? `${Math.round(givingPct)}% of what comes in is committed to giving, off the top — not from what's left over.`
+        : "Nothing set apart for giving yet — add a Giving envelope to change that.",
+      tone: bSum.giving[0] > 0 ? "ok" : "",
+    },
+    {
+      key: "obligations", label: "Obligations", figure: debtMin + fundedExtra, foot: `a month · ${money(debtTotal)} still owed`,
+      sentence: debtTotal <= 0 ? "Nothing owed to anyone."
+        : debt.avalanche.never ? "At these payments the debt never clears — the minimums have to rise first."
+          : `Debt and the tax set-aside, honoured on time — debt-free ${monthLabel(debt.avalanche.payoffMonth)} at this pace.`,
+      tone: debt.avalanche.never ? "warn" : "ok",
+    },
+    {
+      key: "saving", label: "Saving", figure: goalMonthly, foot: "a month toward what's ahead",
+      sentence: flow.efTarget > 0
+        ? `The emergency fund holds ${money(efGoalRef ? efGoalRef.saved : 0)} of its ${money(flow.efTarget)} target — margin for the months you can't see yet.`
+        : "Set an emergency fund target in The plan to give saving a floor.",
+      tone: efGoalRef && flow.efTarget > 0 && efGoalRef.saved >= flow.efTarget ? "ok" : "",
+    },
+    {
+      key: "enjoyment", label: "Enjoyment", figure: bSum.enjoyment[0], foot: `planned · ${money(bSum.enjoyment[1])} spent`,
+      sentence: bSum.enjoyment[1] > bSum.enjoyment[0] && bSum.enjoyment[0] > 0
+        ? `Meals out, spending money, the fun — ${money(bSum.enjoyment[1] - bSum.enjoyment[0])} past what was agreed.`
+        : "Meals out, hobbies, each of you with money that's nobody's business — agreed, and enjoyed without guilt.",
+      tone: bSum.enjoyment[1] > bSum.enjoyment[0] && bSum.enjoyment[0] > 0 ? "warn" : "ok",
+    },
+    {
+      key: "future", label: "Future", figure: invested, foot: `invested · saving ${Math.round(savingsRate)}% of income`,
+      sentence: savingsRate >= 15
+        ? "Retirement and what comes after are getting their share now, while it's cheap."
+        : `${Math.round(savingsRate)}% of income is heading to the future — most plans get comfortable at 15%.`,
+      tone: savingsRate >= 15 ? "ok" : "",
+    },
+  ];
+
+  /* ---- decisions set aside (pray on it / sleep on it) ----------------
+     A deferred decision is left alone until its date. The planner is told
+     not to advocate for it; the app resurfaces it once, gently. ---- */
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const decisions = (state.decisions || []).map((d) => ({
+    ...d,
+    due: d.until <= todayISO,
+    daysLeft: Math.max(0, Math.ceil((new Date(d.until + "T12:00:00") - now) / dayMs)),
+  }));
+  const decisionsDue = decisions.filter((d) => d.due);
+
+  /* ---- can we afford it? --------------------------------------------
+     The verdict is pure arithmetic. When the answer is yes, one quiet
+     line shows what the same money would do pointed at their own goals —
+     space between wanting and buying, not a lecture. ---- */
   const affordLite = { assets, billsLeft, flow, monthOutlook };
-  const afford = (cost) => affordability({ cost, m: affordLite });
+  const afford = (cost) => {
+    const r = affordability({ cost, m: affordLite });
+    if (r && (r.verdict === "yes" || r.verdict === "tradeoff") && cost >= 100) {
+      const goal = state.goals
+        .filter((g) => g.monthly > 0 && g.saved < g.target)
+        .sort((a, b) => b.monthly - a.monthly)[0];
+      if (goal) {
+        const mo = cost / goal.monthly;
+        r.reasons.push(`Set aside instead, ${money(cost)} is about ${mo < 10 ? mo.toFixed(1) : Math.round(mo)} months of ${goal.name}.`);
+      }
+    }
+    return r;
+  };
 
   /* ---- merchant memory ---- */
   const merchantMap = state.merchantMap || {};
@@ -408,6 +510,10 @@ export function model(state, plan, month) {
   }
   bills.filter((b) => b.overdue).forEach((b) => notes.push(["warn", `${b.name} was due the ${ordinal(b.day)} and isn't marked paid.`]));
   bills.filter((b) => b.dueSoon).forEach((b) => notes.push(["joint", `${b.name} (${money(b.amount)}) is due the ${ordinal(b.day)}.`]));
+
+  decisionsDue.forEach((d) => {
+    notes.push(["joint", `You set ${d.what || money(d.cost)} aside to sit with. The time you agreed on has come — worth deciding together.`]);
+  });
 
   state.goals.forEach((g) => {
     const st = goalStatus(g);
@@ -499,6 +605,32 @@ export function model(state, plan, month) {
   }));
   const currentStep = steps[Math.min(currentIdx, steps.length - 1)];
 
+  /* ---- "enough" ------------------------------------------------------
+     The ladder doubles as the household's definition of enough: taxes on
+     pace, the fund full, nothing expensive owed, 15% moving forward.
+     Money past that line isn't a score to run up — it opens a different
+     conversation (give / save / enjoy / invest / help family), and the
+     app never picks for them. ---- */
+  const enoughThresholds = [
+    { key: "tax", label: "Taxes always set aside", done: stepDefs[1].ok },
+    { key: "debt", label: `Nothing owed above ${HIGH_APR}%`, done: stepDefs[3].ok },
+    { key: "ef", label: "Emergency fund at its target", done: stepDefs[4].ok },
+    { key: "save", label: "15% moving toward what's next", done: stepDefs[5].ok },
+  ];
+  const enoughMet = enoughThresholds.every((t) => t.done);
+  const enoughSurplus = enoughMet ? Math.max(0, monthOutlook.available) : 0;
+  const enough = {
+    note: (state.enough && state.enough.note) || "",
+    thresholds: enoughThresholds,
+    met: enoughMet,
+    surplus: enoughSurplus,
+    sentence: enoughMet
+      ? (enoughSurplus >= 50
+        ? `Everything you called enough is in place. About ${money(enoughSurplus)} this month sits beyond your planned needs — that's not a problem to optimise, it's a decision to make together.`
+        : "Everything you called enough is in place, and this month closes without much beyond it.")
+      : `Not there yet — ${enoughThresholds.filter((t) => !t.done).length} of ${enoughThresholds.length} thresholds still ahead of you.`,
+  };
+
   /* ---- the one thing to do next ------------------------------------
      A planner leads with a single action, not a pile of warnings.
      Severity order matches the ladder; ties break toward whatever is
@@ -577,6 +709,7 @@ export function model(state, plan, month) {
     envRemaining, tightest, recentEnvIds, topSpend, stateLine, live,
     steps, currentStep, nextAction, setupSteps, setupDone,
     avgByName, threeMoAvgTotal, paceDiag, monthOutlook, week, weekKey, forecast12, afford, calendar,
+    stewardship, decisions, decisionsDue, enough,
     envByName, matchEnvelope, merchantFavourites,
     merchantCount: Object.keys(merchantMap).length,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),

@@ -107,6 +107,19 @@ One JSON object, persisted whole under `twocolumn:v2`.
     "votes": { "a": "savings", "b": null }   // each partner's one-decision vote, or null
   },
 
+  "faith": { "enabled": true },     // the stewardship layer: Stewardship view, gratitude-first
+                                    // meeting, "pray on it", a planner that may offer biblical
+                                    // principles — and never speaks for God
+
+  "decisions": [                    // decisions deliberately set aside (pray / sleep on it)
+    { "id": "d1", "what": "A newer truck", "cost": 42000,
+      "until": "2026-08-23",        // resurfaced once as a note on this day
+      "created": "2026-08-16" }
+  ],
+
+  "enough": { "note": "…" },        // the household's own definition of enough, free text —
+                                    // read by the planner, never parsed
+
   "chat": [{ "role": "user", "content": "..." }]            // planner history
 }
 ```

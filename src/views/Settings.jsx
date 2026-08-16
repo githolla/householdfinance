@@ -101,6 +101,31 @@ export default function Settings({ ctx, setState }) {
         </div>
 
         <div className="card">
+          <div className="chead"><h3>Faith &amp; stewardship</h3></div>
+          <label className="lbl">Hold money as stewardship</label>
+          <div className="chips">
+            <button className={"chip " + (state.faith.enabled ? "on" : "")}
+              onClick={() => patch((s) => { s.faith.enabled = true; return s; })}>On</button>
+            <button className={"chip " + (!state.faith.enabled ? "on" : "")}
+              onClick={() => patch((s) => { s.faith.enabled = false; return s; })}>Off</button>
+          </div>
+          <p className="empty">
+            On, the app frames money around stewardship: the Stewardship view, a weekly meeting that
+            opens with gratitude, "pray on it" for big decisions, and a planner that can offer biblical
+            principles where they're relevant. It will never claim to speak for God, and it never
+            decides for you — the two of you do.
+          </p>
+          <label className="lbl" style={{ marginTop: 8 }}>What "enough" looks like for you</label>
+          <textarea className="field" rows={3} value={state.enough.note}
+            placeholder={`e.g. The emergency fund full, 15% saved, and everything past that given or enjoyed — not hoarded.`}
+            onChange={(e) => patch((s) => { s.enough.note = e.target.value; return s; })} />
+          <p className="empty">
+            Written in your own words. The planner reads it, and money beyond it opens a different
+            conversation — give, save, enjoy, invest, help family — instead of "maximise".
+          </p>
+        </div>
+
+        <div className="card">
           <div className="chead"><h3>House rules</h3><span className="meta">{(state.rules || []).length ? `${state.rules.length} agreed` : ""}</span></div>
           <p className="empty">
             Agreements you've made with each other about money. The planner holds its advice against these and says so

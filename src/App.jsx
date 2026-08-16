@@ -30,6 +30,7 @@ import Goals from "./views/Goals.jsx";
 import NetWorth from "./views/NetWorth.jsx";
 import Taxes from "./views/Taxes.jsx";
 import Reports from "./views/Reports.jsx";
+import Stewardship from "./views/Stewardship.jsx";
 import Planner from "./views/Planner.jsx";
 import Settings from "./views/Settings.jsx";
 import Setup from "./views/Setup.jsx";
@@ -49,6 +50,7 @@ const NAV = [
   ["worth", "Net worth"],
   ["taxes", "Taxes"],
   ["reports", "Reports"],
+  ["stew", "Stewardship"],
   ["planner", "Ask the planner"],
   ["settings", "Settings"],
 ];
@@ -58,7 +60,7 @@ const PRIMARY = ["dash", "txn", "budget", "bills"];
 const SECTIONS = [
   ["Every day", ["dash", "txn", "budget", "bills", "cal"]],
   ["The plan", ["plan", "goals", "worth", "taxes"]],
-  ["Step back", ["reports", "planner"]],
+  ["Step back", ["reports", "stew", "planner"]],
   ["", ["settings"]],
 ];
 
@@ -73,6 +75,7 @@ const ICON = {
   worth: <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M16 12h5M7 6V4.5A1.5 1.5 0 0 1 8.5 3H17" /></svg>,
   taxes: <svg viewBox="0 0 24 24"><path d="M5 19L19 5" /><circle cx="7.5" cy="7.5" r="2.4" /><circle cx="16.5" cy="16.5" r="2.4" /></svg>,
   reports: <svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-6" /></svg>,
+  stew: <svg viewBox="0 0 24 24"><path d="M12 21V11" /><path d="M12 11C12 6.5 9 4 4.5 4c0 4.5 3 7 7.5 7z" /><path d="M12 14c0-3.5 2.5-5.5 6.5-5.5 0 3.5-2.5 5.5-6.5 5.5z" /></svg>,
   planner: <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z" /></svg>,
   settings: <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2.2" /><circle cx="7" cy="17" r="2.2" /></svg>,
   more: <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" /></svg>,
@@ -147,6 +150,12 @@ export default function App() {
 
   useEffect(() => () => clearTimeout(toastTimer.current), []);
 
+  /* Turning the faith layer off while parked on its view would leave a
+     blank page — fall back home. */
+  useEffect(() => {
+    if (view === "stew" && state && !(state.faith && state.faith.enabled)) setView("dash");
+  }, [view, state]);
+
   const onLogged = useCallback(({ id, amount, envName }) => {
     clearTimeout(toastTimer.current);
     setToast({ id, amount, envName, month });
@@ -168,6 +177,9 @@ export default function App() {
   if (!state) return <Setup onDone={(s) => setState(withDefaults(s))} Frame={Frame} />;
 
   const ctx = { state, patch, plan, writeMonth, month, setMonth, m, setView };
+  /* The stewardship view only exists for households that keep the faith
+     layer on — the toggle lives in Settings. */
+  const navVisible = (k) => k !== "stew" || (state.faith && state.faith.enabled);
   const quickAdd = (envId, dateISO) =>
     receipt.openBlank({ ...blankDraft(m, envId, state.ui.defaultWho), ...(dateISO ? { dateISO } : {}) });
   const go = (k) => { setView(k); setMore(false); };
@@ -187,7 +199,7 @@ export default function App() {
             {SECTIONS.map(([sec, keys]) => (
               <div key={sec || "misc"} style={{ display: "contents" }}>
                 {sec && <div className="navsec">{sec}</div>}
-                {keys.map((k) => {
+                {keys.filter(navVisible).map((k) => {
                   const item = NAV.find((n) => n[0] === k);
                   return (
                     <button key={k} className={view === k ? "on" : ""} onClick={() => setView(k)}>
@@ -225,6 +237,7 @@ export default function App() {
           {view === "worth" && <NetWorth ctx={ctx} />}
           {view === "taxes" && <Taxes ctx={ctx} />}
           {view === "reports" && <Reports ctx={ctx} />}
+          {view === "stew" && navVisible("stew") && <Stewardship ctx={ctx} />}
           {view === "planner" && <Planner ctx={ctx} />}
           {view === "settings" && <Settings ctx={ctx} setState={setState} />}
         </main>
@@ -268,7 +281,7 @@ export default function App() {
         )}
         <div className="morelist">
           {SECTIONS.map(([sec, keys]) => {
-            const items = keys.filter((k) => !PRIMARY.includes(k));
+            const items = keys.filter((k) => !PRIMARY.includes(k) && navVisible(k));
             if (!items.length) return null;
             return (
               <div key={sec || "misc"}>
