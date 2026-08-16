@@ -351,6 +351,40 @@ export const CSS = `
 .tc .rankicon{width:34px;height:34px;border-radius:11px;background:var(--surface2);display:grid;
  place-items:center;flex:none;font-size:14px;}
 
+/* calendar */
+.tc .calhead{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-bottom:6px;
+ font-size:10px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.06em;text-align:center;}
+.tc .calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;}
+.tc .calblank{border-radius:12px;background:var(--surface2);opacity:.4;min-height:76px;}
+.tc .calcell{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+ min-height:76px;min-width:0;padding:7px 8px;border:1.5px solid var(--line);border-radius:12px;
+ background:var(--surface);text-align:left;color:var(--ink);}
+.tc .calcell.today{border-color:var(--brand);}
+.tc .calcell.today .caldaynum{background:var(--brand);color:#fff;}
+.tc .calcell.sel{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);}
+.tc .caldaynum{font-size:11.5px;font-weight:700;border-radius:999px;min-width:20px;height:20px;
+ display:grid;place-items:center;padding:0 5px;margin-left:-3px;}
+.tc .calspent{font-size:10.5px;color:var(--soft);max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+.tc .calmarks{display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin-top:auto;}
+.tc .calmarks i{width:7px;height:7px;border-radius:50%;background:var(--brand);}
+.tc .calmarks i.paid{background:var(--ok);}
+.tc .calmarks i.late{background:var(--warn);}
+.tc .caltaxmark{font-style:normal;font-size:8.5px;font-weight:800;color:#96610A;background:#FCF1DC;
+ border-radius:5px;padding:1px 4px;text-transform:uppercase;letter-spacing:.04em;}
+.tc .calpop{display:none;position:absolute;z-index:30;top:calc(100% + 5px);left:0;width:232px;
+ background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--pop);
+ padding:8px 11px;cursor:default;}
+.tc .calpop.flip{left:auto;right:0;}
+.tc .calpop.up{top:auto;bottom:calc(100% + 5px);}
+.tc .calpoprow{display:flex;justify-content:space-between;gap:10px;font-size:12px;font-weight:600;
+ padding:4px 0;line-height:1.35;text-align:left;}
+.tc .calpoprow .num{white-space:nowrap;flex:none;}
+.tc .calpoprow em{font-style:normal;}
+
+/* the month outlook line under the thesis */
+.tc .outlook{font-size:14px;font-weight:500;color:var(--soft);line-height:1.55;
+ max-width:760px;margin:-12px 0 20px;}
+
 /* hover only where there's a pointer */
 @media(hover:hover){
  .tc .side nav button:hover{background:var(--surface2);color:var(--ink);}
@@ -363,6 +397,8 @@ export const CSS = `
  .tc .chip:hover{background:var(--brand-soft);color:var(--brand);}
  .tc .chip.on:hover{background:var(--brand-deep);color:#fff;}
  .tc .envrow:hover,.tc .morelist button:hover,.tc .check:hover{background:var(--surface2);}
+ .tc .calcell:hover{border-color:var(--brand);}
+ .tc .calcell:hover .calpop{display:block;}
 }
 
 /* ==================================================================
@@ -415,6 +451,14 @@ export const CSS = `
  .tc .monthnav{justify-content:space-between;}
  .tc .monthnav .m{font-size:15px;min-width:0;}
  .tc .g23{grid-template-columns:minmax(0,1fr);}
+
+ /* the calendar tightens up; the detail panel below does the talking */
+ .tc .calgrid,.tc .calhead{gap:4px;}
+ .tc .calblank,.tc .calcell{min-height:54px;border-radius:10px;}
+ .tc .calcell{padding:5px 6px;}
+ .tc .calspent{display:none;}
+ .tc .calpop{display:none!important;}
+ .tc .outlook{margin:0 0 16px;}
 
  .tc .d-state{order:1;} .tc .d-setup{order:2;} .tc .d-next{order:3;}
  .tc .d-pace{order:4;}  .tc .d-envs{order:5;}  .tc .d-due{order:6;}

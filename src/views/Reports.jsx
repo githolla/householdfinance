@@ -101,6 +101,38 @@ export default function Reports({ ctx }) {
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 16 }}>
+          <div className="chead"><h3>Versus normal</h3><span className="meta">your last three months, paced to today</span></div>
+          {!m.paceDiag ? (
+            <p className="empty">Needs a few months of logged spending before "normal" means anything.</p>
+          ) : (
+            <>
+              <p className="empty" style={{ fontWeight: 600, color: "var(--ink)" }}>
+                {m.paceDiag.delta > 25
+                  ? `You're ${money(m.paceDiag.delta)} above your normal pace for this point in the month.`
+                  : m.paceDiag.delta < -25
+                    ? `You're ${money(-m.paceDiag.delta)} under your normal pace for this point in the month.`
+                    : "Right on your normal pace for this point in the month."}
+              </p>
+              {m.paceDiag.over.map((r) => (
+                <div className="note" key={r.name} style={{ justifyContent: "space-between" }}>
+                  <span>{r.name}</span>
+                  <span className="num" style={{ color: C.warn }}>+{money(r.delta)}</span>
+                </div>
+              ))}
+              {m.paceDiag.under.map((r) => (
+                <div className="note" key={r.name} style={{ justifyContent: "space-between" }}>
+                  <span>{r.name}</span>
+                  <span className="num" style={{ color: C.ok }}>−{money(-r.delta)}</span>
+                </div>
+              ))}
+              {m.paceDiag.over.length === 0 && m.paceDiag.under.length === 0 && (
+                <p className="empty">No envelope is far from its usual pace.</p>
+              )}
+            </>
+          )}
+      </div>
+
       <div className="card">
         <div className="chead">
           <h3>The fair-split read</h3>

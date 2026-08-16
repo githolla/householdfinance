@@ -54,6 +54,7 @@ export default function Dashboard({ ctx, onQuickAdd }) {
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
       <p className="thesis">{m.thesis[0]} <span>{m.thesis[1]}</span></p>
+      {m.live && m.monthOutlook.sentence && <p className="outlook">{m.monthOutlook.sentence}</p>}
 
       <div className="dashflow">
         {/* the phone's above-the-fold read */}
@@ -242,6 +243,9 @@ export default function Dashboard({ ctx, onQuickAdd }) {
               <div className="muted" style={{ fontSize: 12.5, marginTop: 4, fontWeight: 500 }}>
                 of {money(m.planned)} planned · {m.daysLeft} days to go
               </div>
+              <button className="btn ghost tiny" style={{ marginTop: 10 }} onClick={() => setView("planner")}>
+                Can we afford it?
+              </button>
             </div>
           </div>
         </div>

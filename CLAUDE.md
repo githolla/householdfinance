@@ -66,6 +66,30 @@ The information architecture copies how financial planners actually present to c
 - **`m.setupSteps`** — the getting-started checklist; the card hides itself once done.
 - The sidebar is sectioned **Every day / The plan / Step back** (`SECTIONS` in App.jsx).
 
+The household-CFO layer builds on the same principle — deterministic numbers, AI phrasing:
+
+- **`m.monthOutlook`** — what should be left after bills still due and normal spending,
+  with a recommended split (savings / debt / cushion). The sentence under the Home thesis.
+- **`m.paceDiag`** — spending versus your own last three months, **paced to the same
+  day of the month** (what those months had spent *by today*, not an even fraction —
+  rent going out on the 1st is not "ahead of pace"). Renders as Reports' "Versus normal".
+- **`m.afford(cost)`** — the "Can we afford it?" verdict (yes / tradeoff / wait / no),
+  pure arithmetic from `affordability()` in engines.js. The planner may add ≤60 words of
+  judgement on top, but the verdict never comes from the model.
+- **`m.week`** / **`m.weekKey`** — the weekly money-meeting inputs; the briefing and both
+  partners' votes persist in `state.meeting` keyed by week.
+- **`m.calendar`** — the month day-by-day: entries, bills (with paid/overdue), and any
+  estimated-tax deadline. The Calendar view renders it; hover popovers are CSS-only and
+  disabled on touch, where tapping a day drives the detail panel instead.
+- **`state.rules`** — free-text house rules, edited in Settings, injected into the
+  planner's system prompt by name.
+
+**The no-surveillance rule.** Personal spending money (`role: "spending"` envelopes) is
+agreed and private. Nothing — notes, planner prompt, briefings — ever reports what one
+person spent theirs on; the app watches the *household* discretionary total and says
+"Household spending money is $X past the agreed amount", never "Josh spent $73 at Target".
+Keep this when adding any copy that touches individual spending.
+
 All of it is computed in `model()` like every other number. If you add a warning,
 decide where it ranks in `nextAction` — the point is one action, not a pile.
 
@@ -134,6 +158,10 @@ Two calls, both through the dev proxy in `vite.config.js`, both on `claude-opus-
 
 - **Receipt reading** (`src/lib/receipt.js`) — photo shrunk to 2000px/JPEG in the browser, sent as a base64 image block with `output_config.format` as a JSON schema so the response is structured. `effort: "low"` is the latency lever. Thinking is on by default on this model and `max_tokens` caps thinking *plus* output, hence 4000, not 512.
 - **Planner** (`src/views/Planner.jsx`) — same model at `effort: "medium"`, `max_tokens: 8000`.
+  One `callPlanner()` helper serves three uses: the chat, the weekly meeting briefing, and an
+  optional ≤60-word note on an affordability verdict. Every AI failure path degrades to the
+  deterministic answer already on screen — the verdict, the vote chips, the notes — never a spinner
+  that blocks them.
 
 The photo is a **prefill and nothing more**. Every failure path — no key, offline, unreadable, refusal, garbage JSON — ends with the review sheet open and the amount focused. Base64 lives in a `useRef` and never enters persisted state; one photo would eat a fifth of the localStorage budget.
 

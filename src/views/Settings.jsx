@@ -13,6 +13,17 @@ export default function Settings({ ctx, setState }) {
   const [wipe, setWipe] = useState(false);
   const [forget, setForget] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [ruleText, setRuleText] = useState("");
+
+  const addRule = () => {
+    const text = ruleText.trim();
+    if (!text) return;
+    patch((s) => {
+      s.rules.push({ id: Math.random().toString(36).slice(2, 9), text });
+      return s;
+    });
+    setRuleText("");
+  };
 
   const exportJson = async () => {
     try {
@@ -87,6 +98,30 @@ export default function Settings({ ctx, setState }) {
               setForget(false);
             }}>{forget ? "Tap again to forget all of it" : "Forget what it's learned"}</button>
           )}
+        </div>
+
+        <div className="card">
+          <div className="chead"><h3>House rules</h3><span className="meta">{(state.rules || []).length ? `${state.rules.length} agreed` : ""}</span></div>
+          <p className="empty">
+            Agreements you've made with each other about money. The planner holds its advice against these and says so
+            when one is at risk — write them the way you'd say them out loud.
+          </p>
+          {(state.rules || []).map((r) => (
+            <div className="note" key={r.id} style={{ justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <span style={{ minWidth: 0 }}>{r.text}</span>
+              <button className="btn ghost tiny" style={{ flexShrink: 0 }}
+                onClick={() => patch((s) => { s.rules = s.rules.filter((x) => x.id !== r.id); return s; })}>
+                Remove
+              </button>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <input className="field" style={{ flex: 1, marginBottom: 0 }} value={ruleText}
+              placeholder={`e.g. Keep checking above $2,000`}
+              onChange={(e) => setRuleText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addRule(); }} />
+            <button className="btn tiny" onClick={addRule}>Add</button>
+          </div>
         </div>
 
         <div className="card">

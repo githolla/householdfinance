@@ -25,6 +25,7 @@ import Plan from "./views/Plan.jsx";
 import Budget from "./views/Budget.jsx";
 import Spending from "./views/Spending.jsx";
 import Bills from "./views/Bills.jsx";
+import Calendar from "./views/Calendar.jsx";
 import Goals from "./views/Goals.jsx";
 import NetWorth from "./views/NetWorth.jsx";
 import Taxes from "./views/Taxes.jsx";
@@ -42,6 +43,7 @@ const NAV = [
   ["txn", "Spending", "Spending"],
   ["budget", "Budget", "Budget"],
   ["bills", "Bills", "Bills"],
+  ["cal", "Calendar"],
   ["plan", "The plan"],
   ["goals", "Goals"],
   ["worth", "Net worth"],
@@ -54,7 +56,7 @@ const PRIMARY = ["dash", "txn", "budget", "bills"];
 /* Grouped the way a planner walks a client through it: the daily loop,
    the plan itself, then stepping back. */
 const SECTIONS = [
-  ["Every day", ["dash", "txn", "budget", "bills"]],
+  ["Every day", ["dash", "txn", "budget", "bills", "cal"]],
   ["The plan", ["plan", "goals", "worth", "taxes"]],
   ["Step back", ["reports", "planner"]],
   ["", ["settings"]],
@@ -65,6 +67,7 @@ const ICON = {
   txn: <svg viewBox="0 0 24 24"><path d="M6 3v18l2-1.5L10 21l2-1.5L14 21l2-1.5L18 21V3z" /><path d="M9 8h6M9 12h6" /></svg>,
   budget: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 8l9 5 9-5" /></svg>,
   bills: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>,
+  cal: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4M7.5 14h3M13.5 14h3M7.5 17.5h3" /></svg>,
   plan: <svg viewBox="0 0 24 24"><path d="M4 5h16M7 12h10M10 19h4" /></svg>,
   goals: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.5" /></svg>,
   worth: <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M16 12h5M7 6V4.5A1.5 1.5 0 0 1 8.5 3H17" /></svg>,
@@ -165,7 +168,8 @@ export default function App() {
   if (!state) return <Setup onDone={(s) => setState(withDefaults(s))} Frame={Frame} />;
 
   const ctx = { state, patch, plan, writeMonth, month, setMonth, m, setView };
-  const quickAdd = (envId) => receipt.openBlank(blankDraft(m, envId, state.ui.defaultWho));
+  const quickAdd = (envId, dateISO) =>
+    receipt.openBlank({ ...blankDraft(m, envId, state.ui.defaultWho), ...(dateISO ? { dateISO } : {}) });
   const go = (k) => { setView(k); setMore(false); };
 
   return (
@@ -216,6 +220,7 @@ export default function App() {
           {view === "budget" && <Budget ctx={ctx} />}
           {view === "txn" && <Spending ctx={ctx} receipt={receipt} />}
           {view === "bills" && <Bills ctx={ctx} />}
+          {view === "cal" && <Calendar ctx={ctx} onQuickAdd={quickAdd} />}
           {view === "goals" && <Goals ctx={ctx} />}
           {view === "worth" && <NetWorth ctx={ctx} />}
           {view === "taxes" && <Taxes ctx={ctx} />}

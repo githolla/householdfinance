@@ -522,6 +522,53 @@ export function taxReserve({ tax, today = new Date() }) {
 }
 
 /* ==================================================================
+   2½. can we afford it?
+
+   The verdict is deterministic — the AI only phrases it and checks the
+   house rules. Order of severity: can't cover the bills still due →
+   dips below a month of essentials → fits in the cushion → tradeoff.
+   ================================================================== */
+
+export function affordability({ cost, m }) {
+  const c = Math.max(0, Number(cost) || 0);
+  const cash = m.assets.filter((a) => a.type === "cash").reduce((n, a) => n + a.balance, 0);
+  const billsDue = m.billsLeft;
+  const essentials = m.flow.monthlyEssentialSpend;
+  const available = Math.max(0, m.monthOutlook ? m.monthOutlook.available : 0);
+  const efGoal = m.flow.efGoal;
+
+  if (c <= 0) return null;
+
+  const afterCash = cash - billsDue - c;
+  const efDelayWeeks = efGoal && efGoal.monthly > 0 ? Math.round((c / efGoal.monthly) * 4.33) : null;
+
+  let verdict, label, reasons = [];
+  if (cash - billsDue < c) {
+    verdict = "no";
+    label = "No — not right now";
+    reasons.push(`Cash on hand is ${money(cash)} and ${money(billsDue)} of bills are still due this month — the purchase would leave those short.`);
+  } else if (afterCash < essentials) {
+    verdict = "wait";
+    label = "Wait";
+    reasons.push(`It fits, but it would take cash below one month of essentials (${money(essentials)}). After bills and this purchase you'd hold ${money(afterCash)}.`);
+    if (available > 0) reasons.push(`About ${money(available)} frees up by month end — waiting shrinks the dent.`);
+  } else if (c <= available) {
+    verdict = "yes";
+    label = "Yes — comfortably";
+    reasons.push(`It fits inside this month's expected cushion of about ${money(available)}, without touching goals or the emergency fund.`);
+  } else {
+    verdict = "tradeoff";
+    label = "Yes — but there's a tradeoff";
+    reasons.push(`It's ${money(c - available)} more than this month's expected cushion, so the difference comes out of goal money.`);
+    if (efDelayWeeks) reasons.push(`That pushes the emergency fund back roughly ${efDelayWeeks} week${efDelayWeeks === 1 ? "" : "s"}.`);
+  }
+  if (verdict !== "no" && afterCash >= essentials)
+    reasons.push(`Cash after bills and the purchase: ${money(afterCash)}.`);
+
+  return { verdict, label, reasons, cost: c, cash, billsDue, afterCash, available, efDelayWeeks };
+}
+
+/* ==================================================================
    3. allocation waterfall
    ================================================================== */
 

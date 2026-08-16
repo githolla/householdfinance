@@ -10,7 +10,7 @@ import {
   money, monthKey, monthLabel, shiftMonth, monthsBetween,
   todayDay, ordinal, daysInMonth, C,
 } from "./format.js";
-import { debtPlan, simulateDebts, taxReserve, waterfall } from "./engines.js";
+import { debtPlan, simulateDebts, taxReserve, waterfall, affordability } from "./engines.js";
 import { merchantKey } from "./receipt.js";
 
 export function model(state, plan, month) {
@@ -127,6 +127,57 @@ export function model(state, plan, month) {
 
   const envByName = (name) => plan.envelopes.find((e) => e.name === name);
 
+  /* ---- what "normal" looks like: the prior three months ---- */
+  const priorMonths = [];
+  for (let i = 1; i <= 3; i++) {
+    const k = shiftMonth(month, -i);
+    const mm = state.months[k];
+    if (mm && (mm.entries || []).length) priorMonths.push(mm);
+  }
+  const avgByName = {};
+  const toDateByName = {};
+  let threeMoAvgTotal = null;
+  let threeMoAvgToDate = null;
+  if (priorMonths.length) {
+    let total = 0, totalToDate = 0;
+    priorMonths.forEach((mm) => {
+      const byId = {}, byIdToDate = {};
+      mm.entries.forEach((t) => {
+        byId[t.envId] = (byId[t.envId] || 0) + t.amount; total += t.amount;
+        if ((t.day || 1) <= dayOfMonth) {
+          byIdToDate[t.envId] = (byIdToDate[t.envId] || 0) + t.amount; totalToDate += t.amount;
+        }
+      });
+      mm.envelopes.forEach((e) => {
+        avgByName[e.name] = (avgByName[e.name] || 0) + (byId[e.id] || 0);
+        toDateByName[e.name] = (toDateByName[e.name] || 0) + (byIdToDate[e.id] || 0);
+      });
+    });
+    Object.keys(avgByName).forEach((k) => { avgByName[k] /= priorMonths.length; });
+    Object.keys(toDateByName).forEach((k) => { toDateByName[k] /= priorMonths.length; });
+    threeMoAvgTotal = total / priorMonths.length;
+    threeMoAvgToDate = totalToDate / priorMonths.length;
+  }
+
+  /* ---- "why are we spending so much?" — pace against your own normal.
+     Normal is what the prior months had spent BY THIS SAME DAY, not an
+     even fraction of their total — rent going out on the 1st is not
+     "ahead of pace", it's what always happens. ---- */
+  let paceDiag = null;
+  if (threeMoAvgToDate !== null) {
+    const expectedNormal = threeMoAvgToDate;
+    const rows = plan.envelopes.map((e) => {
+      const normal = toDateByName[e.name] || 0;
+      return { name: e.name, spent: spentBy[e.id] || 0, normal, delta: (spentBy[e.id] || 0) - normal };
+    });
+    paceDiag = {
+      delta: spent - expectedNormal,
+      expectedNormal,
+      over: rows.filter((r) => r.delta > 10).sort((a, b) => b.delta - a.delta).slice(0, 3),
+      under: rows.filter((r) => r.delta < -10).sort((a, b) => a.delta - b.delta).slice(0, 2),
+    };
+  }
+
   /* ---- engines ---- */
   const tax = taxReserve({ tax: state.tax, month });
 
@@ -140,6 +191,142 @@ export function model(state, plan, month) {
   const fundedExtra = debtExtraRow ? debtExtraRow.funded : 0;
   const debt = debtPlan({ debts, extra: fundedExtra, startMonth: month });
   const payoff = (extra, strategy) => simulateDebts({ debts, extra, strategy, rollover: true, startMonth: month });
+
+  /* ---- month outlook: what's actually going to be left, and where to
+     point it. Deterministic — the planner only phrases it. ---- */
+  const projectedRest = threeMoAvgTotal !== null
+    ? Math.max(billsLeft, threeMoAvgTotal - spent)     // finish near your normal, never less than bills still due
+    : Math.max(billsLeft, leftToSpend);                // no history yet: assume the plan is spent
+  const available = income - spent - projectedRest;
+  const efGoalRef = flow.efGoal;
+  const efUnderTarget = !!efGoalRef && flow.efTarget > 0 && efGoalRef.saved < flow.efTarget;
+  const hasLiveDebt = debts.some((d) => d.balance > 0);
+  const round10 = (v) => Math.max(0, Math.round(v / 10) * 10);
+  let rec = [];
+  if (available >= 20) {
+    const debtName = debt.avalanche.order[0] || "debt";
+    const w = efUnderTarget && hasLiveDebt ? [0.5, 0.3]
+      : efUnderTarget ? [0.7, 0] : hasLiveDebt ? [0, 0.6] : [0.4, 0];
+    const sav = round10(available * w[0]);
+    const dbt = round10(available * w[1]);
+    const cush = Math.max(0, Math.round(available - sav - dbt));
+    if (sav > 0) rec.push({ label: efGoalRef ? `to ${efGoalRef.name.toLowerCase()}` : "to savings", amount: sav });
+    if (dbt > 0) rec.push({ label: `toward ${debtName}`, amount: dbt });
+    if (cush > 0) rec.push({ label: "as cushion", amount: cush });
+  }
+  /* A drift worth mentioning scales with the household — $200 of noise on
+     an $8,000 month is not "running hot". */
+  const paceHot = !!paceDiag && paceDiag.delta > Math.max(150, (threeMoAvgTotal || 0) * 0.04);
+  let outlookSentence;
+  if (income <= 0) outlookSentence = "";
+  else if (paceHot)
+    outlookSentence = `You're running ${money(paceDiag.delta)} ahead of your normal pace — ${paceDiag.over[0] ? `most of it is ${paceDiag.over[0].name.toLowerCase()} (+${money(paceDiag.over[0].delta)})` : "spread across a few envelopes"}.`;
+  else if (available < 50)
+    outlookSentence = "After the bills still due and normal spending, this month finishes tight — nothing extra to assign.";
+  else
+    outlookSentence = `On track. After the bills still due and normal spending, about ${money(available)} should be left — ` +
+      rec.map((r) => `${money(r.amount)} ${r.label}`).join(", ") + ".";
+  const monthOutlook = { available, projectedRest, rec, sentence: outlookSentence, onTrack: !paceHot };
+
+  /* ---- the week, for the Sunday money meeting ---- */
+  const now = new Date();
+  const dayMs = 86400000;
+  const dated = [];
+  for (let i = 0; i <= 1; i++) {
+    const k = shiftMonth(month, -i);
+    const mm = state.months[k];
+    if (!mm) continue;
+    const [yy, mo] = k.split("-").map(Number);
+    const nameOf = {};
+    (mm.envelopes || []).forEach((e) => { nameOf[e.id] = e.name; });
+    (mm.entries || []).forEach((t) => {
+      if (!t.day) return;
+      dated.push({ amount: t.amount, name: nameOf[t.envId] || "Spending", d: new Date(yy, mo - 1, t.day) });
+    });
+  }
+  const inLast = (days, e) => now - e.d >= 0 && now - e.d < days * dayMs;
+  const spent7 = dated.filter((e) => inLast(7, e)).reduce((n, e) => n + e.amount, 0);
+  const spent28 = dated.filter((e) => inLast(28, e)).reduce((n, e) => n + e.amount, 0);
+  const weekByName = {};
+  dated.filter((e) => inLast(7, e)).forEach((e) => { weekByName[e.name] = (weekByName[e.name] || 0) + e.amount; });
+  const weekRows = Object.entries(weekByName).map(([name, amt]) => ({
+    name, spent: amt,
+    normal: avgByName[name] !== undefined ? avgByName[name] / 4.33 : null,
+  }));
+  const upcoming14 = bills
+    .map((b) => {
+      const dueThis = new Date(now.getFullYear(), now.getMonth(), Math.min(b.day, dim));
+      const due = (b.day >= todayDay() && !b.paid) ? dueThis
+        : new Date(now.getFullYear(), now.getMonth() + 1, b.day);
+      return { ...b, dueIn: Math.ceil((due - now) / dayMs), dueDate: due };
+    })
+    .filter((b) => b.dueIn >= 0 && b.dueIn <= 14)
+    .sort((x, y) => x.dueIn - y.dueIn)
+    .slice(0, 4);
+  const jan1 = new Date(now.getFullYear(), 0, 1);
+  const weekKey = `${now.getFullYear()}-W${Math.ceil(((now - jan1) / dayMs + jan1.getDay() + 1) / 7)}`;
+  const week = live ? {
+    key: weekKey,
+    spent: spent7,
+    weeklyAvg: spent28 / 4,
+    delta: spent28 > 0 ? spent7 - spent28 / 4 : null,
+    rows: weekRows.sort((a, b) => b.spent - a.spent).slice(0, 5),
+    upcoming: upcoming14,
+    decision: round10(Math.max(0, available)),
+  } : null;
+
+  /* ---- the month laid out on a calendar ------------------------------
+     One row per day: what was logged, what's due, and any tax deadline.
+     Bills that repeat land on their day whether or not they're paid yet;
+     the view decides how loudly to say so. ---- */
+  const [cy, cmo] = month.split("-").map(Number);
+  const calFirstDow = new Date(cy, cmo - 1, 1).getDay();
+  const calEnvName = {};
+  plan.envelopes.forEach((e) => { calEnvName[e.id] = e.name; });
+  const calEntries = {};
+  plan.entries.forEach((t) => {
+    const d = Math.min(Math.max(1, t.day || 1), dim);
+    (calEntries[d] = calEntries[d] || []).push({
+      id: t.id, amount: t.amount, who: t.who,
+      name: t.note || calEnvName[t.envId] || "Spending",
+    });
+  });
+  const calTax = !tax.incomplete
+    ? tax.quarters.filter((q) => q.dueDate.slice(0, 7) === month && q.amount > 0)
+    : [];
+  const calDays = [];
+  for (let d = 1; d <= dim; d++) {
+    const dayBills = bills.filter((b) => Math.min(b.day, dim) === d);
+    const dayEntries = calEntries[d] || [];
+    const dayTax = calTax.filter((q) => Number(q.dueDate.slice(8, 10)) === d);
+    calDays.push({
+      day: d,
+      today: live && d === todayDay(),
+      entries: dayEntries,
+      spent: dayEntries.reduce((n, e) => n + e.amount, 0),
+      bills: dayBills,
+      tax: dayTax,
+      busy: dayEntries.length > 0 || dayBills.length > 0 || dayTax.length > 0,
+    });
+  }
+  const calendar = { firstDow: calFirstDow, days: calDays };
+
+  /* ---- a light 12-month look ahead, for "what if" questions ---- */
+  const goalSavedNow = state.goals.reduce((n, g) => n + g.saved, 0);
+  const forecast12 = [];
+  for (let i = 1; i <= 12; i++) {
+    const row = debt.avalanche.schedule[i - 1];
+    forecast12.push({
+      month: shiftMonth(month, i),
+      debt: debt.avalanche.never ? null : row ? row.closing : 0,
+      goalsSaved: goalSavedNow + goalMonthly * i,
+      cushion: Math.max(0, flow.leftover) * i,
+    });
+  }
+
+  /* ---- can we afford it? ---- */
+  const affordLite = { assets, billsLeft, flow, monthOutlook };
+  const afford = (cost) => affordability({ cost, m: affordLite });
 
   /* ---- merchant memory ---- */
   const merchantMap = state.merchantMap || {};
@@ -202,10 +389,23 @@ export function model(state, plan, month) {
   if (unallocated > 1) notes.push(["joint", `${money(unallocated)} a month is unassigned. Park it in a goal or an envelope.`]);
   if (unallocated < -1) notes.push(["warn", `Your plan outruns income by ${money(-unallocated)} a month.`]);
 
+  /* Personal spending money is agreed, no questions asked — the app watches
+     the household total, never announces what one person spent. */
   plan.envelopes.forEach((e) => {
+    if (e.role === "spending") return;
     const s = spentBy[e.id] || 0;
     if (e.planned > 0 && s > e.planned) notes.push(["warn", `${e.name} is ${money(s - e.planned)} over plan.`]);
   });
+  const discEnvs = plan.envelopes.filter((e) => e.role === "spending");
+  const discPlanned = discEnvs.reduce((n, e) => n + e.planned, 0);
+  const discSpent = discEnvs.reduce((n, e) => n + (spentBy[e.id] || 0), 0);
+  if (discPlanned > 0) {
+    const discLeft = discPlanned - discSpent;
+    if (discLeft < 0)
+      notes.push(["warn", `Household spending money is ${money(-discLeft)} past the agreed amount this month.`]);
+    else if (discLeft < discPlanned * 0.2)
+      notes.push(["joint", `Household spending money is close to its limit — ${money(discLeft)} left through ${monthLabel(month)}.`]);
+  }
   bills.filter((b) => b.overdue).forEach((b) => notes.push(["warn", `${b.name} was due the ${ordinal(b.day)} and isn't marked paid.`]));
   bills.filter((b) => b.dueSoon).forEach((b) => notes.push(["joint", `${b.name} (${money(b.amount)}) is due the ${ordinal(b.day)}.`]));
 
@@ -376,6 +576,7 @@ export function model(state, plan, month) {
     dayOfMonth, daysLeft, daysInMonth: dim, pacePct, expectedSpend, paceDelta,
     envRemaining, tightest, recentEnvIds, topSpend, stateLine, live,
     steps, currentStep, nextAction, setupSteps, setupDone,
+    avgByName, threeMoAvgTotal, paceDiag, monthOutlook, week, weekKey, forecast12, afford, calendar,
     envByName, matchEnvelope, merchantFavourites,
     merchantCount: Object.keys(merchantMap).length,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),

@@ -97,6 +97,16 @@ One JSON object, persisted whole under `twocolumn:v2`.
     "emergencyGoalId": "g1"           // explicit; avoids fragile name matching
   },
 
+  "rules": [                          // house rules — agreements the planner holds advice against
+    { "id": "r1", "text": "Keep checking above $2,000" }
+  ],
+
+  "meeting": {                        // the weekly money-meeting briefing, one week at a time
+    "key": "2026-W33",                // ISO-ish week key from model(); stale briefings regenerate
+    "briefing": "…",                  // the AI-written summary shown in the card
+    "votes": { "a": "savings", "b": null }   // each partner's one-decision vote, or null
+  },
+
   "chat": [{ "role": "user", "content": "..." }]            // planner history
 }
 ```
@@ -110,4 +120,5 @@ One JSON object, persisted whole under `twocolumn:v2`.
 - **No image data is ever persisted.** Receipt base64 lives in a `useRef` for the life of one review sheet. One photo would consume a large fraction of the 5MB localStorage budget and take the household's whole blob down with it.
 - `waterfall.order` must contain `spending` exactly once, and it is forced last regardless of position — it's the terminal stage that absorbs the remainder. A stage placed after it would silently receive nothing.
 - `tax.constants` is a **sparse override** merged over `TAX_TABLES[year]` in `engines.js`. Shipping the tables as code means a new household isn't staring at a $0 tax bill; the override means January's figures don't need a deploy.
+- `rules` are free text on purpose — they're read by the planner's system prompt, not parsed. `meeting` holds exactly one week; a new `key` from `model()` invalidates the stored briefing and votes.
 - Migration from the `twocolumn:v1` artifact schema is handled by `upgradeV1()` in `seed.js`, which finishes by calling `withDefaults()`. v2 blobs need no migration step — the added keys are all optional and `withDefaults()` fills them.

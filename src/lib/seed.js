@@ -65,6 +65,8 @@ export function newState({ name, aName, bName, aIncome, bIncome, aGross, bGross 
     accounts: [],
     bills: [],
     merchantMap: {},
+    rules: [],
+    meeting: { key: "", briefing: "", votes: { a: null, b: null } },
     chat: [],
   };
 }
@@ -108,6 +110,9 @@ export function demoState() {
   const cur = monthKey(today);
   const dayNow = today.getDate();
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  /* The fixed outflows land on their real days, not random ones — the
+     calendar and the versus-normal pace read both depend on that. */
+  const FIXED_DAY = { Rent: 1, Tithe: 3, "Taxes (1099)": 5, "Debt payments": 15 };
   const months = {};
 
   for (let i = 5; i >= 0; i--) {
@@ -125,8 +130,8 @@ export function demoState() {
       const progress = i === 0 ? Math.min(1, dayNow / 30) : 1;
       let target = e.planned * progress * (0.86 + Math.random() * 0.26);
       if (e.name === "Eating out") target *= i === 0 ? 1.4 : 1.05;
-      if (["Rent", "Debt payments", "Tithe", "Taxes (1099)"].includes(e.name))
-        target = e.planned * (i === 0 && dayNow < 3 ? 0 : 1);
+      if (FIXED_DAY[e.name] !== undefined)
+        target = e.planned * (i === 0 && dayNow < FIXED_DAY[e.name] ? 0 : 1);
       if (target < 5) return;
       const count = Math.max(1, Math.round(def.n * progress));
       let left = target;
@@ -134,7 +139,9 @@ export function demoState() {
         const amt = c === count - 1 ? left : Math.round((left / (count - c)) * (0.6 + Math.random() * 0.8));
         if (amt <= 0) continue;
         left -= amt;
-        const d = Math.max(1, Math.min(lastDay, Math.ceil(Math.random() * lastDay)));
+        const d = FIXED_DAY[e.name] !== undefined
+          ? Math.min(FIXED_DAY[e.name], lastDay)
+          : Math.max(1, Math.min(lastDay, Math.ceil(Math.random() * lastDay)));
         const note = def.owner === "joint"
           ? pick(NOTE_POOL[e.name] || ["Spending"])
           : pick(PERSONAL_NOTES);
@@ -216,6 +223,13 @@ export function demoState() {
     ],
     bills,
     merchantMap: {},
+    rules: [
+      { id: uid(), text: "Each of us gets our spending money, no questions asked" },
+      { id: uid(), text: "Pay the credit card down every month, never just the minimum" },
+      { id: uid(), text: "Keep checking above $2,000" },
+      { id: uid(), text: "Flag it if eating out passes $350 in a month" },
+    ],
+    meeting: { key: "", briefing: "", votes: { a: null, b: null } },
     chat: [],
   };
 }
@@ -286,6 +300,8 @@ export function withDefaults(s) {
     accounts: s.accounts || [],
     bills: (s.bills || []).map((b) => ({ ...b, payUrl: b.payUrl || "" })),
     merchantMap: s.merchantMap || {},
+    rules: Array.isArray(s.rules) ? s.rules : [],
+    meeting: { key: "", briefing: "", votes: { a: null, b: null }, ...(s.meeting || {}) },
     chat: s.chat || [],
   };
 }
