@@ -135,11 +135,19 @@ relationships: money ↔ God, money ↔ marriage, money ↔ future:
   one quiet "set aside instead, that's N months of <goal>" line — space between wanting and
   buying, not a lecture.
 
-- **`src/lib/verses.js`** — one curated verse per stewardship bucket (plus Enough), plain
-  modern English from the public-domain World English Bible. Static copy, never
-  AI-generated; rendered on the Stewardship view and as hero-chip tooltips, gated by
-  `versesOn(state)` (faith on AND `faith.scripture !== "off"`). Guidance beside a number,
-  never a verdict on how the household is doing — keep that framing if you add any.
+- **`src/lib/verses.js`** — all scriptural and prayer copy, static and curated, never
+  AI-generated. `STEW_VERSES` (one per bucket + Enough) renders on Stewardship, in the
+  meeting steps (`MEETING_VERSES`), and as the hero's verse-of-the-day and chip tooltips.
+  `PRAYERS` are the decision-moment prompts ("if it's your practice", never required),
+  shown wherever the couple actually chooses: meeting gratitude/decide/close, Home's
+  decide-together card, the afford verdict. `LIFE` is the deep layer — twelve way-of-life
+  principles (2–3 passages each + a "practice" line tying it to an app feature), rendered
+  as the expandable "The way we live with money" section on Stewardship and summarised
+  into the Planner's system prompt as Scripture's *general* call. Gates: verses need
+  `versesOn(state)` (faith on AND scripture ≠ off); prayers need `prayersOn(state)`
+  (faith on). All quotes plain modern English from the public-domain World English Bible.
+  The distinction that must survive any edit: general revealed teaching may be presented;
+  a verdict on this couple's specific choice may not.
 
 **The AI never speaks for God.** It may offer at most one relevant biblical principle when a
 question genuinely touches worry, contentment, generosity, disagreement, or a weighty

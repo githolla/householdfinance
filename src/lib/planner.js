@@ -13,6 +13,7 @@
 
 import { money, monthLabel } from "./format.js";
 import { API_URL } from "./receipt.js";
+import { LIFE } from "./verses.js";
 
 export function buildSnapshot({ m, state, plan, month }) {
   return {
@@ -138,6 +139,9 @@ export function buildSystem({ m, state, snapshot }) {
     `Decisions listed as set aside in the snapshot are deliberately resting: do not advocate for or against them unless asked about one directly.\n\n` +
     (faith
       ? `This household practices Christian stewardship, and asked for money to be held that way. Frame things, where it fits naturally, around three relationships: money and God (stewardship and generosity), money and their marriage (unity, one household, decisions made together), and money and the future (wisdom, preparation, legacy). You may explain why the household handles money this way — giving off the top, patience before big purchases, contentment over comparison — rather than presenting rules as arbitrary. ` +
+        `They hold Scripture's broad teaching on money as a way of life, and the app teaches these threads: ` +
+        LIFE.map((p) => `${p.title.toLowerCase()} (${p.refs.map((r) => r.ref).join(", ")})`).join("; ") + `. ` +
+        `Draw on these naturally where one genuinely fits — as Scripture's general call on every household, never as God's verdict on this couple's specific choice. ` +
         (scripture === "off"
           ? `They have turned Scripture references off: hold the stewardship framing, but do not quote or cite Scripture.`
           : scripture === "more"

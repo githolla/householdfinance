@@ -11,7 +11,7 @@
 import { useState } from "react";
 import { money, C } from "../lib/format.js";
 import { buildSnapshot, buildSystem, callPlanner } from "../lib/planner.js";
-import { STEW_VERSES, versesOn } from "../lib/verses.js";
+import { STEW_VERSES, LIFE, versesOn } from "../lib/verses.js";
 import { Head, SChip } from "../components.jsx";
 
 const GLYPH = {
@@ -46,6 +46,7 @@ export default function Stewardship({ ctx }) {
   ) : null;
   const provision = m.stewardship.find((b) => b.key === "provision");
   const buckets = m.stewardship.filter((b) => b.key !== "provision");
+  const [openLife, setOpenLife] = useState("");
   const [building, setBuilding] = useState(false);
   const [answers, setAnswers] = useState((state.enough && state.enough.answers) || {});
   const [draft, setDraft] = useState(m.enough.note);
@@ -135,6 +136,40 @@ export default function Stewardship({ ctx }) {
           <div style={{ maxWidth: 560, margin: "0 auto" }}><Verse k="enough" /></div>
         </div>
       </div>
+
+      {showVerses && (
+        <div className="card" style={{ marginTop: 18, maxWidth: 900, marginLeft: "auto", marginRight: "auto" }}>
+          <div className="chead">
+            <h3>The way we live with money</h3>
+            <span className="meta">Scripture's broad call, held as a lifestyle — tap a line to go deeper</span>
+          </div>
+          <p className="empty">
+            Twelve threads that run through the whole Bible, and through every screen of this app.
+            They describe the life Scripture calls a household to — they don't decide any single
+            choice for you. That part is always yours, together.
+          </p>
+          {LIFE.map((p) => (
+            <div key={p.key}>
+              <button className={"check" + (openLife === p.key ? " done" : "")}
+                onClick={() => setOpenLife(openLife === p.key ? "" : p.key)}
+                aria-expanded={openLife === p.key}>
+                <span className="t" style={{ fontWeight: 700 }}>{p.title}</span>
+                <span className="go muted">{p.refs.map((r) => r.ref).join(" · ")} {openLife === p.key ? "▾" : "›"}</span>
+              </button>
+              {openLife === p.key && (
+                <div style={{ padding: "2px 2px 12px 33px" }}>
+                  {p.refs.map((r) => (
+                    <p className="verse" key={r.ref} style={{ marginTop: 6 }}>
+                      "{r.text}" <span className="vref">— {r.ref}</span>
+                    </p>
+                  ))}
+                  <p className="empty" style={{ marginTop: 8, fontWeight: 600, color: "var(--ink)" }}>{p.practice}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid g2" style={{ marginTop: 18, alignItems: "start" }}>
         <div className="card" style={{ background: "var(--surface2)", boxShadow: "none", border: "none" }}>
