@@ -8,10 +8,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, Line,
+  ResponsiveContainer, ComposedChart, Bar, Cell, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
-import { money, compact, monthLabel, ordinal, C } from "../lib/format.js";
+import { money, compact, monthLabel, ordinal, C, PIE } from "../lib/format.js";
 import { buildSnapshot, buildSystem, callPlanner } from "../lib/planner.js";
 import { STEW_VERSES, LIFE, PRAYERS, versesOn, prayersOn } from "../lib/verses.js";
 import { voiceSupported, listenOnce, parseSpokenExpense } from "../lib/voice.js";
@@ -133,6 +133,20 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
      the numbers. Faith layer only; every chip opens Stewardship. */
   const faith = !!(state.faith && state.faith.enabled);
   const STEW_GLYPH = { provision: "🌾", needs: "🏠", giving: "💛", obligations: "🧾", saving: "🛟", enjoyment: "🍜", future: "🌱" };
+  /* The stewardship split as the hero's segmented strip — monthly
+     buckets only, in the light tints that read on the deep blue. */
+  const STRIP_TINT = { needs: "#85B7EB", giving: "#FAC775", obligations: "#F5C4B3", saving: "#5DCAA5", enjoyment: "#E9A8C9" };
+  const stripBuckets = m.stewardship.filter((b) => STRIP_TINT[b.key] && b.figure > 0);
+  const stripTotal = stripBuckets.reduce((n, b) => n + b.figure, 0);
+
+  /* Sparkline: six months of spending, drawn small in the hero corner. */
+  const sparkMax = Math.max(1, ...m.history.map((h) => h.spent));
+  const sparkPts = m.history.map((h, i) => {
+    const x = m.history.length > 1 ? (i / (m.history.length - 1)) * 180 : 0;
+    return [x, 54 - (h.spent / sparkMax) * 48];
+  });
+  const sparkPath = sparkPts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(0)} ${y.toFixed(0)}`).join(" ");
+  const sparkLive = m.history.some((h) => h.spent > 0);
   /* One thread of the way-of-life a day — the basis of the whole app,
      one piece at a time. Visible, not hidden behind a hover. */
   const dayThread = versesOn(state) ? LIFE[new Date().getDate() % LIFE.length] : null;
@@ -171,9 +185,10 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
 
-      {/* the household snapshot: just the numbers, each one a door */}
+      {/* the household snapshot: deep blue, just the numbers, each one a door */}
       <div className="hero">
-        <div className="herofigs">
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+        <div className="herofigs" style={{ minWidth: 0 }}>
           {(m.today.known
             ? [
               ["Available today", m.today.allowance, m.today.spentToday > 0 ? `already counting today's ${money(m.today.spentToday)}` : "flexible money, split over the days left", "txn"],
@@ -188,27 +203,36 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
               ["Budget left", m.leftToSpend, `of ${money(m.planned)} planned`, "budget"],
               ["Bills still due", m.billsLeft, billsFoot, "bills"],
             ]
-          ).map(([k, v, f, view]) => (
-            <button className="herofig" key={k} onClick={() => setView(view)}>
+          ).map(([k, v, f, view], idx) => (
+            <button className={"herofig" + (idx === 0 ? " big" : "")} key={k} onClick={() => setView(view)}>
               <span className="lbl">{k}</span>
-              <span className={"v" + (k === "Budget left" && v < 0 ? " down" : "")}>{money(v)}</span>
+              <span className="v" style={k === "Budget left" && v < 0 ? { color: "#FFB3B9" } : undefined}>{money(v)}</span>
               <span className="herofoot">{f}</span>
             </button>
           ))}
         </div>
-        {faith && (
-          <div className="stewrow">
-            {m.stewardship.map((b) => {
-              const v = versesOn(state) ? STEW_VERSES[b.key] : null;
-              return (
-                <button className="stewchip" key={b.key} onClick={() => setView("stew")}
-                  title={v ? `"${v.text}" — ${v.ref}` : undefined}
-                  aria-label={`${b.label} — open Stewardship`}>
-                  <span>{STEW_GLYPH[b.key]}</span> {b.label} <span className="num">{money(b.figure)}</span>
-                </button>
-              );
-            })}
-          </div>
+        {sparkLive && (
+          <svg className="herospark" viewBox="0 0 184 60" width="184" height="60" role="img"
+            aria-label="Six months of spending, small trend line">
+            <path d={sparkPath} fill="none" stroke="var(--hero-soft)" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx={sparkPts[sparkPts.length - 1][0]} cy={sparkPts[sparkPts.length - 1][1]} r="4" fill="#fff" />
+          </svg>
+        )}
+        </div>
+        {faith && stripTotal > 0 && (
+          <>
+            <button className="stewstrip" onClick={() => setView("stew")} aria-label="How we're stewarding it — open Stewardship">
+              {stripBuckets.map((b) => (
+                <i key={b.key} style={{ flex: b.figure, background: STRIP_TINT[b.key] }} />
+              ))}
+            </button>
+            <button className="stewlegend" onClick={() => setView("stew")} aria-label="Open Stewardship">
+              {stripBuckets.map((b) => (
+                <span key={b.key}>{STEW_GLYPH[b.key]} {b.label} <b>{Math.round((b.figure / stripTotal) * 100)}%</b></span>
+              ))}
+            </button>
+          </>
         )}
         {dayThread && (
           <button className="daythread" onClick={() => setView("stew")}
@@ -221,6 +245,25 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
             <span className="muted" style={{ marginLeft: "auto", flex: "none" }}>›</span>
           </button>
         )}
+      </div>
+
+      {/* in / out / kept — one fused block */}
+      <div className="fusedrow">
+        <div>
+          <div className="fk">In</div>
+          <div className="fv">{money(m.income)}</div>
+          <div className="ff">each month</div>
+        </div>
+        <div>
+          <div className="fk">Out</div>
+          <div className="fv">{money(m.spent)}</div>
+          <div className="ff">{plan.entries.length} transactions</div>
+        </div>
+        <div>
+          <div className="fk">Kept</div>
+          <div className="fv">{m.income > 0 ? Math.round(Math.max(0, (m.income - m.spent) / m.income) * 100) + "%" : "—"}</div>
+          <div className="ff">of what came in, so far</div>
+        </div>
       </div>
 
       {/* log it and ask it, side by side */}
@@ -390,24 +433,41 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
         </div>
 
         <div className="card">
-          <div className="chead"><h3>Where the month went</h3><span className="meta num">{money(m.spent)} spent</span></div>
+          <div className="chead"><h3>Where it went</h3><span className="meta num">{money(m.spent)} spent</span></div>
           {catData.length === 0 ? <p className="empty">Nothing logged yet this month.</p> : (
-            <div style={{ height: 24 * catData.length + 20 }}>
-              <ResponsiveContainer>
-                <BarChart data={catData} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }} barCategoryGap={5}>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" width={92} {...axis} />
-                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(108,114,96,.07)" }} />
-                  <Bar dataKey="planned" name="Planned" fill="rgba(108,114,96,.16)" radius={3} />
-                  <Bar dataKey="spent" name="Spent" fill={C.a} radius={3} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <>
+              <div className="wentstrip">
+                {catData.filter((d) => d.spent > 0).map((d, i) => (
+                  <div key={d.name} style={{ flex: d.spent, background: PIE[i % PIE.length] }} />
+                ))}
+                {m.leftToSpend > 0 && <div style={{ flex: m.leftToSpend, background: "var(--surface2)" }} />}
+              </div>
+              <div style={{ marginTop: 10 }}>
+                {catData.slice(0, 5).map((d, i) => {
+                  const over = d.planned > 0 && d.spent > d.planned;
+                  return (
+                    <div className="wentrow" key={d.name}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 2, background: PIE[i % PIE.length], flex: "none" }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 12, flex: "none" }}>
+                        <span style={{ fontSize: 11.5, color: over ? C.warn : "var(--soft)" }}>
+                          {over ? `! ${money(d.spent - d.planned)} over`
+                            : d.planned > 0 ? `${Math.round((d.spent / d.planned) * 100)}% of ${money(d.planned)}` : "unplanned"}
+                        </span>
+                        <span className="num" style={{ fontWeight: 600 }}>{money(d.spent)}</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
 
         <div className="card">
-          <div className="chead"><h3>Six months of cash flow</h3><span className="meta">vs. income</span></div>
+          <div className="chead"><h3>Monthly spend</h3><span className="meta">dashed line = income</span></div>
           {m.history.every((h) => h.spent === 0) ? (
             <p className="empty">
               Nothing to chart yet — log spending as it happens and six months from now this shows
@@ -416,25 +476,48 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
           ) : (
             <div className="chartbox short">
               <ResponsiveContainer>
-                <AreaChart data={m.history} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gS" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={C.a} stopOpacity={0.28} />
-                      <stop offset="100%" stopColor={C.a} stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
+                <ComposedChart data={m.history} margin={{ top: 8, right: 6, left: -14, bottom: 0 }}>
                   <CartesianGrid stroke={C.line} vertical={false} />
                   <XAxis dataKey="label" {...axis} />
                   <YAxis {...axis} tickFormatter={compact} width={44} />
-                  <Tooltip content={<Tip />} cursor={{ stroke: C.line }} />
-                  <Area type="monotone" dataKey="spent" name="Spent" stroke={C.a} fill="url(#gS)" strokeWidth={2} />
-                  <Line type="monotone" dataKey="income" name="Income" stroke={C.ink} strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
-                </AreaChart>
+                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(100,116,139,.07)" }} />
+                  <Bar dataKey="spent" name="Spent" maxBarSize={38} radius={[6, 6, 0, 0]}>
+                    {m.history.map((h, i) => (
+                      <Cell key={h.key} fill={i === m.history.length - 1 ? C.a : "#D8DCE3"} />
+                    ))}
+                  </Bar>
+                  <Line dataKey="income" name="Income" stroke={C.soft} strokeWidth={1.5} dot={false} strokeDasharray="5 4" />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           )}
         </div>
       </div>
+
+      {/* goals as rings, the mockup way */}
+      {state.goals.some((g) => g.target > 0) && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="chead"><h3>Goals</h3><button className="btn ghost tiny" onClick={() => setView("goals")}>Manage</button></div>
+          <div className="grid g3">
+            {state.goals.filter((g) => g.target > 0).slice(0, 3).map((g, i) => {
+              const st = m.goalStatus(g);
+              const ringColor = [C.b, C.a, C.joint][i % 3];
+              return (
+                <button key={g.id} onClick={() => setView("goals")}
+                  style={{ background: "var(--surface2)", border: "none", borderRadius: 16, padding: "16px 12px", textAlign: "center", fontFamily: "inherit", color: "var(--ink)", cursor: "pointer" }}>
+                  <Ring pct={st.pct} size={76} stroke={8} color={st.late ? C.warn : ringColor} track="rgba(100,116,139,.18)">
+                    <span style={{ fontSize: 15, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{Math.round(st.pct)}%</span>
+                  </Ring>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginTop: 8 }}>{g.name}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--soft)", marginTop: 2 }}>
+                    {money(g.saved)} of {money(g.target)}{st.late ? " · needs a push" : st.eta ? ` · ${monthLabel(st.eta, true)}` : ""}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* what needs attention next */}
       <div className="grid g2">

@@ -2,9 +2,10 @@
    The whole stylesheet, as one template literal injected by <Frame>.
 
    Plain CSS on purpose — no Tailwind, no component library.
-   Look: warm bone page, white cards with soft shadows, pill buttons,
-   mid-century avocado-green brand. Type: Plus Jakarta Sans (everything), IBM Plex Mono
-   (all figures, tabular).
+   Look: bright cool near-white page, white cards with soft shadows,
+   pill buttons, clear-blue brand, one deep-blue hero card on Home.
+   Type: Plus Jakarta Sans (everything), IBM Plex Mono (table figures,
+   tabular); the hero's numerals use the sans with tabular figures.
 
    Breakpoint ladder, desktop-first:
      980  three/four-up grids collapse to two
@@ -16,13 +17,14 @@
 export const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-.tc{--page:#F3F1E8;--surface:#FFFFFF;--surface2:#EFEDE1;--ink:#20261B;--soft:#6C7260;--line:#E0DECE;
- --brand:#4E7A3A;--brand-deep:#3E622E;--brand-soft:#E5ECD8;
- --a:#4E7A3A;--b:#1F7A8C;--joint:#D98E04;--warn:#D93A4C;--ok:#1E8A5A;--r:16px;
- --scrim:rgba(32,38,27,.44);--tab-h:60px;--fab-d:56px;--tap:44px;--r-sheet:22px;
+.tc{--page:#F6F7F9;--surface:#FFFFFF;--surface2:#EFF2F6;--ink:#16202B;--soft:#64748B;--line:#E5E8EC;
+ --brand:#2A78D6;--brand-deep:#1E5EAE;--brand-soft:#E3EEFB;
+ --a:#2A78D6;--b:#1BAF7A;--joint:#EDA100;--warn:#E34948;--ok:#15803D;--r:16px;
+ --hero:#0C447C;--hero-soft:#85B7EB;--hero-mut:#B5D4F4;
+ --scrim:rgba(22,32,43,.46);--tab-h:60px;--fab-d:56px;--tap:44px;--r-sheet:22px;
  --safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px);
- --shadow:0 4px 18px rgba(46,58,36,.06);--pop:0 10px 28px rgba(46,58,36,.20);
- --lift:0 -6px 22px rgba(46,58,36,.09);
+ --shadow:0 4px 18px rgba(23,43,77,.07);--pop:0 10px 28px rgba(23,43,77,.20);
+ --lift:0 -6px 22px rgba(23,43,77,.09);
  background:var(--page);color:var(--ink);
  font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif;
  min-height:100%;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-size:14px;
@@ -81,7 +83,7 @@ export const CSS = `
 .tc .g4{grid-template-columns:repeat(4,minmax(0,1fr));}
 .tc .g23{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);}
 @media(max-width:980px){.tc .g23,.tc .g3,.tc .g4{grid-template-columns:repeat(2,minmax(0,1fr));}}
-.tc .card{background:var(--surface);border:1px solid rgba(224,222,206,.6);border-radius:20px;
+.tc .card{background:var(--surface);border:1px solid rgba(229,232,236,.7);border-radius:20px;
  padding:19px 21px;box-shadow:var(--shadow);}
 .tc .card h3{font-size:15px;font-weight:700;letter-spacing:-.01em;}
 .tc .chead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:13px;}
@@ -114,7 +116,7 @@ export const CSS = `
 .tc .trend.down{color:var(--ok);}
 
 /* the one thing to do next — the hero of the one-page plan */
-.tc .nextcard{background:linear-gradient(135deg,#3E622E 0%,#587F42 100%);color:#fff;box-shadow:var(--pop);border:none;}
+.tc .nextcard{background:linear-gradient(135deg,#1E5EAE 0%,#2A78D6 100%);color:#fff;box-shadow:var(--pop);border:none;}
 .tc .nextcard .nlab{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;font-weight:700;opacity:.75;}
 .tc .nextcard .ntitle{font-size:18px;font-weight:800;letter-spacing:-.015em;margin:7px 0 6px;line-height:1.25;}
 .tc .nextcard .nwhy{font-size:12.5px;font-weight:500;opacity:.88;line-height:1.5;margin-bottom:13px;}
@@ -377,16 +379,42 @@ export const CSS = `
 .tc .outlook{font-size:14px;font-weight:500;color:var(--soft);line-height:1.55;
  max-width:760px;margin:-12px 0 20px;}
 
-/* the household snapshot — Home's answer to "are we okay?", numbers only,
+/* the household snapshot — a deep-blue full-bleed card, numbers only,
    each figure a button through to where it comes from */
-.tc .hero{background:var(--surface);border:1px solid rgba(224,222,206,.6);border-radius:24px;
- padding:22px 28px;box-shadow:var(--shadow);margin-bottom:18px;}
-.tc .herofigs{display:flex;gap:34px;flex-wrap:wrap;}
+.tc .hero{background:var(--hero);border:none;border-radius:24px;
+ padding:24px 28px;box-shadow:var(--pop);margin-bottom:18px;color:#E6F1FB;}
+.tc .herofigs{display:flex;gap:12px 34px;flex-wrap:wrap;align-items:flex-end;}
 .tc .herofig{background:none;border:none;padding:6px 8px;margin:-6px -8px;border-radius:12px;
- text-align:left;display:flex;flex-direction:column;color:var(--ink);font-family:inherit;
+ text-align:left;display:flex;flex-direction:column;color:#fff;font-family:inherit;
  transition:background .12s ease;}
-.tc .herofig .v{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
- font-size:26px;letter-spacing:-.02em;line-height:1.15;}
+.tc .herofig .lbl{color:var(--hero-soft);}
+.tc .herofig .v{font-variant-numeric:tabular-nums lining-nums;font-weight:600;
+ font-size:26px;letter-spacing:-.02em;line-height:1.12;}
+.tc .herofig.big .v{font-size:46px;font-weight:600;letter-spacing:-.03em;}
+.tc .herofig .herofoot{color:var(--hero-mut);}
+.tc .herospark{flex:none;margin-left:auto;align-self:flex-start;}
+
+/* the stewardship split as a segmented strip inside the hero */
+.tc .stewstrip{display:flex;gap:2px;height:6px;border-radius:4px;overflow:hidden;
+ margin-top:18px;width:100%;border:none;background:none;padding:0;cursor:pointer;}
+.tc .stewstrip i{display:block;height:100%;}
+.tc .stewlegend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:9px;font-size:12px;
+ color:var(--hero-mut);background:none;border:none;padding:0;cursor:pointer;font-family:inherit;}
+.tc .stewlegend b{color:#fff;font-weight:600;}
+
+/* the fused in/out/kept row — one rounded block, 2px seams */
+.tc .fusedrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;
+ border-radius:16px;overflow:hidden;margin-bottom:16px;}
+.tc .fusedrow>div{background:var(--surface);padding:14px 17px;}
+.tc .fusedrow .fk{font-size:12px;color:var(--soft);font-weight:500;margin-bottom:3px;}
+.tc .fusedrow .fv{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums lining-nums;letter-spacing:-.01em;}
+.tc .fusedrow .ff{font-size:12px;margin-top:3px;color:var(--soft);font-weight:500;}
+
+/* where it went — proportional strip + rows */
+.tc .wentstrip{display:flex;gap:2px;height:14px;border-radius:7px;overflow:hidden;}
+.tc .wentrow{display:flex;align-items:center;justify-content:space-between;padding:10px 0;
+ border-bottom:1px solid var(--surface2);font-size:13.5px;font-weight:500;}
+.tc .wentrow:last-child{border-bottom:none;}
 .tc .herofoot{display:block;font-size:11px;color:var(--soft);margin-top:3px;font-weight:500;line-height:1.4;}
 
 /* a verse beside a number — guidance, never a verdict. Harvest-gold
@@ -424,14 +452,6 @@ export const CSS = `
  color:var(--soft);font-weight:700;}
 .tc .lifetitle{display:block;font-weight:800;font-size:14.5px;letter-spacing:-.01em;line-height:1.3;margin-top:1px;}
 
-/* the stewardship strip under the hero numbers */
-.tc .stewrow{display:flex;gap:7px;flex-wrap:wrap;margin-top:16px;padding-top:14px;
- border-top:1px solid var(--surface2);}
-.tc .stewchip{background:var(--surface2);border:none;border-radius:999px;padding:7px 12px;
- font-size:12px;font-weight:600;color:var(--soft);display:inline-flex;align-items:center;gap:5px;
- font-family:inherit;transition:background .12s ease,color .12s ease;}
-.tc .stewchip .num{font-size:12px;color:var(--ink);}
-@media(hover:hover){.tc .stewchip:hover{background:var(--brand-soft);color:var(--brand-deep);}}
 
 /* the money-meeting wizard */
 .tc .meetdots{display:flex;gap:6px;margin-bottom:20px;}
@@ -459,8 +479,8 @@ export const CSS = `
  .tc .envrow:hover,.tc .morelist button:hover,.tc .check:hover{background:var(--surface2);}
  .tc .calcell:hover{border-color:var(--brand);}
  .tc .calcell:hover .calpop{display:block;}
- .tc .herofig:hover{background:var(--surface2);}
- .tc .herofig:hover .v{color:var(--brand-deep);}
+ .tc .herofig:hover{background:rgba(255,255,255,.09);}
+ .tc .stewstrip:hover,.tc .stewlegend:hover{opacity:.85;}
 }
 
 /* ==================================================================
@@ -524,8 +544,11 @@ export const CSS = `
  .tc .calpop{display:none!important;}
  .tc .outlook{margin:0 0 16px;}
  .tc .hero{padding:16px 18px;border-radius:20px;}
- .tc .herofigs{gap:14px 22px;}
- .tc .herofig .v{font-size:21px;}
+ .tc .herofigs{gap:12px 20px;}
+ .tc .herofig .v{font-size:20px;}
+ .tc .herofig.big .v{font-size:34px;}
+ .tc .herospark{display:none;}
+ .tc .fusedrow .fv{font-size:19px;}
 
 }
 

@@ -72,12 +72,17 @@ The information architecture copies how financial planners actually present to c
   out of the sidebar — Our Plan is the user-facing way in, with an "Open the envelopes" button.
   The phone tab bar is Home / Activity / Bills / Planner / More.
 - **Home has exactly two jobs, in order: see the state, log the spend.** The status hero
-  (`.hero`) is numbers only — no headline, no prose, no recommendation row. Five clickable
-  figures: available today and this week off `m.today` (flexible envelopes only, an even
-  split across the days left; falls back to month figures when nothing flexible is
-  planned), budget left → Envelopes, bills still due → Bills (its caption carries the
-  `m.billsCovered` coverage read), expected left over → Our Plan. `m.monthOutlook.rec` is
-  still computed and feeds the Planner snapshot; it just doesn't render on Home. Directly under it, the **log card**: snap a receipt (camera capture input), upload
+  (`.hero`) is the one deep-blue card, numbers only — no headline, no prose, no
+  recommendation row. Five clickable figures (available today rendered dominant via
+  `.herofig.big`) off `m.today`, plus budget left → Envelopes and bills still due → Bills
+  (caption carries the `m.billsCovered` read); a small SVG sparkline of six-month spending;
+  the stewardship split as a segmented strip + legend (faith on, monthly buckets, light
+  tints) clicking through to Stewardship; and Today's thread. Under the hero: the fused
+  In / Out / Kept row (`.fusedrow`, 2px seams), then log + what-if, then the mockup-style
+  charts — "Where it went" as a proportional `PIE`-colored strip with rows (over-plan rows
+  flagged in words), "Monthly spend" as quiet gray bars with the live month in brand blue
+  and a dashed income line — then goal rings. `m.monthOutlook.rec` is still computed and
+  feeds the Planner snapshot; it just doesn't render on Home. Directly under it, the **log card**: snap a receipt (camera capture input), upload
   a photo, type it in — all driving the same `receipt` hook and EntrySheet — plus one-tap
   envelope chips and the last few entries. Beside it, the **quick what-if chat**: same
   `state.chat` and system prompt as Ask the Planner (via `src/lib/planner.js`), scenario
@@ -211,7 +216,7 @@ When a simulation can't terminate — minimums below interest — it returns `ne
 - Month keys are `"YYYY-MM"` strings. Use `shiftMonth`, `monthsBetween`, `monthLabel`, `daysInMonth` — never do date math inline.
 - `owner` is `"a" | "b" | "joint"` everywhere (envelopes, entries, bills, accounts). Resolve with `m.ownerName()` / `m.ownerColor()`.
 - All user input goes through `num()`, which strips currency formatting and never returns NaN. Pasted URLs go through `safeUrl()`, which only lets `http(s)` through.
-- Colours live in the `C` object and the CSS variables — a mid-century-modern set on a warm bone page (`--page #F3F1E8`). Avocado green `#4E7A3A` is partner A **and** the brand; lake teal-blue `#1F7A8C` is partner B; harvest gold `#D98E04` is shared/goals; red `#D93A4C` is the only alarm colour; emerald `#1E8A5A` means confirmed-good. Brand avocado and confirmed-good emerald are both greens on purpose (the brand *is* the good-standing colour family) — they are only ever disambiguated by the symbol+word rule below, so that rule is loadbearing now. If you change a hue, re-validate the set as a categorical palette (CVD + normal-vision, all pairs, on the white card surface) — don't eyeball.
+- Colours live in the `C` object and the CSS variables — a bright modern set on a cool near-white page (`--page #F6F7F9`). Clear blue `#2A78D6` is partner A **and** the brand; emerald `#1BAF7A` is partner B; amber `#EDA100` is shared/goals; red `#E34948` is the only alarm colour; forest `#15803D` means confirmed-good. Partner B's emerald and confirmed-good forest are both greens — disambiguated only by the symbol+word rule below, which stays loadbearing. Home's hero is the one deep-blue card (`--hero #0C447C` with `--hero-soft`/`--hero-mut` light-blue text tints); scripture keeps its warm-gold quote blocks everywhere. `PIE` is the categorical cycle for the where-it-went strip. If you change a hue, re-validate the set as a categorical palette (CVD + normal-vision, all pairs, on the white card surface) — don't eyeball.
 - **Red means something is wrong**, not merely notable. Over plan, overdue, a shortfall, a minimum that doesn't cover interest. Being ahead of an even pace is not an alarm, and an envelope spent to exactly its plan is *done* ("fully spent", neutral), not hot.
 - Status chips (`SChip`) always pair a symbol with a word — colour never carries state alone. Same rule for series colours: every colored mark sits beside its name.
 - Surfaces: lavender page `--page`, white cards with the `--shadow` token, radius 16–18px, pill buttons. New tints come from the existing tokens (`--surface2`, `--brand-soft`), not new hues.

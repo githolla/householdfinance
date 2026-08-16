@@ -98,16 +98,16 @@ export const hostOf = (v) => {
 
 export const GROUPS = ["Home", "Daily", "Lifestyle", "Health", "Giving", "Other"];
 
-/* Mid-century modern set on a warm bone page: avocado green = partner A and
-   the brand, lake teal-blue = partner B, harvest gold = shared/goals, red =
-   the only alarm colour, emerald = confirmed-good (distinct from the
-   yellow-leaning brand green). Every coloured mark still sits beside a word —
-   colour never carries state alone — so the pairs that sit closest (brand
-   avocado vs emerald) are always disambiguated by their labels. */
+/* Bright modern set on a cool near-white page: clear blue = partner A and
+   the brand, emerald = partner B, amber = shared/goals, red = the only
+   alarm colour, forest = confirmed-good (darker than partner B's emerald).
+   Every coloured mark still sits beside a word — colour never carries
+   state alone — so the greens (partner B vs confirmed-good) are always
+   disambiguated by their labels. */
 export const C = {
-  a: "#4E7A3A", b: "#1F7A8C", joint: "#D98E04", warn: "#D93A4C", ok: "#1E8A5A",
-  soft: "#6C7260", ink: "#20261B", line: "#E0DECE",
-  brand: "#4E7A3A", brandSoft: "#E5ECD8",
+  a: "#2A78D6", b: "#1BAF7A", joint: "#EDA100", warn: "#E34948", ok: "#15803D",
+  soft: "#64748B", ink: "#16202B", line: "#E5E8EC",
+  brand: "#2A78D6", brandSoft: "#E3EEFB",
 };
 
-export const PIE = ["#4E7A3A", "#1F7A8C", "#D98E04", "#7FA05C", "#4FA3B5", "#8C8F7E", "#B7C99A", "#D9C58A"];
+export const PIE = ["#2A78D6", "#1BAF7A", "#EDA100", "#8A5CE0", "#E87BA4", "#12A5BC", "#85B7EB", "#F5C4B3"];
