@@ -100,6 +100,12 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
     ? `covered through ${m.billsCovered.throughLabel}`
     : `${m.bills.filter((b) => !b.paid && b.amount > 0).length} unpaid this month`;
 
+  /* The stewardship strip: the household's biblical framework (provision →
+     giving, needs, obligations, enjoyment, future) as one quiet row under
+     the numbers. Faith layer only; every chip opens Stewardship. */
+  const faith = !!(state.faith && state.faith.enabled);
+  const STEW_GLYPH = { provision: "🌾", needs: "🏠", giving: "💛", obligations: "🧾", saving: "🛟", enjoyment: "🍜", future: "🌱" };
+
   const catData = plan.envelopes
     .map((e) => ({ name: e.name, spent: m.spentBy[e.id] || 0, planned: e.planned }))
     .filter((d) => d.spent > 0 || d.planned > 0)
@@ -159,6 +165,16 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
             </button>
           ))}
         </div>
+        {faith && (
+          <div className="stewrow">
+            {m.stewardship.map((b) => (
+              <button className="stewchip" key={b.key} onClick={() => setView("stew")}
+                aria-label={`${b.label} — open Stewardship`}>
+                <span>{STEW_GLYPH[b.key]}</span> {b.label} <span className="num">{money(b.figure)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* log it and ask it, side by side */}

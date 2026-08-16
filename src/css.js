@@ -389,6 +389,15 @@ export const CSS = `
  font-size:26px;letter-spacing:-.02em;line-height:1.15;}
 .tc .herofoot{display:block;font-size:11px;color:var(--soft);margin-top:3px;font-weight:500;line-height:1.4;}
 
+/* the stewardship strip under the hero numbers */
+.tc .stewrow{display:flex;gap:7px;flex-wrap:wrap;margin-top:16px;padding-top:14px;
+ border-top:1px solid var(--surface2);}
+.tc .stewchip{background:var(--surface2);border:none;border-radius:999px;padding:7px 12px;
+ font-size:12px;font-weight:600;color:var(--soft);display:inline-flex;align-items:center;gap:5px;
+ font-family:inherit;transition:background .12s ease,color .12s ease;}
+.tc .stewchip .num{font-size:12px;color:var(--ink);}
+@media(hover:hover){.tc .stewchip:hover{background:var(--brand-soft);color:var(--brand-deep);}}
+
 /* the money-meeting wizard */
 .tc .meetdots{display:flex;gap:6px;margin-bottom:20px;}
 .tc .meetdots i{width:36px;height:5px;border-radius:3px;background:var(--line);}
