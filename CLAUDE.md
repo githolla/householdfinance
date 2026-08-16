@@ -141,9 +141,10 @@ relationships: money ↔ God, money ↔ marriage, money ↔ future:
   `PRAYERS` are the decision-moment prompts ("if it's your practice", never required),
   shown wherever the couple actually chooses: meeting gratitude/decide/close, Home's
   decide-together card, the afford verdict. `LIFE` is the deep layer — twelve way-of-life
-  principles (2–3 passages each + a "practice" line tying it to an app feature), rendered
-  as the expandable "The way we live with money" section on Stewardship and summarised
-  into the Planner's system prompt as Scripture's *general* call. Gates: verses need
+  principles (glyph, 2–3 passages, a "practice" line, and a `go` CTA into the feature it
+  explains), rendered as the numbered card grid "The way we live with money" on
+  Stewardship, as Home's tappable "Today's thread" (rotating daily), and summarised into
+  the Planner's system prompt as Scripture's *general* call. Gates: verses need
   `versesOn(state)` (faith on AND scripture ≠ off); prayers need `prayersOn(state)`
   (faith on). All quotes plain modern English from the public-domain World English Bible.
   The distinction that must survive any edit: general revealed teaching may be presented;
