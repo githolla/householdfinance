@@ -96,16 +96,6 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
   else if (m.week && m.week.decision >= 50)
     decide = `About ${money(m.week.decision)} extra is available this month. Where should it go?`;
 
-  /* ---- the hero's read on the month ---- */
-  const overdueHero = m.bills.find((b) => b.overdue);
-  const trouble = m.flow.totalShortfall > 1 || m.taxOverdue
-    || (m.planned > 0 && m.spent > m.planned) || m.unallocated < -1;
-  const headline = overdueHero
-    ? `${overdueHero.name} needs you — it was due the ${ordinal(overdueHero.day)}.`
-    : m.taxOverdue ? "An estimated tax payment is past due."
-      : trouble ? m.thesis[0]
-        : m.monthOutlook.onTrack ? "You're in good shape this month."
-          : "You're running a little warm this month.";
   const rec = m.monthOutlook.rec;
   const agreedRec = state.ui.agreedRec === month;
 
@@ -143,56 +133,30 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
 
-      {/* the household status hero: are we okay, in numbers */}
+      {/* the household snapshot: just the numbers, each one a door */}
       <div className="hero">
-        <div className="hline">{headline}</div>
-        <div className="hsub">
-          {!m.billsCovered.known
-            ? "Add your bills and cash accounts and this line will tell you how far you're covered."
-            : m.billsCovered.ok || !m.billsCovered.shortBill
-              ? `Bills are covered through ${m.billsCovered.throughLabel}.`
-              : `Heads up — ${m.billsCovered.shortBill.name} (${money(m.billsCovered.shortBill.amount)}) is past what's in the cash accounts.`}
-          {" "}{!m.tax.incomplete && m.tax.reserveDelta < -1 ? "The tax reserve is behind pace. " : ""}
-          {overdueHero
-            ? `${money(overdueHero.amount)} — mark it paid in Bills and it logs itself into the right envelope.`
-            : headline === m.thesis[0] ? m.thesis[1] : ""}
+        <div className="herofigs">
+          {(m.today.known
+            ? [
+              ["Available today", m.today.allowance, m.today.spentToday > 0 ? `already counting today's ${money(m.today.spentToday)}` : "flexible money, split over the days left", "txn"],
+              ["This week", m.today.weekBudget, `${money(m.today.weekSpent)} spent in the last 7 days`, "cal"],
+              ["Left this month", m.leftToSpend, `of ${money(m.planned)} planned`, "budget"],
+              ["Expected left over", Math.max(0, m.monthOutlook.available), "after bills and normal spending", "plan"],
+            ]
+            : [
+              ["Came in", m.income, "what you both bring home", "settings"],
+              ["Spent so far", m.spent, `${plan.entries.length} transactions`, "txn"],
+              ["Left to spend", m.leftToSpend, `of ${money(m.planned)} planned`, "budget"],
+              ["Available", Math.max(0, m.monthOutlook.available), "after bills and normal spending", "plan"],
+            ]
+          ).map(([k, v, f, view]) => (
+            <button className="herofig" key={k} onClick={() => setView(view)}>
+              <span className="lbl">{k}</span>
+              <span className={"v" + ((k === "Left this month" || k === "Left to spend") && v < 0 ? " down" : "")}>{money(v)}</span>
+              <span className="herofoot">{f}</span>
+            </button>
+          ))}
         </div>
-        {m.today.known ? (
-          <>
-            <div className="herofigs">
-              {[
-                ["Available today", m.today.allowance, m.today.spentToday > 0 ? `already counting today's ${money(m.today.spentToday)}` : "flexible money, split over the days left"],
-                ["This week", m.today.weekBudget, `${money(m.today.weekSpent)} spent in the last 7 days`],
-                ["Left this month", m.leftToSpend, `of ${money(m.planned)} planned`],
-                ["Expected left over", Math.max(0, m.monthOutlook.available), "after bills and normal spending"],
-              ].map(([k, v, f]) => (
-                <div key={k}>
-                  <span className="lbl">{k}</span>
-                  <span className={"v" + (k === "Left this month" && v < 0 ? " down" : "")}>{money(v)}</span>
-                  <span className="herofoot">{f}</span>
-                </div>
-              ))}
-            </div>
-            <p className="herofoot" style={{ marginTop: 10 }}>
-              Today and this week count only the flexible envelopes — rent, groceries, the tax
-              set-aside and the rest of the committed money are already spoken for.
-            </p>
-          </>
-        ) : (
-          <div className="herofigs">
-            {[
-              ["Came in", m.income],
-              ["Spent so far", m.spent],
-              ["Left to spend", m.leftToSpend],
-              ["Available", Math.max(0, m.monthOutlook.available)],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <span className="lbl">{k}</span>
-                <span className={"v" + (k === "Left to spend" && v < 0 ? " down" : "")}>{money(v)}</span>
-              </div>
-            ))}
-          </div>
-        )}
         {m.live && rec.length > 0 && (
           <div className="recrow">
             <span className="lbl" style={{ marginBottom: 0 }}>Planner recommendation</span>

@@ -377,14 +377,16 @@ export const CSS = `
 .tc .outlook{font-size:14px;font-weight:500;color:var(--soft);line-height:1.55;
  max-width:760px;margin:-12px 0 20px;}
 
-/* the household status hero — Home's answer to "are we okay?" */
+/* the household snapshot — Home's answer to "are we okay?", numbers only,
+   each figure a button through to where it comes from */
 .tc .hero{background:var(--surface);border:1px solid rgba(224,222,206,.6);border-radius:24px;
- padding:26px 28px;box-shadow:var(--shadow);margin-bottom:18px;}
-.tc .hero .hline{font-size:clamp(20px,2.4vw,27px);font-weight:800;letter-spacing:-.02em;line-height:1.25;}
-.tc .hero .hsub{font-size:14px;color:var(--soft);font-weight:500;line-height:1.6;margin-top:9px;max-width:740px;}
-.tc .herofigs{display:flex;gap:36px;flex-wrap:wrap;margin-top:18px;}
-.tc .herofigs .v{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
- font-size:25px;letter-spacing:-.02em;line-height:1.1;}
+ padding:22px 28px;box-shadow:var(--shadow);margin-bottom:18px;}
+.tc .herofigs{display:flex;gap:34px;flex-wrap:wrap;}
+.tc .herofig{background:none;border:none;padding:6px 8px;margin:-6px -8px;border-radius:12px;
+ text-align:left;display:flex;flex-direction:column;color:var(--ink);font-family:inherit;
+ transition:background .12s ease;}
+.tc .herofig .v{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
+ font-size:26px;letter-spacing:-.02em;line-height:1.15;}
 .tc .herofoot{display:block;font-size:11px;color:var(--soft);margin-top:3px;font-weight:500;line-height:1.4;}
 .tc .recrow{display:flex;gap:9px;flex-wrap:wrap;margin-top:17px;padding-top:16px;
  border-top:1px solid var(--surface2);align-items:center;}
@@ -417,6 +419,8 @@ export const CSS = `
  .tc .envrow:hover,.tc .morelist button:hover,.tc .check:hover{background:var(--surface2);}
  .tc .calcell:hover{border-color:var(--brand);}
  .tc .calcell:hover .calpop{display:block;}
+ .tc .herofig:hover{background:var(--surface2);}
+ .tc .herofig:hover .v{color:var(--brand-deep);}
 }
 
 /* ==================================================================
@@ -479,9 +483,9 @@ export const CSS = `
  .tc .calspent{display:none;}
  .tc .calpop{display:none!important;}
  .tc .outlook{margin:0 0 16px;}
- .tc .hero{padding:18px;border-radius:20px;}
- .tc .herofigs{gap:22px;}
- .tc .herofigs .v{font-size:21px;}
+ .tc .hero{padding:16px 18px;border-radius:20px;}
+ .tc .herofigs{gap:14px 22px;}
+ .tc .herofig .v{font-size:21px;}
 
 }
 

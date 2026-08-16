@@ -71,14 +71,16 @@ export function model(state, plan, month) {
   const bills = state.bills
     .map((b) => {
       const paid = (plan.paid || []).includes(b.id);
-      const overdue = !paid && live && b.day < todayDay();
-      const dueSoon = !paid && live && !overdue && b.day - todayDay() <= 7;
+      /* A $0 bill is a placeholder still being typed in, not a missed
+         payment — it never alarms. */
+      const overdue = !paid && live && b.amount > 0 && b.day < todayDay();
+      const dueSoon = !paid && live && b.amount > 0 && !overdue && b.day - todayDay() <= 7;
       return { ...b, paid, overdue, dueSoon };
     })
     .sort((x, y) => x.day - y.day);
   const billsTotal = bills.reduce((n, b) => n + b.amount, 0);
   const billsLeft = bills.filter((b) => !b.paid).reduce((n, b) => n + b.amount, 0);
-  const dueSoonList = bills.filter((b) => !b.paid && (b.overdue || b.day - todayDay() <= 10)).slice(0, 3);
+  const dueSoonList = bills.filter((b) => !b.paid && b.amount > 0 && (b.overdue || b.day - todayDay() <= 10)).slice(0, 3);
 
   /* ---- pace: am I ahead of myself this month? ---- */
   const dim = daysInMonth(month);
