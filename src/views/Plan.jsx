@@ -25,7 +25,8 @@ export default function Plan({ ctx }) {
 
   return (
     <>
-      <Head title="The plan" sub="Where every dollar goes, in the order you want it to go there." />
+      <Head title="Our Plan" sub="Where the next dollar goes, in the order you two chose."
+        right={<button className="btn ghost tiny" onClick={() => setView("budget")}>Open the envelopes</button>} />
 
       <p className="thesis">{f.sentence}</p>
 
@@ -59,13 +60,13 @@ export default function Plan({ ctx }) {
           value={money(f.totalShortfall > 1 ? f.totalShortfall : f.leftover)}
           tone={f.totalShortfall > 1 ? "down" : "up"}
           foot={f.totalShortfall > 1 ? "across the stages below" : "lands in spending money"} />
-        <Kpi label="Tithe" value={money(f.rows.find((r) => r.key === "tithe").funded)}
-          foot={`${cfg.tithePct}% of ${cfg.titheBase === "gross" ? "what comes in" : "what's left after tax"}`} />
+        <Kpi label="Giving" value={money(f.rows.find((r) => r.key === "tithe").funded)}
+          foot={`${cfg.tithePct}% of ${cfg.titheBase === "gross" ? "what comes in" : "what's left after tax"} — your number, not a rule`} />
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="chead">
-          <h3>The waterfall</h3>
+          <h3>Where the next dollar goes</h3>
           <span className="meta">each stage takes what it needs before the next one sees a dollar</span>
         </div>
 

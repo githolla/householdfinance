@@ -22,7 +22,7 @@ export default function Spending({ ctx, receipt }) {
 
   return (
     <>
-      <Head title="Spending" sub="Everything logged this month, and who spent it."
+      <Head title="Transactions" sub="Everything logged this month, and who spent it."
         right={<MonthNav month={month} setMonth={setMonth} />} />
 
       <div className="logger">

@@ -26,6 +26,7 @@ import Budget from "./views/Budget.jsx";
 import Spending from "./views/Spending.jsx";
 import Bills from "./views/Bills.jsx";
 import Calendar from "./views/Calendar.jsx";
+import MoneyMeeting from "./views/MoneyMeeting.jsx";
 import Goals from "./views/Goals.jsx";
 import NetWorth from "./views/NetWorth.jsx";
 import Taxes from "./views/Taxes.jsx";
@@ -41,27 +42,30 @@ const KEY_V1 = "twocolumn:v1";
 
 const NAV = [
   ["dash", "Home", "Home"],
-  ["txn", "Spending", "Spending"],
-  ["budget", "Budget", "Budget"],
+  ["txn", "Transactions", "Activity"],
   ["bills", "Bills", "Bills"],
-  ["cal", "Calendar"],
-  ["plan", "The plan"],
+  ["plan", "Our Plan"],
+  ["budget", "Envelopes"],
   ["goals", "Goals"],
   ["worth", "Net worth"],
-  ["taxes", "Taxes"],
-  ["reports", "Reports"],
   ["stew", "Stewardship"],
-  ["planner", "Ask the planner"],
+  ["meeting", "Money Meeting"],
+  ["planner", "Ask the Planner", "Planner"],
+  ["cal", "Calendar"],
+  ["taxes", "Taxes"],
+  ["reports", "Insights"],
   ["settings", "Settings"],
 ];
-const PRIMARY = ["dash", "txn", "budget", "bills"];
-/* Grouped the way a planner walks a client through it: the daily loop,
-   the plan itself, then stepping back. */
+const PRIMARY = ["dash", "txn", "bills", "planner"];
+/* Grouped around the couple's mental model: today's loop, the money
+   itself, the things they do together, and everything else. Envelopes
+   stays routed (Plan links to it) but out of the sidebar — Plan is the
+   user-facing way in. */
 const SECTIONS = [
-  ["Every day", ["dash", "txn", "budget", "bills", "cal"]],
-  ["The plan", ["plan", "goals", "worth", "taxes"]],
-  ["Step back", ["reports", "stew", "planner"]],
-  ["", ["settings"]],
+  ["Today", ["dash", "txn", "bills"]],
+  ["Our money", ["plan", "goals", "worth"]],
+  ["Together", ["stew", "meeting", "planner"]],
+  ["More", ["cal", "taxes", "reports", "settings"]],
 ];
 
 const ICON = {
@@ -76,6 +80,7 @@ const ICON = {
   taxes: <svg viewBox="0 0 24 24"><path d="M5 19L19 5" /><circle cx="7.5" cy="7.5" r="2.4" /><circle cx="16.5" cy="16.5" r="2.4" /></svg>,
   reports: <svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-6" /></svg>,
   stew: <svg viewBox="0 0 24 24"><path d="M12 21V11" /><path d="M12 11C12 6.5 9 4 4.5 4c0 4.5 3 7 7.5 7z" /><path d="M12 14c0-3.5 2.5-5.5 6.5-5.5 0 3.5-2.5 5.5-6.5 5.5z" /></svg>,
+  meeting: <svg viewBox="0 0 24 24"><path d="M3 11a5 5 0 0 1 5-5h8a5 5 0 0 1 5 5v1a5 5 0 0 1-5 5h-3l-4 3v-3H8a5 5 0 0 1-5-5z" /><path d="M8 11h.01M12 11h.01M16 11h.01" /></svg>,
   planner: <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z" /></svg>,
   settings: <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2.2" /><circle cx="7" cy="17" r="2.2" /></svg>,
   more: <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" /></svg>,
@@ -238,6 +243,7 @@ export default function App() {
           {view === "taxes" && <Taxes ctx={ctx} />}
           {view === "reports" && <Reports ctx={ctx} />}
           {view === "stew" && navVisible("stew") && <Stewardship ctx={ctx} />}
+          {view === "meeting" && <MoneyMeeting ctx={ctx} />}
           {view === "planner" && <Planner ctx={ctx} />}
           {view === "settings" && <Settings ctx={ctx} setState={setState} />}
         </main>

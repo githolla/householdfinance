@@ -330,6 +330,88 @@ export function model(state, plan, month) {
     });
   }
 
+  /* ---- cash coverage: how far the money on hand carries the bills ----
+     Walks unpaid bills in due order (this month, then next) against cash
+     accounts, and names the first one that wouldn't clear. ---- */
+  const cashOnHand = assets.filter((a) => a.type === "cash").reduce((n, a) => n + a.balance, 0);
+  let covered = cashOnHand;
+  let shortBill = null;
+  const upcomingSeq = [
+    ...bills.filter((b) => !b.paid).map((b) => ({ ...b, m: month })),
+    ...bills.map((b) => ({ ...b, m: shiftMonth(month, 1) })),
+  ];
+  for (const b of upcomingSeq) {
+    covered -= b.amount;
+    if (covered < 0) { shortBill = b; break; }
+  }
+  /* "September 30", never "Sep 26 30" — the short month label carries a year. */
+  const calDate = (k, d) => {
+    const [yy, mo] = k.split("-").map(Number);
+    return new Date(yy, mo - 1, Math.min(d, daysInMonth(k)))
+      .toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  };
+  const billsCovered = {
+    cash: cashOnHand,
+    ok: !shortBill,
+    throughLabel: shortBill
+      ? calDate(shortBill.m, shortBill.day)
+      : calDate(shiftMonth(month, 1), daysInMonth(shiftMonth(month, 1))),
+    shortBill: shortBill ? { name: shortBill.name, amount: shortBill.amount } : null,
+  };
+
+  /* ---- one real thing worth naming out loud this week ----
+     Deterministic — if nothing genuinely positive exists, it's null and
+     the meeting says "steady is enough" instead of inventing praise. ---- */
+  let celebrate = null;
+  const goalNearly = state.goals
+    .map((g) => ({ g, st: goalStatus(g) }))
+    .find((x) => x.g.target > 0 && !x.st.done && x.st.pct >= 75);
+  const goalDone = state.goals.map((g) => ({ g, st: goalStatus(g) })).find((x) => x.st.done);
+  if (paceDiag && paceDiag.delta < -50)
+    celebrate = `You're ${money(-paceDiag.delta)} under your own normal pace this month — quiet discipline, adding up.`;
+  else if (goalDone)
+    celebrate = `${goalDone.g.name} is fully funded. That happened because you kept choosing it.`;
+  else if (goalNearly)
+    celebrate = `${goalNearly.g.name} is ${Math.round(goalNearly.st.pct)}% funded — the last stretch is in sight.`;
+  else if (bills.length > 0 && !bills.some((b) => b.overdue))
+    celebrate = "Every bill so far this month was handled on time. That's not nothing.";
+  else if (!tax.incomplete && tax.reserveDelta > -1)
+    celebrate = "The tax reserve is on pace — the quarter won't sneak up on you.";
+
+  /* ---- insights: patterns named in words, charts as evidence ---- */
+  let insights = null;
+  if (paceDiag) {
+    insights = [];
+    const topOver = paceDiag.over[0];
+    if (topOver && avgByName[topOver.name] > 0)
+      insights.push({
+        title: `${topOver.name} is trending higher`,
+        body: `${money(topOver.spent)} so far this month against ${money(topOver.normal)} by this point in a normal month — a three-month average of ${money(avgByName[topOver.name])}/mo.`,
+        tone: "warn",
+      });
+    const topUnder = paceDiag.under[0];
+    if (topUnder && avgByName[topUnder.name] > 0)
+      insights.push({
+        title: `${topUnder.name} is running lighter`,
+        body: `${money(-topUnder.delta)} under its usual pace for this point in the month.`,
+        tone: "ok",
+      });
+    if (threeMoAvgTotal !== null && Math.abs(paceDiag.delta) > 25)
+      insights.push({
+        title: paceDiag.delta > 0 ? "The month is running warm" : "The month is running cool",
+        body: `${money(spent)} spent so far, against ${money(paceDiag.expectedNormal)} by this day in your last three months.`,
+        tone: paceDiag.delta > 0 ? "warn" : "ok",
+      });
+    if (income > 0)
+      insights.push({
+        title: `Saving ${Math.round(savingsRate)}% of what comes in`,
+        body: savingsRate >= 15
+          ? `${money(goalMonthly)} a month heads to goals — a pace most plans call comfortable.`
+          : `${money(goalMonthly)} a month heads to goals. Many plans target 15–20%; yours is a choice, not a rule.`,
+        tone: savingsRate >= 15 ? "ok" : "",
+      });
+  }
+
   /* ---- the stewardship read: the whole picture in seven buckets ------
      Provision, needs, giving, obligations, saving, enjoyment, future.
      Buckets are assigned from what the household already declared —
@@ -710,6 +792,7 @@ export function model(state, plan, month) {
     steps, currentStep, nextAction, setupSteps, setupDone,
     avgByName, threeMoAvgTotal, paceDiag, monthOutlook, week, weekKey, forecast12, afford, calendar,
     stewardship, decisions, decisionsDue, enough,
+    cashOnHand, billsCovered, celebrate, insights,
     envByName, matchEnvelope, merchantFavourites,
     merchantCount: Object.keys(merchantMap).length,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),

@@ -2,6 +2,7 @@
    goals — anything you'd rather fund on purpose than pay for by surprise
    ================================================================== */
 
+import { useState } from "react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ReferenceLine,
@@ -19,6 +20,8 @@ export default function Goals({ ctx }) {
   const { m, state, patch, month } = ctx;
   const totalTarget = state.goals.reduce((n, g) => n + g.target, 0);
   const totalSaved = state.goals.reduce((n, g) => n + g.saved, 0);
+  /* Progress and outcome lead; the form fields live behind "Adjust". */
+  const [editing, setEditing] = useState("");
 
   return (
     <>
@@ -89,7 +92,23 @@ export default function Goals({ ctx }) {
               <button className="btn ghost tiny" onClick={() => set("saved", g.saved + g.monthly)}>
                 Add this month's {money(g.monthly)}
               </button>
+              <button className="btn ghost tiny" onClick={() => setEditing(editing === g.id ? "" : g.id)}
+                aria-expanded={editing === g.id}>
+                {editing === g.id ? "Done adjusting" : "Adjust goal"}
+              </button>
             </div>
+            {(() => {
+              if (!(g.monthly > 0 && st.remaining > 0 && st.monthsNeeded)) return null;
+              const sooner = st.monthsNeeded - Math.ceil(st.remaining / (g.monthly + 100));
+              if (sooner < 1) return null;
+              return (
+                <p className="empty" style={{ marginTop: 8 }}>
+                  Planner: add $100 a month and {g.name} lands{" "}
+                  <b>{monthLabel(shiftMonth(month, Math.ceil(st.remaining / (g.monthly + 100))))}</b> —{" "}
+                  {sooner} {sooner === 1 ? "month" : "months"} sooner.
+                </p>
+              );
+            })()}
             {proj.length > 2 && (
               <div className="chartbox mini" style={{ marginTop: 14 }}>
                 <ResponsiveContainer>
@@ -104,19 +123,25 @@ export default function Goals({ ctx }) {
                 </ResponsiveContainer>
               </div>
             )}
-            <div className="fourup">
-              <div><label className="lbl">Target</label><input className="field num" inputMode="decimal" value={g.target || ""} placeholder="0" onChange={(e) => set("target", num(e.target.value))} /></div>
-              <div><label className="lbl">Saved</label><input className="field num" inputMode="decimal" value={g.saved || ""} placeholder="0" onChange={(e) => set("saved", num(e.target.value))} /></div>
-              <div><label className="lbl">Monthly</label><input className="field num" inputMode="decimal" value={g.monthly || ""} placeholder="0" onChange={(e) => set("monthly", num(e.target.value))} /></div>
-              <div><label className="lbl">Want it by</label><input className="field num" type="month" value={g.due || ""} onChange={(e) => set("due", e.target.value)} /></div>
-            </div>
+            {editing === g.id && (
+              <div className="fourup">
+                <div><label className="lbl">Target</label><input className="field num" inputMode="decimal" value={g.target || ""} placeholder="0" onChange={(e) => set("target", num(e.target.value))} /></div>
+                <div><label className="lbl">Saved</label><input className="field num" inputMode="decimal" value={g.saved || ""} placeholder="0" onChange={(e) => set("saved", num(e.target.value))} /></div>
+                <div><label className="lbl">Monthly</label><input className="field num" inputMode="decimal" value={g.monthly || ""} placeholder="0" onChange={(e) => set("monthly", num(e.target.value))} /></div>
+                <div><label className="lbl">Want it by</label><input className="field num" type="month" value={g.due || ""} onChange={(e) => set("due", e.target.value)} /></div>
+              </div>
+            )}
           </div>
         );
       })}
-      <button className="btn ghost tiny" onClick={() => patch((s) => {
-        s.goals.push({ id: uid(), name: "New goal", target: 0, saved: 0, monthly: 0, due: "", owner: "joint" });
-        return s;
-      })}>Add a goal</button>
+      <button className="btn ghost tiny" onClick={() => {
+        const id = uid();
+        patch((s) => {
+          s.goals.push({ id, name: "New goal", target: 0, saved: 0, monthly: 0, due: "", owner: "joint" });
+          return s;
+        });
+        setEditing(id);
+      }}>Add a goal</button>
     </>
   );
 }

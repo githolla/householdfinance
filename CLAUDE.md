@@ -31,6 +31,7 @@ src/lib/engines.js    debt payoff · 1099 tax reserve · allocation waterfall (p
 src/lib/model.js      model() — the computation layer
 src/lib/seed.js       seed envelopes, the sample household, withDefaults()
 src/lib/receipt.js    image shrink, the Claude vision call, merchant key
+src/lib/planner.js    the Planner's snapshot, system prompt, and API call — shared by every AI surface
 src/lib/useReceipt.js the capture → read → review flow as a hook
 src/lib/draft.js      the draft shape EntrySheet is seeded with
 
@@ -64,7 +65,21 @@ The information architecture copies how financial planners actually present to c
   current step is the first not-done. Never assert a step done that the numbers
   don't support.
 - **`m.setupSteps`** — the getting-started checklist; the card hides itself once done.
-- The sidebar is sectioned **Every day / The plan / Step back** (`SECTIONS` in App.jsx).
+- The sidebar is sectioned **Today / Our money / Together / More** (`SECTIONS` in App.jsx),
+  grouped around the couple's mental model. Envelopes (the budget view) stays fully routed but
+  out of the sidebar — Our Plan is the user-facing way in, with an "Open the envelopes" button.
+  The phone tab bar is Home / Activity / Bills / Planner / More.
+- **Home leads with the status hero** (`.hero`): are we okay, came-in / committed / available,
+  bill coverage off `m.billsCovered`, the Planner-recommendation row off `m.monthOutlook.rec`
+  (Use this plan records agreement in `state.ui.agreedRec`; it moves no money), then
+  "Since you were last here" (`state.ui.lastSeen`) and "One thing to decide together" — both
+  hidden when there's nothing real to show.
+- **The Money Meeting is its own guided view** (MoneyMeeting.jsx): gratitude → where we stand →
+  celebrate (`m.celebrate`, null when nothing is honestly worth naming) → one conversation →
+  decide (deterministic impact per vote, a middle path, and a Planner hand-off) → close. The
+  AI's only role is the optional disagreement comparison.
+- **Insights (Reports.jsx) leads with `m.insights`** — patterns named in words, charts as
+  evidence — and shows a teaching empty state until there's history.
 
 The household-CFO layer builds on the same principle — deterministic numbers, AI phrasing:
 
@@ -152,7 +167,7 @@ When a simulation can't terminate — minimums below interest — it returns `ne
 - Month keys are `"YYYY-MM"` strings. Use `shiftMonth`, `monthsBetween`, `monthLabel`, `daysInMonth` — never do date math inline.
 - `owner` is `"a" | "b" | "joint"` everywhere (envelopes, entries, bills, accounts). Resolve with `m.ownerName()` / `m.ownerColor()`.
 - All user input goes through `num()`, which strips currency formatting and never returns NaN. Pasted URLs go through `safeUrl()`, which only lets `http(s)` through.
-- Colours live in the `C` object and the CSS variables. Violet `#6C4CF1` is partner A **and** the brand; teal `#0E9888` is partner B; amber `#E09112` is shared/goals; red `#D93A4C` is the only alarm colour; green `#17A24A` means confirmed-good. The set was validated as a categorical palette (CVD + normal-vision separation, all pairs, on the white card surface) — if you change a hue, re-validate, don't eyeball.
+- Colours live in the `C` object and the CSS variables — a mid-century-modern set on a warm bone page (`--page #F3F1E8`). Avocado green `#4E7A3A` is partner A **and** the brand; lake teal-blue `#1F7A8C` is partner B; harvest gold `#D98E04` is shared/goals; red `#D93A4C` is the only alarm colour; emerald `#1E8A5A` means confirmed-good. Brand avocado and confirmed-good emerald are both greens on purpose (the brand *is* the good-standing colour family) — they are only ever disambiguated by the symbol+word rule below, so that rule is loadbearing now. If you change a hue, re-validate the set as a categorical palette (CVD + normal-vision, all pairs, on the white card surface) — don't eyeball.
 - **Red means something is wrong**, not merely notable. Over plan, overdue, a shortfall, a minimum that doesn't cover interest. Being ahead of an even pace is not an alarm, and an envelope spent to exactly its plan is *done* ("fully spent", neutral), not hot.
 - Status chips (`SChip`) always pair a symbol with a word — colour never carries state alone. Same rule for series colours: every colored mark sits beside its name.
 - Surfaces: lavender page `--page`, white cards with the `--shadow` token, radius 16–18px, pill buttons. New tints come from the existing tokens (`--surface2`, `--brand-soft`), not new hues.
@@ -180,7 +195,15 @@ Two things that silently break the phone layout:
 
 ## The AI bits
 
-Two calls, both through the dev proxy in `vite.config.js`, both on `claude-opus-5`:
+The assistant is called **the Planner** (or "AI Planner" where clarity needs it) — never give it
+an invented brand name. Its snapshot, system prompt, and API call live in `src/lib/planner.js`
+and are shared by every surface that talks to it (Ask the Planner, the Enough drafter). AI is
+ambient — Planner-voiced lines appear on Home, Goals, Insights — but those lines are
+deterministic strings computed in `model()`; only the chat, briefing-style, and drafting calls
+actually hit the API, and nothing the AI says ever executes a financial change without the
+couple acting on it themselves.
+
+Two kinds of calls, both through the dev proxy in `vite.config.js`, both on `claude-opus-5`:
 
 - **Receipt reading** (`src/lib/receipt.js`) — photo shrunk to 2000px/JPEG in the browser, sent as a base64 image block with `output_config.format` as a JSON schema so the response is structured. `effort: "low"` is the latency lever. Thinking is on by default on this model and `max_tokens` caps thinking *plus* output, hence 4000, not 512.
 - **Planner** (`src/views/Planner.jsx`) — same model at `effort: "medium"`, `max_tokens: 8000`.

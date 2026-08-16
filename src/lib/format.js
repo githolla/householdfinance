@@ -98,14 +98,16 @@ export const hostOf = (v) => {
 
 export const GROUPS = ["Home", "Daily", "Lifestyle", "Health", "Giving", "Other"];
 
-/* pine = partner A, iris = partner B, brass = shared & goals, rust = the only alarm colour */
-/* violet = partner A and the brand, teal = partner B, amber = shared/goals,
-   red = the only alarm colour, green = confirmed-good. Validated as a set with
-   a CVD + normal-vision separation checker, all pairs, on the white card surface. */
+/* Mid-century modern set on a warm bone page: avocado green = partner A and
+   the brand, lake teal-blue = partner B, harvest gold = shared/goals, red =
+   the only alarm colour, emerald = confirmed-good (distinct from the
+   yellow-leaning brand green). Every coloured mark still sits beside a word —
+   colour never carries state alone — so the pairs that sit closest (brand
+   avocado vs emerald) are always disambiguated by their labels. */
 export const C = {
-  a: "#6C4CF1", b: "#0E9888", joint: "#E09112", warn: "#D93A4C", ok: "#17A24A",
-  soft: "#6F6C8F", ink: "#1B1B2F", line: "#E7E4F4",
-  brand: "#6C4CF1", brandSoft: "#EDE8FE",
+  a: "#4E7A3A", b: "#1F7A8C", joint: "#D98E04", warn: "#D93A4C", ok: "#1E8A5A",
+  soft: "#6C7260", ink: "#20261B", line: "#E0DECE",
+  brand: "#4E7A3A", brandSoft: "#E5ECD8",
 };
 
-export const PIE = ["#6C4CF1", "#0E9888", "#E09112", "#9B85F6", "#54C2B4", "#8A8AA3", "#C4B5FD", "#D9C58A"];
+export const PIE = ["#4E7A3A", "#1F7A8C", "#D98E04", "#7FA05C", "#4FA3B5", "#8C8F7E", "#B7C99A", "#D9C58A"];

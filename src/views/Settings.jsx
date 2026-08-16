@@ -111,10 +111,25 @@ export default function Settings({ ctx, setState }) {
           </div>
           <p className="empty">
             On, the app frames money around stewardship: the Stewardship view, a weekly meeting that
-            opens with gratitude, "pray on it" for big decisions, and a planner that can offer biblical
+            opens with gratitude, "pray on it" for big decisions, and a Planner that can offer biblical
             principles where they're relevant. It will never claim to speak for God, and it never
             decides for you — the two of you do.
           </p>
+          {state.faith.enabled && (
+            <>
+              <label className="lbl" style={{ marginTop: 8 }}>Biblical perspective</label>
+              <div className="chips">
+                {[["off", "Off"], ["relevant", "When relevant"], ["more", "More often"]].map(([k, label]) => (
+                  <button key={k} className={"chip " + ((state.faith.scripture || "relevant") === k ? "on" : "")}
+                    onClick={() => patch((s) => { s.faith.scripture = k; return s; })}>{label}</button>
+                ))}
+              </div>
+              <p className="empty">
+                How often the Planner may bring Scripture into an answer. Even at "more often" it offers
+                principles, never verdicts — and never claims to know what God wants you to do.
+              </p>
+            </>
+          )}
           <label className="lbl" style={{ marginTop: 8 }}>What "enough" looks like for you</label>
           <textarea className="field" rows={3} value={state.enough.note}
             placeholder={`e.g. The emergency fund full, 15% saved, and everything past that given or enjoyed — not hoarded.`}

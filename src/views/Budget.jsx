@@ -5,12 +5,16 @@
    and a status chip. Tap any number to change it.
    ================================================================== */
 
+import { useState } from "react";
 import { money, num, uid, shiftMonth, GROUPS, C } from "../lib/format.js";
 import { Head, MonthNav, Kpi, Rail, Ring, SChip } from "../components.jsx";
 
 export default function Budget({ ctx }) {
   const { m, plan, writeMonth, month, setMonth, state } = ctx;
   const set = (i, field, val) => writeMonth((mm) => { mm.envelopes[i][field] = val; return mm; });
+  /* The default card is category, remaining, planned, status. Owner /
+     essential / group live behind the ⋯ — metadata, not the story. */
+  const [detail, setDetail] = useState("");
 
   /* stable order: grouped, then by name — the grid stays put as amounts change */
   const ordered = [...plan.envelopes].sort((a, b) =>
@@ -18,7 +22,7 @@ export default function Budget({ ctx }) {
 
   return (
     <>
-      <Head title="Budget" sub="Plan the month before it happens. Tap any number to change it."
+      <Head title="Envelopes" sub="Plan the month before it happens. Tap any number to change it."
         right={<MonthNav month={month} setMonth={setMonth} />} />
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
@@ -73,19 +77,26 @@ export default function Budget({ ctx }) {
                   : spentUp ? <SChip tone="done">fully spent</SChip>
                     : attention ? <SChip tone="warn">running hot</SChip>
                       : <SChip tone="ok">on track</SChip>}
-                <button className="tag" onClick={() => {
-                  const order = ["joint", "a", "b"];
-                  set(i, "owner", order[(order.indexOf(e.owner) + 1) % 3]);
-                }} title="Who covers this">{m.ownerName(e.owner)}</button>
-                <button className="tag" title="Essential envelopes get funded before goals and spending money"
-                  style={e.essential ? { background: C.brandSoft, color: C.brand } : undefined}
-                  onClick={() => set(i, "essential", !e.essential)}>
-                  {e.essential ? "Essential" : "Flexible"}
-                </button>
-                <select className="tag hideS" value={e.group || "Other"} onChange={(ev) => set(i, "group", ev.target.value)} aria-label="Group">
-                  {GROUPS.map((x) => <option key={x}>{x}</option>)}
-                </select>
+                <span className="muted" style={{ fontSize: 11.5 }}>{money(s)} spent</span>
+                <button className="tag" style={{ marginLeft: "auto" }} aria-expanded={detail === e.id}
+                  onClick={() => setDetail(detail === e.id ? "" : e.id)} aria-label={`Details for ${e.name}`}>⋯</button>
               </div>
+              {detail === e.id && (
+                <div className="foot" style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--surface2)" }}>
+                  <button className="tag" onClick={() => {
+                    const order = ["joint", "a", "b"];
+                    set(i, "owner", order[(order.indexOf(e.owner) + 1) % 3]);
+                  }} title="Who covers this">{m.ownerName(e.owner)}</button>
+                  <button className="tag" title="Essential envelopes get funded before goals and spending money"
+                    style={e.essential ? { background: C.brandSoft, color: C.brand } : undefined}
+                    onClick={() => set(i, "essential", !e.essential)}>
+                    {e.essential ? "Essential" : "Flexible"}
+                  </button>
+                  <select className="tag" value={e.group || "Other"} onChange={(ev) => set(i, "group", ev.target.value)} aria-label="Group">
+                    {GROUPS.map((x) => <option key={x}>{x}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           );
         })}

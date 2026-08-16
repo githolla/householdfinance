@@ -2,8 +2,8 @@
    The whole stylesheet, as one template literal injected by <Frame>.
 
    Plain CSS on purpose — no Tailwind, no component library.
-   Look: lavender page, white cards with soft shadows, pill buttons,
-   violet brand. Type: Plus Jakarta Sans (everything), IBM Plex Mono
+   Look: warm bone page, white cards with soft shadows, pill buttons,
+   mid-century avocado-green brand. Type: Plus Jakarta Sans (everything), IBM Plex Mono
    (all figures, tabular).
 
    Breakpoint ladder, desktop-first:
@@ -16,13 +16,13 @@
 export const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-.tc{--page:#EFEDFA;--surface:#FFFFFF;--surface2:#F5F3FC;--ink:#1B1B2F;--soft:#6F6C8F;--line:#E7E4F4;
- --brand:#6C4CF1;--brand-deep:#5A3BE0;--brand-soft:#EDE8FE;
- --a:#6C4CF1;--b:#0E9888;--joint:#E09112;--warn:#D93A4C;--ok:#17A24A;--r:16px;
- --scrim:rgba(27,27,47,.44);--tab-h:60px;--fab-d:56px;--tap:44px;--r-sheet:22px;
+.tc{--page:#F3F1E8;--surface:#FFFFFF;--surface2:#EFEDE1;--ink:#20261B;--soft:#6C7260;--line:#E0DECE;
+ --brand:#4E7A3A;--brand-deep:#3E622E;--brand-soft:#E5ECD8;
+ --a:#4E7A3A;--b:#1F7A8C;--joint:#D98E04;--warn:#D93A4C;--ok:#1E8A5A;--r:16px;
+ --scrim:rgba(32,38,27,.44);--tab-h:60px;--fab-d:56px;--tap:44px;--r-sheet:22px;
  --safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px);
- --shadow:0 6px 24px rgba(52,42,106,.07);--pop:0 10px 28px rgba(52,42,106,.22);
- --lift:0 -6px 22px rgba(52,42,106,.10);
+ --shadow:0 4px 18px rgba(46,58,36,.06);--pop:0 10px 28px rgba(46,58,36,.20);
+ --lift:0 -6px 22px rgba(46,58,36,.09);
  background:var(--page);color:var(--ink);
  font-family:'Plus Jakarta Sans',ui-sans-serif,system-ui,sans-serif;
  min-height:100%;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-size:14px;
@@ -34,10 +34,12 @@ export const CSS = `
 .tc :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px;}
 .tc .lockscroll{overflow:hidden;}
 
-/* shell */
-.tc .shell{display:grid;grid-template-columns:224px minmax(0,1fr);min-height:100vh;min-height:100dvh;}
-.tc .side{background:var(--surface);border-right:1px solid var(--line);padding:22px 16px;
- position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:22px;}
+/* shell — the sidebar sits on the page surface, not in a white column;
+   the content column caps its width so huge monitors don't stretch it */
+.tc .shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh;min-height:100dvh;
+ max-width:1520px;margin:0 auto;}
+.tc .side{background:transparent;border-right:none;padding:26px 18px 22px 22px;
+ position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:24px;}
 .tc .mark{line-height:1.2;display:flex;align-items:center;gap:10px;}
 .tc .mark .logo{width:34px;height:34px;border-radius:11px;background:var(--brand);color:#fff;
  display:grid;place-items:center;font-weight:800;font-size:16px;flex:none;}
@@ -53,14 +55,14 @@ export const CSS = `
  stroke-linecap:round;stroke-linejoin:round;flex:none;}
 .tc .side nav button.on{background:var(--brand);color:#fff;box-shadow:var(--shadow);}
 .tc .sidefoot{margin-top:auto;font-size:11.5px;color:var(--soft);line-height:1.5;
- background:var(--surface2);border-radius:14px;padding:12px;}
-.tc .main{padding:24px 28px 84px;min-width:0;}
+ background:var(--surface);border-radius:16px;padding:13px;box-shadow:var(--shadow);}
+.tc .main{padding:30px 36px 92px;min-width:0;max-width:1180px;}
 
 /* page head */
 .tc .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;
  padding-bottom:14px;margin-bottom:20px;}
-.tc .phead h1{font-size:23px;font-weight:800;}
-.tc .phead .sub{font-size:12.5px;color:var(--soft);margin-top:3px;font-weight:500;}
+.tc .phead h1{font-size:27px;font-weight:800;letter-spacing:-.02em;}
+.tc .phead .sub{font-size:13.5px;color:var(--soft);margin-top:4px;font-weight:500;line-height:1.5;}
 .tc .monthnav{display:flex;align-items:center;gap:6px;background:var(--surface);border-radius:999px;
  padding:4px 6px;box-shadow:var(--shadow);}
 .tc .monthnav .m{font-size:13px;min-width:118px;text-align:center;font-weight:600;}
@@ -79,8 +81,9 @@ export const CSS = `
 .tc .g4{grid-template-columns:repeat(4,minmax(0,1fr));}
 .tc .g23{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);}
 @media(max-width:980px){.tc .g23,.tc .g3,.tc .g4{grid-template-columns:repeat(2,minmax(0,1fr));}}
-.tc .card{background:var(--surface);border:none;border-radius:18px;padding:17px 18px;box-shadow:var(--shadow);}
-.tc .card h3{font-size:15px;font-weight:700;}
+.tc .card{background:var(--surface);border:1px solid rgba(224,222,206,.6);border-radius:20px;
+ padding:19px 21px;box-shadow:var(--shadow);}
+.tc .card h3{font-size:15px;font-weight:700;letter-spacing:-.01em;}
 .tc .chead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:13px;}
 .tc .chead .meta{font-size:11.5px;color:var(--soft);font-weight:500;}
 .tc .chartbox{height:210px;}
@@ -102,8 +105,8 @@ export const CSS = `
 .tc .ringlabel{position:absolute;inset:0;display:grid;place-items:center;text-align:center;line-height:1.15;}
 .tc .schip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;
  padding:3px 10px;border-radius:999px;white-space:nowrap;}
-.tc .schip.ok{background:#E5F6EC;color:#0E7A38;}
-.tc .schip.warn{background:#FCF1DC;color:#96610A;}
+.tc .schip.ok{background:#E1F1E6;color:#186B44;}
+.tc .schip.warn{background:#F8EED7;color:#8A5A06;}
 .tc .schip.over{background:#FBE7EA;color:#B3243B;}
 .tc .schip.done{background:var(--surface2);color:var(--soft);}
 .tc .trend{font-size:11.5px;font-weight:700;white-space:nowrap;}
@@ -111,7 +114,7 @@ export const CSS = `
 .tc .trend.down{color:var(--ok);}
 
 /* the one thing to do next — the hero of the one-page plan */
-.tc .nextcard{background:linear-gradient(135deg,#5A3BE0 0%,#7C5CFC 100%);color:#fff;box-shadow:var(--pop);}
+.tc .nextcard{background:linear-gradient(135deg,#3E622E 0%,#587F42 100%);color:#fff;box-shadow:var(--pop);border:none;}
 .tc .nextcard .nlab{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;font-weight:700;opacity:.75;}
 .tc .nextcard .ntitle{font-size:18px;font-weight:800;letter-spacing:-.015em;margin:7px 0 6px;line-height:1.25;}
 .tc .nextcard .nwhy{font-size:12.5px;font-weight:500;opacity:.88;line-height:1.5;margin-bottom:13px;}
@@ -123,7 +126,7 @@ export const CSS = `
 .tc .step:last-child{border-bottom:none;}
 .tc .stepdot{width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
  font-size:12.5px;font-weight:700;background:var(--surface2);color:var(--soft);}
-.tc .step.done .stepdot{background:#E5F6EC;color:#0E7A38;}
+.tc .step.done .stepdot{background:#E1F1E6;color:#186B44;}
 .tc .step.current .stepdot{background:var(--brand);color:#fff;}
 .tc .steplabel{display:block;font-weight:700;font-size:13.5px;}
 .tc .step.later .steplabel{color:var(--soft);font-weight:600;}
@@ -136,7 +139,7 @@ export const CSS = `
 .tc .check:last-child{border-bottom:none;}
 .tc .check .box{width:22px;height:22px;border-radius:8px;flex:none;display:grid;place-items:center;
  font-size:12px;font-weight:800;border:2px solid var(--line);color:transparent;}
-.tc .check.done .box{background:#E5F6EC;border-color:#E5F6EC;color:#0E7A38;}
+.tc .check.done .box{background:#E1F1E6;border-color:#E1F1E6;color:#186B44;}
 .tc .check.done .t{color:var(--soft);}
 .tc .check .go{margin-left:auto;}
 
@@ -159,7 +162,7 @@ export const CSS = `
 /* rail */
 .tc .rail{display:flex;height:30px;width:100%;gap:2px;}
 .tc .seg{min-width:2px;border-radius:4px;}
-.tc .seg.gap{background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(111,108,143,.18) 5px,rgba(111,108,143,.18) 6px);
+.tc .seg.gap{background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(108,114,96,.18) 5px,rgba(108,114,96,.18) 6px);
  border:1px dashed var(--soft);}
 .tc .railkey{display:flex;flex-wrap:wrap;gap:13px;margin-top:10px;font-size:11.5px;color:var(--soft);font-weight:500;}
 .tc .railkey span{display:flex;align-items:center;gap:6px;}
@@ -185,7 +188,7 @@ export const CSS = `
 .tc .over{color:var(--warn);font-weight:600;}
 .tc .bar{grid-column:1/-1;height:5px;background:var(--surface2);border-radius:4px;overflow:hidden;}
 .tc .bar i{display:block;height:100%;border-radius:4px;}
-.tc .kill{background:none;border:none;color:#C9C4E4;font-size:15px;padding:0 2px;line-height:1;}
+.tc .kill{background:none;border:none;color:#C6C4B2;font-size:15px;padding:0 2px;line-height:1;}
 .tc .tag{border:none;background:var(--surface2);border-radius:999px;font-size:10px;font-weight:700;
  letter-spacing:.07em;text-transform:uppercase;padding:4px 10px;color:var(--soft);white-space:nowrap;
  font-family:inherit;max-width:130px;}
@@ -203,7 +206,10 @@ export const CSS = `
 .tc .btn.ghost{background:var(--surface);color:var(--ink);border:1.5px solid var(--line);box-shadow:none;}
 .tc .btn.tiny{padding:6px 12px;font-size:12px;}
 .tc .btn.wide{width:100%;}
-.tc .btn:active{transform:translateY(1px);}
+.tc .btn{transition:background .12s ease,transform .08s ease;}
+.tc .btn:active{transform:translateY(1px) scale(.99);}
+.tc .chip{transition:background .12s ease,color .12s ease;}
+.tc .track i,.tc .pace i,.tc .bar i{transition:width .35s ease;}
 .tc .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
 .tc .toolbar .field{width:auto;min-width:120px;}
 .tc .logger{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--surface);
@@ -215,7 +221,7 @@ export const CSS = `
 .tc .track i{display:block;height:100%;background:var(--joint);border-radius:5px;transition:width .4s ease;}
 .tc .flag{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;padding:3px 9px;
  border-radius:999px;white-space:nowrap;}
-.tc .flag.ok{color:#0E7A38;background:#E5F6EC;}.tc .flag.late{color:#B3243B;background:#FBE7EA;}
+.tc .flag.ok{color:#186B44;background:#E1F1E6;}.tc .flag.late{color:#B3243B;background:#FBE7EA;}
 .tc .metaline{display:flex;flex-wrap:wrap;gap:13px;font-size:12.5px;color:var(--soft);align-items:center;font-weight:500;}
 .tc .metaline b{color:var(--ink);font-weight:700;}
 .tc .fourup{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px;padding-top:12px;
@@ -385,6 +391,31 @@ export const CSS = `
 .tc .outlook{font-size:14px;font-weight:500;color:var(--soft);line-height:1.55;
  max-width:760px;margin:-12px 0 20px;}
 
+/* the household status hero — Home's answer to "are we okay?" */
+.tc .hero{background:var(--surface);border:1px solid rgba(224,222,206,.6);border-radius:24px;
+ padding:26px 28px;box-shadow:var(--shadow);margin-bottom:18px;}
+.tc .hero .hline{font-size:clamp(20px,2.4vw,27px);font-weight:800;letter-spacing:-.02em;line-height:1.25;}
+.tc .hero .hsub{font-size:14px;color:var(--soft);font-weight:500;line-height:1.6;margin-top:9px;max-width:740px;}
+.tc .herofigs{display:flex;gap:36px;flex-wrap:wrap;margin-top:18px;}
+.tc .herofigs .v{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
+ font-size:25px;letter-spacing:-.02em;line-height:1.1;}
+.tc .recrow{display:flex;gap:9px;flex-wrap:wrap;margin-top:17px;padding-top:16px;
+ border-top:1px solid var(--surface2);align-items:center;}
+.tc .recitem{background:var(--brand-soft);color:var(--brand-deep);border-radius:12px;padding:8px 13px;
+ font-size:13px;font-weight:700;}
+
+/* the money-meeting wizard */
+.tc .meetdots{display:flex;gap:6px;margin-bottom:20px;}
+.tc .meetdots i{width:36px;height:5px;border-radius:3px;background:var(--line);}
+.tc .meetdots i.done{background:var(--brand);}
+.tc .meetbig{font-size:clamp(19px,2.2vw,24px);font-weight:800;letter-spacing:-.02em;line-height:1.3;margin-bottom:9px;}
+
+/* the stewardship flow — one story, top to bottom */
+.tc .flowspine{display:flex;flex-direction:column;align-items:center;gap:0;}
+.tc .flowarrow{color:var(--soft);font-size:19px;padding:10px 0;line-height:1;}
+.tc .flowlabel{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--soft);
+ font-weight:700;text-align:center;margin-bottom:10px;}
+
 /* hover only where there's a pointer */
 @media(hover:hover){
  .tc .side nav button:hover{background:var(--surface2);color:var(--ink);}
@@ -459,6 +490,9 @@ export const CSS = `
  .tc .calspent{display:none;}
  .tc .calpop{display:none!important;}
  .tc .outlook{margin:0 0 16px;}
+ .tc .hero{padding:18px;border-radius:20px;}
+ .tc .herofigs{gap:22px;}
+ .tc .herofigs .v{font-size:21px;}
 
  .tc .d-state{order:1;} .tc .d-setup{order:2;} .tc .d-next{order:3;}
  .tc .d-pace{order:4;}  .tc .d-envs{order:5;}  .tc .d-due{order:6;}

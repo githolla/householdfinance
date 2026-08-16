@@ -33,6 +33,45 @@ export default function Bills({ ctx }) {
       <Head title="Bills" sub="Mark one paid and it logs itself into the right envelope. Add the link you actually pay it on."
         right={<MonthNav month={month} setMonth={setMonth} />} />
 
+      {/* the read that matters: does the cash cover what's coming? */}
+      <div className="card" style={{ marginBottom: 16, borderLeft: `4px solid ${m.billsCovered.ok ? C.ok : C.warn}` }}>
+        {m.billsCovered.ok || !m.billsCovered.shortBill ? (
+          <p className="empty" style={{ fontWeight: 600, color: "var(--ink)" }}>
+            ✓ You're covered through {m.billsCovered.throughLabel} — {money(m.billsCovered.cash)} on hand
+            against everything due between now and then.
+          </p>
+        ) : (
+          <p className="empty" style={{ fontWeight: 600, color: "var(--ink)" }}>
+            ! Heads up — by the time {m.billsCovered.shortBill.name} ({money(m.billsCovered.shortBill.amount)})
+            comes due, the cash accounts run short. Something needs to land first.
+          </p>
+        )}
+      </div>
+
+      {m.bills.some((b) => !b.paid) && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="chead"><h3>Coming up</h3><span className="meta num">{money(m.billsLeft)} still to go this month</span></div>
+          {m.bills.filter((b) => !b.paid).map((b) => (
+            <div className="note" key={b.id} style={{ justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ display: "flex", gap: 9, alignItems: "center", minWidth: 0 }}>
+                <span className="tick" style={{ background: b.overdue ? C.warn : C.joint, minHeight: 15 }} />
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontWeight: 600 }}>{b.name}</span>
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    {b.overdue ? `was due the ${ordinal(b.day)}` : `the ${ordinal(b.day)}`}
+                  </span>
+                </span>
+              </span>
+              <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span className="num" style={{ fontSize: 15 }}>{money(b.amount)}</span>
+                {safeUrl(b.payUrl) && <a className="btn ghost tiny" href={safeUrl(b.payUrl)} target="_blank" rel="noopener noreferrer">Pay ↗</a>}
+                <button className="btn ghost tiny" onClick={() => togglePaid(b)}>Paid</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="grid g3" style={{ marginBottom: 16 }}>
         <Kpi label="Monthly bills" value={money(m.billsTotal)} foot={`${state.bills.length} recurring · ${withLinks} with pay links`} />
         <Kpi label="Still unpaid" value={money(m.billsLeft)} tone={m.billsLeft > 0 ? "mid" : "up"} />
@@ -40,6 +79,7 @@ export default function Bills({ ctx }) {
       </div>
 
       <div className="card">
+        <div className="chead"><h3>All bills</h3><span className="meta">edit anything in place</span></div>
         {state.bills.length === 0 && <p className="empty">Add the bills that repeat every month — rent, insurance, the streaming stack you forgot about.</p>}
         {m.bills.map((b) => {
           const i = state.bills.findIndex((x) => x.id === b.id);

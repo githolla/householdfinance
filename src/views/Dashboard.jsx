@@ -6,19 +6,59 @@
    chart in display:none — ResponsiveContainer measures 0 and collapses.
    ================================================================== */
 
+import { useEffect, useRef } from "react";
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
 import { money, compact, monthLabel, ordinal, C } from "../lib/format.js";
-import { Head, MonthNav, Kpi, Tip, Rail, Notes, Ring, SChip, Stepper, axis } from "../components.jsx";
+import { Head, MonthNav, Tip, Rail, Notes, Ring, SChip, Stepper, axis } from "../components.jsx";
 
 const GROUP_GLYPH = {
   Home: "🏠", Daily: "🛒", Lifestyle: "🍜", Health: "💊", Giving: "💛", Other: "📦",
 };
 
 export default function Dashboard({ ctx, onQuickAdd }) {
-  const { m, plan, month, setMonth, state, setView, writeMonth } = ctx;
+  const { m, plan, month, setMonth, state, setView, writeMonth, patch } = ctx;
+
+  /* ---- since you were last here ------------------------------------
+     The previous visit's date is captured once on mount, then stamped
+     forward. Events are read off the plan — never invented. */
+  const lastSeenRef = useRef(state.ui.lastSeen || "");
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (state.ui.lastSeen !== today) patch((s) => { s.ui.lastSeen = today; return s; });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const lastSeen = lastSeenRef.current;
+  const sinceDay = lastSeen && lastSeen.slice(0, 7) === month ? Number(lastSeen.slice(8, 10)) : 0;
+  const newEntries = m.live && lastSeen ? plan.entries.filter((t) => (t.day || 0) > sinceDay) : [];
+  const sinceEvents = [];
+  if (newEntries.length)
+    sinceEvents.push(`${newEntries.length} ${newEntries.length === 1 ? "expense" : "expenses"} logged — ${money(newEntries.reduce((n, t) => n + t.amount, 0))}.`);
+  m.bills.filter((b) => b.overdue).forEach((b) => sinceEvents.push(`${b.name} went past due on the ${ordinal(b.day)}.`));
+  m.decisionsDue.forEach((d) => sinceEvents.push(`${d.what} came off the shelf — the time you agreed on has come.`));
+  const showSince = lastSeen && lastSeen !== new Date().toISOString().slice(0, 10) && sinceEvents.length > 0;
+
+  /* ---- one thing to decide together, when one honestly exists ---- */
+  let decide = null;
+  if (m.unallocated > 1)
+    decide = `${money(m.unallocated)} a month has no job yet. An envelope, a goal, or a payment against what you owe — which?`;
+  else if (m.enough.met && m.enough.surplus >= 50)
+    decide = `About ${money(m.enough.surplus)} this month sits beyond what you've called enough. Give, save, enjoy, invest — or help someone?`;
+  else if (m.week && m.week.decision >= 50)
+    decide = `About ${money(m.week.decision)} extra is available this month. Where should it go?`;
+
+  /* ---- the hero's read on the month ---- */
+  const overdueHero = m.bills.find((b) => b.overdue);
+  const trouble = m.flow.totalShortfall > 1
+    || (m.planned > 0 && m.spent > m.planned) || m.unallocated < -1;
+  const headline = overdueHero
+    ? `${overdueHero.name} needs you — it was due the ${ordinal(overdueHero.day)}.`
+    : trouble ? m.thesis[0]
+      : m.monthOutlook.onTrack ? "You're in good shape this month."
+        : "You're running a little warm this month.";
+  const rec = m.monthOutlook.rec;
+  const agreedRec = state.ui.agreedRec === month;
 
   const catData = plan.envelopes
     .map((e) => ({ name: e.name, spent: m.spentBy[e.id] || 0, planned: e.planned }))
@@ -53,17 +93,71 @@ export default function Dashboard({ ctx, onQuickAdd }) {
         sub={`${monthLabel(month)} · ${plan.entries.length} transactions logged`}
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
-      <p className="thesis">{m.thesis[0]} <span>{m.thesis[1]}</span></p>
-      {m.live && m.monthOutlook.sentence && <p className="outlook">{m.monthOutlook.sentence}</p>}
+
+      {/* the household status hero: are we okay, what changed, what next */}
+      <div className="hero">
+        <div className="hline">{headline}</div>
+        <div className="hsub">
+          {m.billsCovered.ok || !m.billsCovered.shortBill
+            ? `Bills are covered through ${m.billsCovered.throughLabel}.`
+            : `Heads up — ${m.billsCovered.shortBill.name} (${money(m.billsCovered.shortBill.amount)}) is past what's in the cash accounts.`}
+          {" "}{!m.tax.incomplete && m.tax.reserveDelta < -1 ? "The tax reserve is behind pace. " : ""}
+          {overdueHero
+            ? `${money(overdueHero.amount)} — mark it paid in Bills and it logs itself into the right envelope.`
+            : m.thesis[1]}
+        </div>
+        <div className="herofigs">
+          {[["Came in", m.income], ["Committed", m.allocated], ["Available", Math.max(0, m.monthOutlook.available)]].map(([k, v]) => (
+            <div key={k}>
+              <span className="lbl">{k}</span>
+              <span className="v">{money(v)}</span>
+            </div>
+          ))}
+        </div>
+        {m.live && rec.length > 0 && (
+          <div className="recrow">
+            <span className="lbl" style={{ marginBottom: 0 }}>Planner recommendation</span>
+            {rec.map((r) => (
+              <span className="recitem" key={r.label}><span className="num">{money(r.amount)}</span> {r.label}</span>
+            ))}
+            <span style={{ display: "flex", gap: 6, marginLeft: "auto", flexWrap: "wrap" }}>
+              {agreedRec
+                ? <SChip tone="ok">agreed</SChip>
+                : <button className="btn tiny" onClick={() => patch((s) => { s.ui.agreedRec = month; return s; })}>Use this plan</button>}
+              <button className="btn ghost tiny" onClick={() => setView("plan")}>Adjust</button>
+              <button className="btn ghost tiny" onClick={() => {
+                patch((s) => { s.ui.plannerSeed = "Walk us through this month's recommended split — why these amounts, and what would change it?"; return s; });
+                setView("planner");
+              }}>Why?</button>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {showSince && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="chead"><h3>Since you were last here</h3><span className="meta">{lastSeen}</span></div>
+          {sinceEvents.slice(0, 4).map((e, i) => (
+            <div className="note" key={i}><span className="tick" style={{ background: C.joint }} /><span>{e}</span></div>
+          ))}
+        </div>
+      )}
+
+      {decide && (
+        <div className="card" style={{ marginBottom: 16, borderLeft: `4px solid ${C.joint}` }}>
+          <div className="chead"><h3>One thing to decide together</h3></div>
+          <p className="empty" style={{ fontSize: 14.5, color: "var(--ink)", fontWeight: 600 }}>{decide}</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+            <button className="btn tiny" onClick={() => setView("meeting")}>Take it to the meeting</button>
+            <button className="btn ghost tiny" onClick={() => {
+              patch((s) => { s.ui.plannerSeed = decide + " Lay out the options with our numbers, and leave the decision with us."; return s; });
+              setView("planner");
+            }}>Ask the Planner</button>
+          </div>
+        </div>
+      )}
 
       <div className="dashflow">
-        {/* the phone's above-the-fold read */}
-        <div className="stateline phone-only wideblock d-state">
-          <div className="lbl">{m.stateLine[1]}</div>
-          <div className={"fig " + (m.leftToSpend < 0 ? "down" : "")}>{m.stateLine[0]}</div>
-          <div className="say">{m.stateLine[2]} <span>{m.stateLine[3]}</span></div>
-        </div>
-
         {/* getting-started checklist, only while the household is thin */}
         {!m.setupDone && (
           <div className="card wideblock d-setup">
@@ -129,17 +223,6 @@ export default function Dashboard({ ctx, onQuickAdd }) {
                 </span>
               </div>
             ))}
-        </div>
-
-        <div className="grid g4 wideblock d-kpis">
-          <Kpi label="Net worth" value={money(m.netWorth)} foot={`${money(m.assetTotal)} assets · ${money(m.debtTotal)} owed`} tone={m.netWorth < 0 ? "down" : ""} />
-          <Kpi label="Left to spend" value={money(m.leftToSpend)} foot={`of ${money(m.planned)} planned`} tone={m.leftToSpend < 0 ? "down" : "up"} />
-          <Kpi label="Tax reserve" value={m.tax.incomplete ? "—" : money(m.tax.monthlyReserve)}
-            foot={m.tax.incomplete ? "add your 1099 income" : `${Math.round(m.tax.setAsidePct)}% of what you bill`}
-            tone={m.tax.reserveDelta < -1 ? "down" : "up"} />
-          <Kpi label="Debt-free" value={m.debt.avalanche.never ? "—" : monthLabel(m.debt.avalanche.payoffMonth, true)}
-            foot={m.debt.avalanche.never ? "payments don't cover interest" : `${m.debt.avalanche.months} months at ${money(m.debt.avalanche.budget)}/mo`}
-            tone={m.debt.avalanche.never ? "down" : ""} />
         </div>
 
         <div className="card wideblock d-rail desk-only">

@@ -20,8 +20,15 @@ One JSON object, persisted whole under `twocolumn:v2`.
     ]
   },
 
-  "ui": { "defaultWho": "joint" },    // who a new entry is filed under before you touch anything;
+  "ui": {
+    "defaultWho": "joint",            // who a new entry is filed under before you touch anything;
                                       // per-device in spirit, though it rides in the shared blob
+    "lastSeen": "2026-08-16",         // stamped on Home mount; drives "since you were last here"
+    "agreedRec": "2026-08",           // month whose Planner split was marked "use this plan" —
+                                      // a recorded agreement, it moves no money
+    "plannerSeed": "…"                // one-shot question handed to Ask the Planner; consumed on
+                                      // mount into the input box, never auto-sent
+  },
 
   "months": {
     "2026-08": {
@@ -101,15 +108,19 @@ One JSON object, persisted whole under `twocolumn:v2`.
     { "id": "r1", "text": "Keep checking above $2,000" }
   ],
 
-  "meeting": {                        // the weekly money-meeting briefing, one week at a time
-    "key": "2026-W33",                // ISO-ish week key from model(); stale briefings regenerate
-    "briefing": "…",                  // the AI-written summary shown in the card
-    "votes": { "a": "savings", "b": null }   // each partner's one-decision vote, or null
+  "meeting": {                        // the weekly Money Meeting, one week at a time
+    "key": "2026-W33",                // ISO-ish week key from model(); a new key resets the rest
+    "briefing": "",                   // legacy AI briefing slot (the meeting is guided now)
+    "votes": { "a": "savings", "b": null },  // each partner's one-decision vote, or null
+    "gratitude": { "a": "…", "b": "" }       // optional per-partner answers from step one
   },
 
-  "faith": { "enabled": true },     // the stewardship layer: Stewardship view, gratitude-first
-                                    // meeting, "pray on it", a planner that may offer biblical
+  "faith": {
+    "enabled": true,                // the stewardship layer: Stewardship view, gratitude-first
+                                    // meeting, "pray on it", a Planner that may offer biblical
                                     // principles — and never speaks for God
+    "scripture": "relevant"         // "off" | "relevant" | "more" — how often it may surface
+  },
 
   "decisions": [                    // decisions deliberately set aside (pray / sleep on it)
     { "id": "d1", "what": "A newer truck", "cost": 42000,
@@ -117,8 +128,12 @@ One JSON object, persisted whole under `twocolumn:v2`.
       "created": "2026-08-16" }
   ],
 
-  "enough": { "note": "…" },        // the household's own definition of enough, free text —
-                                    // read by the planner, never parsed
+  "enough": {
+    "note": "…",                    // the household's own definition of enough, free text —
+                                    // read by the Planner, never parsed
+    "answers": { "lifestyle": "…" },// what they told the Enough builder, kept for revisiting
+    "approved": true                // set when they save a statement as theirs
+  },
 
   "chat": [{ "role": "user", "content": "..." }]            // planner history
 }

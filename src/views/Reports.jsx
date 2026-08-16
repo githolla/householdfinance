@@ -25,8 +25,29 @@ export default function Reports({ ctx }) {
 
   return (
     <>
-      <Head title="Reports" sub="Patterns you can't see one month at a time."
+      <Head title="Insights" sub="The Planner names the patterns; the charts are the evidence."
         right={<MonthNav month={month} setMonth={setMonth} />} />
+
+      {m.insights === null ? (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <p className="empty" style={{ fontWeight: 600, color: "var(--ink)" }}>No patterns yet.</p>
+          <p className="empty">
+            Give the Planner a little more history — a few months of logged spending — and this page
+            starts naming what's changing and what deserves attention: categories trending up, bills
+            that ran unusually high, savings picking up speed.
+          </p>
+        </div>
+      ) : (
+        <div className="grid g2" style={{ marginBottom: 16 }}>
+          {m.insights.map((ins) => (
+            <div className="card" key={ins.title}
+              style={{ borderLeft: `4px solid ${ins.tone === "warn" ? C.joint : ins.tone === "ok" ? C.ok : "var(--line)"}` }}>
+              <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-.01em" }}>{ins.title}</div>
+              <p className="empty" style={{ marginTop: 5 }}>{ins.body}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid g2" style={{ marginBottom: 16 }}>
         <div className="card">

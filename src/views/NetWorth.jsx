@@ -28,7 +28,7 @@ export default function NetWorth({ ctx }) {
 
   return (
     <>
-      <Head title="Net worth" sub="What you own, what you owe, and how fast the second one disappears." />
+      <Head title="Net worth" sub="What you're building, what you owe, and how fast the second one disappears. A direction, not a score." />
 
       <div className="grid g3" style={{ marginBottom: 16 }}>
         <Kpi label="Net worth" value={money(m.netWorth)} tone={m.netWorth < 0 ? "down" : "up"} />
