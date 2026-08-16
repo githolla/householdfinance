@@ -403,6 +403,23 @@ export const CSS = `
  font-weight:700;margin-bottom:4px;color:var(--soft);}
 .tc .prayer .ptext{font-style:italic;color:var(--ink);}
 
+/* today's thread — one piece of the way-of-life on the hero, tappable */
+.tc .daythread{display:flex;gap:11px;align-items:center;width:100%;margin-top:14px;
+ background:#FBF6E8;border:none;border-left:3px solid var(--joint);border-radius:0 12px 12px 0;
+ padding:10px 13px;text-align:left;font-family:inherit;color:var(--ink);cursor:pointer;
+ transition:background .12s ease;}
+.tc .daythread .dtverse{display:block;font-size:12.5px;font-style:italic;color:#6B5A2E;line-height:1.5;margin-top:2px;}
+.tc .daythread .dtverse b{font-style:normal;font-size:11px;}
+@media(hover:hover){.tc .daythread:hover{background:#F6EED9;}}
+
+/* the way-of-life cards — the basis of the whole app, made friendly */
+.tc .lifecard{display:flex;flex-direction:column;}
+.tc .lifetop{display:flex;gap:10px;align-items:flex-start;}
+.tc .lifeglyph{font-size:22px;line-height:1.2;flex:none;}
+.tc .lifenum{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+ color:var(--soft);font-weight:700;}
+.tc .lifetitle{display:block;font-weight:800;font-size:14.5px;letter-spacing:-.01em;line-height:1.3;margin-top:1px;}
+
 /* the stewardship strip under the hero numbers */
 .tc .stewrow{display:flex;gap:7px;flex-wrap:wrap;margin-top:16px;padding-top:14px;
  border-top:1px solid var(--surface2);}

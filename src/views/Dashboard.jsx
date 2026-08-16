@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { money, compact, monthLabel, ordinal, C } from "../lib/format.js";
 import { buildSnapshot, buildSystem, callPlanner } from "../lib/planner.js";
-import { STEW_VERSES, PRAYERS, versesOn, prayersOn } from "../lib/verses.js";
+import { STEW_VERSES, LIFE, PRAYERS, versesOn, prayersOn } from "../lib/verses.js";
 import { Head, MonthNav, Tip, Ring, SChip, axis } from "../components.jsx";
 
 /* Quick what-ifs: question for the Planner, amount for the offline
@@ -106,11 +106,9 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
      the numbers. Faith layer only; every chip opens Stewardship. */
   const faith = !!(state.faith && state.faith.enabled);
   const STEW_GLYPH = { provision: "🌾", needs: "🏠", giving: "💛", obligations: "🧾", saving: "🛟", enjoyment: "🍜", future: "🌱" };
-  /* One verse a day, rotating through the framework — visible, not
-     hidden behind a hover. */
-  const verseKeys = Object.keys(STEW_VERSES);
-  const dayVerseKey = verseKeys[new Date().getDate() % verseKeys.length];
-  const dayVerse = versesOn(state) ? STEW_VERSES[dayVerseKey] : null;
+  /* One thread of the way-of-life a day — the basis of the whole app,
+     one piece at a time. Visible, not hidden behind a hover. */
+  const dayThread = versesOn(state) ? LIFE[new Date().getDate() % LIFE.length] : null;
 
   const catData = plan.envelopes
     .map((e) => ({ name: e.name, spent: m.spentBy[e.id] || 0, planned: e.planned }))
@@ -185,10 +183,16 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
             })}
           </div>
         )}
-        {dayVerse && (
-          <p className="verse" style={{ marginTop: 12 }}>
-            "{dayVerse.text}" <span className="vref">— {dayVerse.ref}</span>
-          </p>
+        {dayThread && (
+          <button className="daythread" onClick={() => setView("stew")}
+            aria-label={`${dayThread.title} — open Stewardship`}>
+            <span className="lifeglyph">{dayThread.glyph}</span>
+            <span style={{ minWidth: 0 }}>
+              <span className="lifenum">Today's thread · {dayThread.title}</span>
+              <span className="dtverse">"{dayThread.refs[0].text}" <b>— {dayThread.refs[0].ref}</b></span>
+            </span>
+            <span className="muted" style={{ marginLeft: "auto", flex: "none" }}>›</span>
+          </button>
         )}
       </div>
 

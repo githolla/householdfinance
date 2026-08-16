@@ -138,36 +138,43 @@ export default function Stewardship({ ctx }) {
       </div>
 
       {showVerses && (
-        <div className="card" style={{ marginTop: 18, maxWidth: 900, marginLeft: "auto", marginRight: "auto" }}>
-          <div className="chead">
-            <h3>The way we live with money</h3>
-            <span className="meta">Scripture's broad call, held as a lifestyle — tap a line to go deeper</span>
-          </div>
-          <p className="empty">
-            Twelve threads that run through the whole Bible, and through every screen of this app.
-            They describe the life Scripture calls a household to — they don't decide any single
-            choice for you. That part is always yours, together.
+        <div style={{ marginTop: 22 }}>
+          <div className="flowlabel">The way we live with money</div>
+          <p className="empty" style={{ textAlign: "center", maxWidth: 620, margin: "0 auto 14px" }}>
+            Twelve threads that run through the whole Bible — and through every screen of this app.
+            They describe the life, not any single choice. Choices are always yours, together.
           </p>
-          {LIFE.map((p) => (
-            <div key={p.key}>
-              <button className={"check" + (openLife === p.key ? " done" : "")}
-                onClick={() => setOpenLife(openLife === p.key ? "" : p.key)}
-                aria-expanded={openLife === p.key}>
-                <span className="t" style={{ fontWeight: 700 }}>{p.title}</span>
-                <span className="go muted">{p.refs.map((r) => r.ref).join(" · ")} {openLife === p.key ? "▾" : "›"}</span>
-              </button>
-              {openLife === p.key && (
-                <div style={{ padding: "2px 2px 12px 33px" }}>
-                  {p.refs.map((r) => (
-                    <p className="verse" key={r.ref} style={{ marginTop: 6 }}>
-                      "{r.text}" <span className="vref">— {r.ref}</span>
-                    </p>
-                  ))}
-                  <p className="empty" style={{ marginTop: 8, fontWeight: 600, color: "var(--ink)" }}>{p.practice}</p>
+          <div className="grid g3">
+            {LIFE.map((p, i) => (
+              <div className="card lifecard" key={p.key}>
+                <div className="lifetop">
+                  <span className="lifeglyph">{p.glyph}</span>
+                  <span>
+                    <span className="lifenum">{i + 1} of {LIFE.length}</span>
+                    <span className="lifetitle">{p.title}</span>
+                  </span>
                 </div>
-              )}
-            </div>
-          ))}
+                <p className="verse" style={{ marginTop: 9 }}>
+                  "{p.refs[0].text}" <span className="vref">— {p.refs[0].ref}</span>
+                </p>
+                {openLife === p.key && p.refs.slice(1).map((r) => (
+                  <p className="verse" key={r.ref} style={{ marginTop: 6 }}>
+                    "{r.text}" <span className="vref">— {r.ref}</span>
+                  </p>
+                ))}
+                <p className="empty" style={{ marginTop: 8, fontSize: 12.5 }}>{p.practice}</p>
+                <div style={{ display: "flex", gap: 6, marginTop: "auto", paddingTop: 10, flexWrap: "wrap" }}>
+                  <button className="btn tiny" onClick={() => setView(p.go.view)}>{p.go.label}</button>
+                  {p.refs.length > 1 && (
+                    <button className="btn ghost tiny" aria-expanded={openLife === p.key}
+                      onClick={() => setOpenLife(openLife === p.key ? "" : p.key)}>
+                      {openLife === p.key ? "Fewer verses" : `+${p.refs.length - 1} more ${p.refs.length === 2 ? "verse" : "verses"}`}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

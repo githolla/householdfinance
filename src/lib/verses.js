@@ -82,6 +82,8 @@ export const PRAYERS = {
 export const LIFE = [
   {
     key: "owner",
+    glyph: "🌾",
+    go: { label: "See the whole picture", view: "stew" },
     title: "It was His before it was ours",
     refs: [
       { ref: "Psalm 24:1", text: "The earth is the Lord's, with its fullness — the world, and those who dwell in it." },
@@ -91,6 +93,8 @@ export const LIFE = [
   },
   {
     key: "know",
+    glyph: "📋",
+    go: { label: "Open our plan", view: "plan" },
     title: "Know the state of what you keep",
     refs: [
       { ref: "Proverbs 27:23", text: "Know well the state of your flocks, and pay attention to your herds." },
@@ -100,6 +104,8 @@ export const LIFE = [
   },
   {
     key: "little",
+    glyph: "🧾",
+    go: { label: "Log the little things", view: "txn" },
     title: "Faithful in very little",
     refs: [
       { ref: "Luke 16:10", text: "He who is faithful in a very little is faithful also in much." },
@@ -108,6 +114,8 @@ export const LIFE = [
   },
   {
     key: "provide",
+    glyph: "🏠",
+    go: { label: "Keep the bills current", view: "bills" },
     title: "Provide for your own household",
     refs: [
       { ref: "1 Timothy 5:8", text: "If anyone doesn't provide for his own, especially his own household, he has denied the faith." },
@@ -116,6 +124,8 @@ export const LIFE = [
   },
   {
     key: "give",
+    glyph: "💛",
+    go: { label: "Set your giving", view: "plan" },
     title: "Give first, and cheerfully",
     refs: [
       { ref: "Proverbs 3:9", text: "Honor the Lord with your wealth, with the firstfruits of all your increase." },
@@ -126,6 +136,8 @@ export const LIFE = [
   },
   {
     key: "debt",
+    glyph: "🔓",
+    go: { label: "See the payoff plan", view: "worth" },
     title: "Walk out of debt's shadow",
     refs: [
       { ref: "Proverbs 22:7", text: "The borrower is servant to the lender." },
@@ -135,6 +147,8 @@ export const LIFE = [
   },
   {
     key: "store",
+    glyph: "🛟",
+    go: { label: "Build the fund", view: "goals" },
     title: "Store up in summer",
     refs: [
       { ref: "Proverbs 6:6–8", text: "Go to the ant… she prepares her bread in the summer, and gathers her food in the harvest." },
@@ -144,6 +158,8 @@ export const LIFE = [
   },
   {
     key: "fear",
+    glyph: "🕊️",
+    go: { label: "See where you stand", view: "dash" },
     title: "Plan without fear",
     refs: [
       { ref: "Matthew 6:26", text: "See the birds of the sky… your heavenly Father feeds them. Aren't you of much more value than they?" },
@@ -153,6 +169,8 @@ export const LIFE = [
   },
   {
     key: "love",
+    glyph: "⚖️",
+    go: { label: "Define enough", view: "stew" },
     title: "Guard against the love of it",
     refs: [
       { ref: "1 Timothy 6:10", text: "The love of money is a root of all kinds of evil." },
@@ -162,6 +180,8 @@ export const LIFE = [
   },
   {
     key: "enjoy",
+    glyph: "🍜",
+    go: { label: "Fund the fun", view: "budget" },
     title: "Enjoy what's been given",
     refs: [
       { ref: "Ecclesiastes 5:19", text: "Everyone to whom God has given riches and wealth… to rejoice in his labor — this is the gift of God." },
@@ -171,6 +191,8 @@ export const LIFE = [
   },
   {
     key: "together",
+    glyph: "🤝",
+    go: { label: "Hold the meeting", view: "meeting" },
     title: "Better together",
     refs: [
       { ref: "Ecclesiastes 4:9–10", text: "Two are better than one… for if they fall, the one will lift up his fellow." },
@@ -179,6 +201,8 @@ export const LIFE = [
   },
   {
     key: "legacy",
+    glyph: "🌱",
+    go: { label: "Fund what outlasts you", view: "goals" },
     title: "Leave something behind",
     refs: [
       { ref: "Proverbs 13:22", text: "A good man leaves an inheritance to his children's children." },
