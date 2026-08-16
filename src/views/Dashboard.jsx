@@ -146,11 +146,10 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
               ["Expected left over", Math.max(0, m.monthOutlook.available), "after bills and normal spending", "plan"],
             ]
             : [
-              ["Came in", m.income, "what you both bring home", "settings"],
+              ["Available", Math.max(0, m.monthOutlook.available), "after bills and normal spending", "plan"],
               ["Spent so far", m.spent, `${plan.entries.length} transactions`, "txn"],
               ["Budget left", m.leftToSpend, `of ${money(m.planned)} planned`, "budget"],
               ["Bills still due", m.billsLeft, billsFoot, "bills"],
-              ["Available", Math.max(0, m.monthOutlook.available), "after bills and normal spending", "plan"],
             ]
           ).map(([k, v, f, view]) => (
             <button className="herofig" key={k} onClick={() => setView(view)}>
