@@ -14,13 +14,18 @@ export default function Setup({ onDone, Frame }) {
   const [bi, setBi] = useState("");
   const [ag, setAg] = useState("");
   const [bg, setBg] = useState("");
+  const [faith, setFaith] = useState(true);
+  const [givePct, setGivePct] = useState("");
+  const [quartersPaid, setQuartersPaid] = useState(true);
   const ready = a.trim() && b.trim();
+  const has1099 = num(ag) > 0 || num(bg) > 0;
 
   const start = () => {
     if (!ready) return;
     onDone(newState({
       name: name.trim(), aName: a.trim(), bName: b.trim(),
       aIncome: ai, bIncome: bi, aGross: ag, bGross: bg,
+      faithOn: faith, givePct: num(givePct), quartersPaid: has1099 ? quartersPaid : false,
     }));
   };
 
@@ -60,8 +65,40 @@ export default function Setup({ onDone, Frame }) {
             <input className="field num" inputMode="decimal" placeholder="0" value={bg} onChange={(e) => setBg(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && start()} /></div>
         </div>
+        {has1099 && (
+          <div style={{ marginTop: 12 }}>
+            <label className="lbl">Estimated payments due earlier this year — already sent?</label>
+            <div className="chips">
+              <button className={"chip " + (quartersPaid ? "on" : "")} onClick={() => setQuartersPaid(true)}>Yes, we're current</button>
+              <button className={"chip " + (!quartersPaid ? "on" : "")} onClick={() => setQuartersPaid(false)}>No, or not sure</button>
+            </div>
+            <p className="empty" style={{ fontSize: 12 }}>
+              "Yes" marks past quarters handled so the app doesn't open by accusing you of missing the IRS.
+              You can correct the record any time on Taxes.
+            </p>
+          </div>
+        )}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <p className="sub" style={{ margin: "22px 0 12px", fontSize: 14 }}>
+          One more thing, and it's yours to decide: this app can hold money as stewardship — giving off the top,
+          a weekly meeting that opens with gratitude, patience before big purchases.
+        </p>
+        <div className="chips">
+          <button className={"chip " + (faith ? "on" : "")} onClick={() => setFaith(true)}>Include the stewardship framing</button>
+          <button className={"chip " + (!faith ? "on" : "")} onClick={() => setFaith(false)}>Keep it neutral</button>
+        </div>
+        {faith && (
+          <div style={{ marginTop: 10, maxWidth: 300 }}>
+            <label className="lbl">Give off the top (% of income, optional)</label>
+            <input className="field num" inputMode="decimal" placeholder="0" value={givePct}
+              onChange={(e) => setGivePct(e.target.value)} />
+            <p className="empty" style={{ fontSize: 12 }}>
+              Your number, not a rule — leave it blank to decide later. Nothing is committed until you choose.
+            </p>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
           <button className="btn" onClick={start} disabled={!ready}>Open the ledger</button>
           <button className="btn ghost" onClick={() => onDone(demoState())}>Click through a sample household</button>
         </div>

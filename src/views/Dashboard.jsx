@@ -50,13 +50,14 @@ export default function Dashboard({ ctx, onQuickAdd }) {
 
   /* ---- the hero's read on the month ---- */
   const overdueHero = m.bills.find((b) => b.overdue);
-  const trouble = m.flow.totalShortfall > 1
+  const trouble = m.flow.totalShortfall > 1 || m.taxOverdue
     || (m.planned > 0 && m.spent > m.planned) || m.unallocated < -1;
   const headline = overdueHero
     ? `${overdueHero.name} needs you — it was due the ${ordinal(overdueHero.day)}.`
-    : trouble ? m.thesis[0]
-      : m.monthOutlook.onTrack ? "You're in good shape this month."
-        : "You're running a little warm this month.";
+    : m.taxOverdue ? "An estimated tax payment is past due."
+      : trouble ? m.thesis[0]
+        : m.monthOutlook.onTrack ? "You're in good shape this month."
+          : "You're running a little warm this month.";
   const rec = m.monthOutlook.rec;
   const agreedRec = state.ui.agreedRec === month;
 
@@ -73,8 +74,11 @@ export default function Dashboard({ ctx, onQuickAdd }) {
 
   const togglePaid = (b) => writeMonth((mm) => {
     mm.paid = mm.paid || [];
-    if (mm.paid.includes(b.id)) mm.paid = mm.paid.filter((x) => x !== b.id);
-    else {
+    if (mm.paid.includes(b.id)) {
+      mm.paid = mm.paid.filter((x) => x !== b.id);
+      const i2 = mm.entries.findIndex((t) => t.note === b.name + " (bill)" && t.amount === b.amount);
+      if (i2 >= 0) mm.entries.splice(i2, 1);
+    } else {
       mm.paid.push(b.id);
       if (b.envId && mm.envelopes.some((e) => e.id === b.envId))
         mm.entries.unshift({
@@ -98,13 +102,15 @@ export default function Dashboard({ ctx, onQuickAdd }) {
       <div className="hero">
         <div className="hline">{headline}</div>
         <div className="hsub">
-          {m.billsCovered.ok || !m.billsCovered.shortBill
-            ? `Bills are covered through ${m.billsCovered.throughLabel}.`
-            : `Heads up — ${m.billsCovered.shortBill.name} (${money(m.billsCovered.shortBill.amount)}) is past what's in the cash accounts.`}
+          {!m.billsCovered.known
+            ? "Add your bills and cash accounts and this line will tell you how far you're covered."
+            : m.billsCovered.ok || !m.billsCovered.shortBill
+              ? `Bills are covered through ${m.billsCovered.throughLabel}.`
+              : `Heads up — ${m.billsCovered.shortBill.name} (${money(m.billsCovered.shortBill.amount)}) is past what's in the cash accounts.`}
           {" "}{!m.tax.incomplete && m.tax.reserveDelta < -1 ? "The tax reserve is behind pace. " : ""}
           {overdueHero
             ? `${money(overdueHero.amount)} — mark it paid in Bills and it logs itself into the right envelope.`
-            : m.thesis[1]}
+            : headline === m.thesis[0] ? m.thesis[1] : ""}
         </div>
         <div className="herofigs">
           {[["Came in", m.income], ["Committed", m.allocated], ["Available", Math.max(0, m.monthOutlook.available)]].map(([k, v]) => (
@@ -194,7 +200,7 @@ export default function Dashboard({ ctx, onQuickAdd }) {
 
         <div className="card phone-only wideblock d-envs">
           <div className="chead"><h3>What's left</h3><span className="meta">tap to log against one</span></div>
-          {m.tightest.length === 0 ? <p className="empty">Set a few envelope amounts in Budget.</p> :
+          {m.tightest.length === 0 ? <p className="empty">Set a few envelope amounts in Envelopes — Our Plan links to it.</p> :
             m.tightest.map((e) => {
               const left = m.envRemaining[e.id];
               return (
@@ -236,6 +242,12 @@ export default function Dashboard({ ctx, onQuickAdd }) {
         <div className="colmain">
         <div className="card d-flow">
           <div className="chead"><h3>Six months of cash flow</h3><span className="meta">income vs. what you actually spent</span></div>
+          {m.history.every((h) => h.spent === 0) ? (
+            <p className="empty">
+              Nothing to chart yet — log spending as it happens and six months from now this shows
+              the shape of your year.
+            </p>
+          ) : (
           <div className="chartbox">
             <ResponsiveContainer>
               <AreaChart data={m.history} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
@@ -254,6 +266,7 @@ export default function Dashboard({ ctx, onQuickAdd }) {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+          )}
         </div>
 
         <div className="card d-cats">

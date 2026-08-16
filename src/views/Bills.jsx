@@ -13,8 +13,12 @@ export default function Bills({ ctx }) {
 
   const togglePaid = (b) => writeMonth((mm) => {
     mm.paid = mm.paid || [];
-    if (mm.paid.includes(b.id)) mm.paid = mm.paid.filter((x) => x !== b.id);
-    else {
+    if (mm.paid.includes(b.id)) {
+      mm.paid = mm.paid.filter((x) => x !== b.id);
+      // un-marking removes the entry the mark logged — one, not all
+      const i2 = mm.entries.findIndex((t) => t.note === b.name + " (bill)" && t.amount === b.amount);
+      if (i2 >= 0) mm.entries.splice(i2, 1);
+    } else {
       mm.paid.push(b.id);
       if (b.envId && mm.envelopes.some((e) => e.id === b.envId))
         mm.entries.unshift({
@@ -34,8 +38,14 @@ export default function Bills({ ctx }) {
         right={<MonthNav month={month} setMonth={setMonth} />} />
 
       {/* the read that matters: does the cash cover what's coming? */}
-      <div className="card" style={{ marginBottom: 16, borderLeft: `4px solid ${m.billsCovered.ok ? C.ok : C.warn}` }}>
-        {m.billsCovered.ok || !m.billsCovered.shortBill ? (
+      <div className="card" style={{ marginBottom: 16, borderLeft: `4px solid ${!m.billsCovered.known ? "var(--line)" : m.billsCovered.ok ? C.ok : C.warn}` }}>
+        {!m.billsCovered.known ? (
+          <p className="empty" style={{ fontWeight: 600, color: "var(--ink)" }}>
+            {state.bills.length === 0
+              ? "List the bills that repeat and this line will tell you how far your cash covers them."
+              : "Add your cash accounts on Net worth and this line will tell you how far they cover these bills."}
+          </p>
+        ) : m.billsCovered.ok || !m.billsCovered.shortBill ? (
           <p className="empty" style={{ fontWeight: 600, color: "var(--ink)" }}>
             ✓ You're covered through {m.billsCovered.throughLabel} — {money(m.billsCovered.cash)} on hand
             against everything due between now and then.
@@ -92,7 +102,7 @@ export default function Bills({ ctx }) {
                 <div className="rowname">
                   <span style={{ width: 4, height: 16, borderRadius: 3, flex: "none", background: b.paid ? C.a : b.overdue ? C.warn : C.joint }} />
                   <input value={b.name} onChange={(e) => set(i, "name", e.target.value)} aria-label="Bill name" />
-                  <select className="tag hideS" value={b.envId || ""} onChange={(e) => set(i, "envId", e.target.value)} aria-label="Envelope">
+                  <select className="tag" value={b.envId || ""} onChange={(e) => set(i, "envId", e.target.value)} aria-label="Envelope">
                     <option value="">no envelope</option>
                     {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>

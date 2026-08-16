@@ -123,7 +123,8 @@ export default function Reports({ ctx }) {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-          <div className="chead"><h3>Versus normal</h3><span className="meta">your last three months, paced to today</span></div>
+          <div className="chead"><h3>Versus normal</h3>
+            <span className="meta">{m.paceDiag ? "your last three months, paced to today" : "waiting on a little history"}</span></div>
           {!m.paceDiag ? (
             <p className="empty">Needs a few months of logged spending before "normal" means anything.</p>
           ) : (
@@ -159,11 +160,18 @@ export default function Reports({ ctx }) {
           <h3>The fair-split read</h3>
           <span className="meta">{state.household.splitRule === "even" ? "split down the middle" : "split by income"}</span>
         </div>
-        <div className="grid g3">
-          <Kpi label={`${m.pA.name}'s share of shared costs`} value={money(m.jointCost * m.shareA)} foot={`${Math.round(m.shareA * 100)}% of ${money(m.jointCost)}`} />
-          <Kpi label={`${m.pB.name}'s share`} value={money(m.jointCost * (1 - m.shareA))} foot={`${Math.round((1 - m.shareA) * 100)}% of ${money(m.jointCost)}`} />
-          <Kpi label="Outside the shared pot" value={money(personal)} foot="personal envelopes, spending money, and anything unassigned" />
-        </div>
+        {m.jointCost > 0 ? (
+          <div className="grid g3">
+            <Kpi label={`${m.pA.name}'s share of shared costs`} value={money(m.jointCost * m.shareA)} foot={`${Math.round(m.shareA * 100)}% of ${money(m.jointCost)}`} />
+            <Kpi label={`${m.pB.name}'s share`} value={money(m.jointCost * (1 - m.shareA))} foot={`${Math.round((1 - m.shareA) * 100)}% of ${money(m.jointCost)}`} />
+            <Kpi label="Outside the shared pot" value={money(personal)} foot="personal envelopes, spending money, and anything unassigned" />
+          </div>
+        ) : (
+          <p className="empty">
+            Once the shared envelopes have planned amounts, this shows what a fair split of them looks
+            like — by income or down the middle, your call in Settings.
+          </p>
+        )}
       </div>
     </>
   );

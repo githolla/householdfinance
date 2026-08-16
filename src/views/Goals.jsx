@@ -28,10 +28,11 @@ export default function Goals({ ctx }) {
       <Head title="Goals" sub="Anything you'd rather fund on purpose than pay for by surprise." />
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi label="Saved so far" value={money(totalSaved)} foot={`of ${money(totalTarget)} across ${state.goals.length}`} />
-        <Kpi label="Going in monthly" value={money(m.goalMonthly)} />
-        <Kpi label="Savings rate" value={Math.round(m.savingsRate) + "%"} tone={m.savingsRate >= 15 ? "up" : "mid"} />
-        <Kpi label="On track" value={`${state.goals.filter((g) => !m.goalStatus(g).late).length} / ${state.goals.length}`} />
+        <Kpi label="Saved so far" value={totalTarget > 0 ? money(totalSaved) : "—"}
+          foot={totalTarget > 0 ? `of ${money(totalTarget)} across ${state.goals.length}` : "give a goal a target to start"} />
+        <Kpi label="Going in monthly" value={m.goalMonthly > 0 ? money(m.goalMonthly) : "—"} />
+        <Kpi label="Savings rate" value={m.income > 0 ? Math.round(m.savingsRate) + "%" : "—"} tone={m.savingsRate >= 15 ? "up" : "mid"} />
+        <Kpi label="On track" value={totalTarget > 0 ? `${state.goals.filter((g) => !m.goalStatus(g).late).length} / ${state.goals.length}` : "—"} />
       </div>
 
       {m.flow.efGoal && (
@@ -89,9 +90,11 @@ export default function Goals({ ctx }) {
                   : <span>add a monthly amount to see when it lands</span>}
               {st.late && <span className="flag late">needs {money(st.needed)}/mo</span>}
               {!st.late && g.due && !st.done && <span className="flag ok">on pace</span>}
-              <button className="btn ghost tiny" onClick={() => set("saved", g.saved + g.monthly)}>
-                Add this month's {money(g.monthly)}
-              </button>
+              {g.monthly > 0 && (
+                <button className="btn ghost tiny" onClick={() => set("saved", g.saved + g.monthly)}>
+                  Add this month's {money(g.monthly)}
+                </button>
+              )}
               <button className="btn ghost tiny" onClick={() => setEditing(editing === g.id ? "" : g.id)}
                 aria-expanded={editing === g.id}>
                 {editing === g.id ? "Done adjusting" : "Adjust goal"}

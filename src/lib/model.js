@@ -204,12 +204,20 @@ export function model(state, plan, month) {
   const round10 = (v) => Math.max(0, Math.round(v / 10) * 10);
   let rec = [];
   if (available >= 20) {
+    /* A behind-pace tax reserve gets first claim — recommending the
+       emergency fund while the app's own top action is an IRS payment
+       would be two voices disagreeing on one screen. */
+    let pool = available;
+    if (!tax.incomplete && tax.reserveDelta < -1) {
+      const t = round10(Math.min(pool, tax.catchUpPerMonth));
+      if (t > 0) { rec.push({ label: "to the tax reserve", amount: t }); pool -= t; }
+    }
     const debtName = debt.avalanche.order[0] || "debt";
     const w = efUnderTarget && hasLiveDebt ? [0.5, 0.3]
       : efUnderTarget ? [0.7, 0] : hasLiveDebt ? [0, 0.6] : [0.4, 0];
-    const sav = round10(available * w[0]);
-    const dbt = round10(available * w[1]);
-    const cush = Math.max(0, Math.round(available - sav - dbt));
+    const sav = round10(pool * w[0]);
+    const dbt = round10(pool * w[1]);
+    const cush = Math.max(0, Math.round(pool - sav - dbt));
     if (sav > 0) rec.push({ label: efGoalRef ? `to ${efGoalRef.name.toLowerCase()}` : "to savings", amount: sav });
     if (dbt > 0) rec.push({ label: `toward ${debtName}`, amount: dbt });
     if (cush > 0) rec.push({ label: "as cushion", amount: cush });
@@ -352,6 +360,9 @@ export function model(state, plan, month) {
   };
   const billsCovered = {
     cash: cashOnHand,
+    /* "Covered" is only a claim when there's data to base it on — no
+       bills or no cash accounts means unknown, never reassurance. */
+    known: bills.length > 0 && assets.some((a) => a.type === "cash"),
     ok: !shortBill,
     throughLabel: shortBill
       ? calDate(shortBill.m, shortBill.day)
@@ -428,7 +439,12 @@ export function model(state, plan, month) {
     const b = bSum[bucketOf(e)];
     b[0] += e.planned; b[1] += spentBy[e.id] || 0;
   });
-  const givingPct = income > 0 ? (bSum.giving[0] / income) * 100 : 0;
+  /* The giving commitment can live as envelopes (Giving group), as the
+     waterfall's off-the-top stage, or both describing the same dollars —
+     take the larger, so Our Plan and Stewardship can never disagree. */
+  const titheFunded = (flow.rows.find((r) => r.key === "tithe") || { funded: 0 }).funded;
+  const givingPlanned = Math.max(bSum.giving[0], titheFunded);
+  const givingPct = income > 0 ? (givingPlanned / income) * 100 : 0;
   const invested = assets.filter((a) => a.type === "invest").reduce((n, a) => n + a.balance, 0);
   const stewardship = [
     {
@@ -446,11 +462,11 @@ export function model(state, plan, month) {
       tone: bSum.needs[1] > bSum.needs[0] && bSum.needs[0] > 0 ? "warn" : "ok",
     },
     {
-      key: "giving", label: "Giving", figure: bSum.giving[0], foot: `planned · ${money(bSum.giving[1])} given so far`,
-      sentence: bSum.giving[0] > 0
+      key: "giving", label: "Giving", figure: givingPlanned, foot: `planned · ${money(bSum.giving[1])} given so far`,
+      sentence: givingPlanned > 0
         ? `${Math.round(givingPct)}% of what comes in is committed to giving, off the top — not from what's left over.`
-        : "Nothing set apart for giving yet — add a Giving envelope to change that.",
-      tone: bSum.giving[0] > 0 ? "ok" : "",
+        : "Nothing set apart for giving yet — choose a number in Our Plan, or add a Giving envelope. Yours to decide.",
+      tone: givingPlanned > 0 ? "ok" : "",
     },
     {
       key: "obligations", label: "Obligations", figure: debtMin + fundedExtra, foot: `a month · ${money(debtTotal)} still owed`,
@@ -737,7 +753,7 @@ export function model(state, plan, month) {
   else if (flow.totalShortfall > 1)
     nextAction = { title: "Rebalance the plan", why: flow.sentence, view: "plan", cta: "Open the plan" };
   else if (overEnv)
-    nextAction = { title: `Cover ${overEnv.name}`, why: `It's ${money((spentBy[overEnv.id] || 0) - overEnv.planned)} over — move that from a lighter envelope.`, view: "budget", cta: "Open budget" };
+    nextAction = { title: `Cover ${overEnv.name}`, why: `It's ${money((spentBy[overEnv.id] || 0) - overEnv.planned)} over — move that from a lighter envelope.`, view: "budget", cta: "Open envelopes" };
   else if (unallocated > 1)
     nextAction = { title: `Give ${money(unallocated)} a job`, why: "Unassigned money gets spent by accident. An envelope, a goal, or a payment against what you owe.", view: "plan", cta: "Open the plan" };
   else if (lateGoal)
@@ -745,7 +761,7 @@ export function model(state, plan, month) {
   else if (currentStep && currentStep.state === "current")
     nextAction = { title: currentStep.label, why: currentStep.detail, view: "plan", cta: "See the steps" };
   else
-    nextAction = { title: "Nothing needs you today", why: "Log spending as it happens and the plan keeps itself honest.", view: "txn", cta: "Open spending" };
+    nextAction = { title: "Nothing needs you today", why: "Log spending as it happens and the plan keeps itself honest.", view: "txn", cta: "Open transactions" };
   nextAction.step = `Step ${Math.min(currentIdx + 1, steps.length)} of ${steps.length}`;
 
   /* ---- getting-started checklist (shown while the household is thin) ---- */
@@ -792,7 +808,7 @@ export function model(state, plan, month) {
     steps, currentStep, nextAction, setupSteps, setupDone,
     avgByName, threeMoAvgTotal, paceDiag, monthOutlook, week, weekKey, forecast12, afford, calendar,
     stewardship, decisions, decisionsDue, enough,
-    cashOnHand, billsCovered, celebrate, insights,
+    cashOnHand, billsCovered, celebrate, insights, taxOverdue: !!overdueQ,
     envByName, matchEnvelope, merchantFavourites,
     merchantCount: Object.keys(merchantMap).length,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),

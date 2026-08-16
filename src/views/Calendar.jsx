@@ -31,8 +31,11 @@ export default function Calendar({ ctx, onQuickAdd }) {
 
   const togglePaid = (b) => writeMonth((mm) => {
     mm.paid = mm.paid || [];
-    if (mm.paid.includes(b.id)) mm.paid = mm.paid.filter((x) => x !== b.id);
-    else {
+    if (mm.paid.includes(b.id)) {
+      mm.paid = mm.paid.filter((x) => x !== b.id);
+      const i2 = mm.entries.findIndex((t) => t.note === b.name + " (bill)" && t.amount === b.amount);
+      if (i2 >= 0) mm.entries.splice(i2, 1);
+    } else {
       mm.paid.push(b.id);
       if (b.envId && mm.envelopes.some((e) => e.id === b.envId))
         mm.entries.unshift({

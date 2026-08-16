@@ -331,7 +331,10 @@ export const DEFAULT_TAX = {
 };
 
 export const DEFAULT_WATERFALL = {
-  tithePct: 10,
+  /* Giving starts at 0 — a fresh household commits nothing until the two
+     of them choose a number. Setup and Settings are where it's chosen;
+     the sample household models 10%. Never pre-commit someone's money. */
+  tithePct: 0,
   titheBase: "gross",
   order: ["tithe", "taxReserve", "fixedBills", "essentials", "emergencyFund", "debtExtra", "goals", "spending"],
   essentialGroups: ["Home", "Daily", "Health"],
@@ -539,15 +542,20 @@ export function affordability({ cost, m }) {
 
   if (c <= 0) return null;
 
+  /* No cash accounts entered yet means "unknown", not "flat broke" — the
+     cash gates only apply once the check can actually see money. */
+  const hasCash = m.assets.some((a) => a.type === "cash");
   const afterCash = cash - billsDue - c;
   const efDelayWeeks = efGoal && efGoal.monthly > 0 ? Math.round((c / efGoal.monthly) * 4.33) : null;
 
   let verdict, label, reasons = [];
-  if (cash - billsDue < c) {
+  if (hasCash && cash - billsDue < c) {
     verdict = "no";
     label = "No — not right now";
-    reasons.push(`Cash on hand is ${money(cash)} and ${money(billsDue)} of bills are still due this month — the purchase would leave those short.`);
-  } else if (afterCash < essentials) {
+    reasons.push(billsDue > 0
+      ? `Cash on hand is ${money(cash)} and ${money(billsDue)} of bills are still due this month — the purchase would leave those short.`
+      : `Cash on hand is ${money(cash)} — the purchase costs more than what's there.`);
+  } else if (hasCash && afterCash < essentials) {
     verdict = "wait";
     label = "Wait";
     reasons.push(`It fits, but it would take cash below one month of essentials (${money(essentials)}). After bills and this purchase you'd hold ${money(afterCash)}.`);
@@ -562,10 +570,12 @@ export function affordability({ cost, m }) {
     reasons.push(`It's ${money(c - available)} more than this month's expected cushion, so the difference comes out of goal money.`);
     if (efDelayWeeks) reasons.push(`That pushes the emergency fund back roughly ${efDelayWeeks} week${efDelayWeeks === 1 ? "" : "s"}.`);
   }
-  if (verdict !== "no" && afterCash >= essentials)
+  if (hasCash && verdict !== "no" && afterCash >= essentials)
     reasons.push(`Cash after bills and the purchase: ${money(afterCash)}.`);
+  if (!hasCash)
+    reasons.push("This check can't see your cash yet — add your bank accounts on Net worth and the verdict gets sharper.");
 
-  return { verdict, label, reasons, cost: c, cash, billsDue, afterCash, available, efDelayWeeks };
+  return { verdict, label, reasons, cost: c, cash, billsDue, afterCash, available, efDelayWeeks, hasCash };
 }
 
 /* ==================================================================
@@ -591,7 +601,7 @@ export function resolveBillEnvelope(bill, state, plan) {
 }
 
 const STAGE_LABELS = {
-  tithe: "Tithe",
+  tithe: "Giving",
   taxReserve: "Tax reserve",
   fixedBills: "Fixed bills",
   essentials: "Essentials",

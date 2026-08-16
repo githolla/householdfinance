@@ -105,7 +105,7 @@ person spent theirs on; the app watches the *household* discretionary total and 
 "Household spending money is $X past the agreed amount", never "Josh spent $73 at Target".
 Keep this when adding any copy that touches individual spending.
 
-The stewardship layer (`state.faith.enabled`, on by default, toggled in Settings) reframes
+The stewardship layer (`state.faith.enabled`, chosen at Setup, toggled in Settings) reframes
 the same numbers for a household that holds money as stewardship — positioned around three
 relationships: money ↔ God, money ↔ marriage, money ↔ future:
 
@@ -133,6 +133,22 @@ no-surveillance rule: keep it in any prompt or copy you touch.
 
 All of it is computed in `model()` like every other number. If you add a warning,
 decide where it ranks in `nextAction` — the point is one action, not a pile.
+
+**First-run honesty rules**, learned the hard way (an agent swarm walked a brand-new
+household through every screen):
+
+- **Never pre-commit their money.** `DEFAULT_WATERFALL.tithePct` is 0; giving is chosen at
+  Setup or in Our Plan. The sample household models 10%, real households choose.
+- **Absence of data is "unknown", never reassurance or alarm.** `m.billsCovered.known` gates
+  every "covered through" claim; `affordability()` skips the cash gates when no cash accounts
+  exist and says so; a mid-year signup is asked at Setup whether this year's estimated
+  payments are already sent (seeding `tax.payments` at the app's own estimates) instead of
+  being accused of missing the IRS.
+- **Lazy months must materialise exactly what the UI rendered.** `writeMonth()` falls back to
+  a clone of the current `plan` (same envelope ids, no cloned entries), and `blankMonth()`
+  always receives the partners' real names. Un-marking a bill paid removes the entry that
+  marking it logged.
+- Navigation scrolls to top on every view change; the tab bar's daily read depends on it.
 
 ## The one thing that matters architecturally
 

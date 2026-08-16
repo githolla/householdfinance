@@ -155,6 +155,7 @@ export async function callPlanner(system, messages, maxTokens = 8000) {
       messages,
     }),
   });
+  if (!res.ok) throw new Error("planner http " + res.status);
   const data = await res.json();
   if (data.stop_reason === "refusal") throw new Error("refused");
   return (data.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();

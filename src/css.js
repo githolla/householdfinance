@@ -174,8 +174,14 @@ export const CSS = `
 .tc .row:last-child{border-bottom:none;}
 .tc .row.wide{grid-template-columns:1fr 130px 92px 96px;}
 .tc .row.wide.bill{grid-template-columns:1fr 110px 84px 168px;}
-@media(max-width:700px){.tc .row.wide,.tc .row.wide.bill{grid-template-columns:1fr 96px;}
- .tc .hideS{display:none;}}
+@media(max-width:700px){.tc .row.wide{grid-template-columns:1fr 96px;}
+ .tc .hideS{display:none;}
+ /* the bill row stacks: name gets a whole line, amount + actions share
+    the next one — so every Paid button is visibly anchored to its bill */
+ .tc .row.wide.bill{grid-template-columns:minmax(0,1fr) auto;row-gap:6px;}
+ .tc .row.wide.bill .rowname{grid-column:1/-1;flex-wrap:wrap;}
+ .tc .row.wide.bill .amt{text-align:left;align-self:center;}
+ .tc .row.wide.bill .amt:last-child{text-align:right;}}
 .tc .rowname{display:flex;align-items:center;gap:8px;min-width:0;}
 .tc .rowname input{border:none;background:none;font-size:14px;font-weight:600;color:var(--ink);padding:2px 0;
  width:100%;min-width:0;font-family:inherit;}
@@ -470,6 +476,7 @@ export const CSS = `
  .tc .field{min-height:var(--tap);padding:11px 13px;}
  .tc .amt input,.tc .rowname input{font-size:16px;padding:6px 0;}
  .tc select.tag{font-size:16px;padding:6px 10px;max-width:none;}
+ .tc .tag{min-height:38px;padding:9px 13px;font-size:11px;display:inline-flex;align-items:center;}
  .tc .btn{min-height:var(--tap);padding:11px 18px;font-size:15px;}
  .tc .btn.tiny{min-height:40px;padding:8px 13px;font-size:13.5px;}
  .tc .chip{min-height:40px;padding:9px 15px;font-size:13.5px;display:inline-flex;align-items:center;}

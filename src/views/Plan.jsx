@@ -105,10 +105,10 @@ export default function Plan({ ctx }) {
           <div className="chead"><h3>How it's set up</h3></div>
           <div className="pair">
             <div>
-              <label className="lbl">Tithe</label>
+              <label className="lbl">Giving %</label>
               <input className="field num" inputMode="decimal" value={cfg.tithePct}
                 onChange={(e) => patch((s) => { s.waterfall.tithePct = Math.min(100, Math.max(0, num(e.target.value))); return s; })}
-                aria-label="Tithe percent" />
+                aria-label="Giving percent" />
             </div>
             <div>
               <label className="lbl">Emergency fund</label>
@@ -117,7 +117,7 @@ export default function Plan({ ctx }) {
                 aria-label="Months of essentials" />
             </div>
           </div>
-          <label className="lbl">Tithe is taken from</label>
+          <label className="lbl">Giving is taken from</label>
           <div className="chips">
             <button className={"chip " + (cfg.titheBase === "gross" ? "on" : "")}
               onClick={() => patch((s) => { s.waterfall.titheBase = "gross"; return s; })}>Everything that comes in</button>
@@ -137,7 +137,7 @@ export default function Plan({ ctx }) {
 
         <div className="card">
           <div className="chead"><h3>What each stage covers</h3></div>
-          <div className="note"><span className="muted">Tithe</span></div>
+          <div className="note"><span className="muted">Giving</span></div>
           <p className="empty">Off the top, before anything else has a claim on it.</p>
           <div className="note"><span className="muted">Tax reserve</span>
             <button className="btn ghost tiny" style={{ marginLeft: "auto" }} onClick={() => setView("taxes")}>Open</button>
@@ -148,7 +148,7 @@ export default function Plan({ ctx }) {
           </p>
           <div className="note"><span className="muted">Fixed bills and essentials</span></div>
           <p className="empty">
-            Bills that repeat, then the envelopes marked essential in Budget. A bill pointing at an envelope is only
+            Bills that repeat, then the envelopes marked essential in Envelopes. A bill pointing at an envelope is only
             counted once — {money(f.billsTotal)} of bills, {money(f.monthlyEssentialSpend)} to keep the lights on.
           </p>
           <div className="note"><span className="muted">Emergency fund, debt, goals</span></div>

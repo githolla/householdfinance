@@ -135,7 +135,7 @@ export default function Settings({ ctx, setState }) {
             placeholder={`e.g. The emergency fund full, 15% saved, and everything past that given or enjoyed — not hoarded.`}
             onChange={(e) => patch((s) => { s.enough.note = e.target.value; return s; })} />
           <p className="empty">
-            Written in your own words. The planner reads it, and money beyond it opens a different
+            Written in your own words. The Planner reads it, and money beyond it opens a different
             conversation — give, save, enjoy, invest, help family — instead of "maximise".
           </p>
         </div>
@@ -143,7 +143,7 @@ export default function Settings({ ctx, setState }) {
         <div className="card">
           <div className="chead"><h3>House rules</h3><span className="meta">{(state.rules || []).length ? `${state.rules.length} agreed` : ""}</span></div>
           <p className="empty">
-            Agreements you've made with each other about money. The planner holds its advice against these and says so
+            Agreements you've made with each other about money. The Planner holds its advice against these and says so
             when one is at risk — write them the way you'd say them out loud.
           </p>
           {(state.rules || []).map((r) => (
@@ -201,9 +201,9 @@ export default function Settings({ ctx, setState }) {
             anything unusual to someone licensed.
           </p>
           <p className="empty">
-            Receipt reading and the planner both send data to Anthropic's API through the dev proxy. Photos are shrunk in
-            the browser, sent once, and never saved — but the key is only safe in local development. This needs a real
-            backend route before it goes anywhere public.
+            Receipt reading and the Planner send your numbers to Anthropic's API through the app's own server route —
+            the key never reaches your browser. Photos are shrunk on your device, sent once for reading, and never
+            saved anywhere.
           </p>
         </div>
       </div>

@@ -130,16 +130,22 @@ export default function App() {
 
   const plan = useMemo(() => {
     if (!state) return null;
-    return state.months[month] || blankMonth(state.months[shiftMonth(month, -1)]);
+    const [pa, pb] = state.household.partners;
+    return state.months[month] || blankMonth(state.months[shiftMonth(month, -1)], pa.name, pb.name);
   }, [state, month]);
 
+  /* The first write into a lazy month must materialise EXACTLY the month
+     the UI has been rendering — same envelope ids, no cloned entries.
+     Cloning last month here instead (the old bug) duplicated its entries
+     and filed the new one against envelope ids that didn't exist. */
   const writeMonth = useCallback((fn) =>
     patch((s) => {
-      const base = s.months[month] || structuredClone(s.months[shiftMonth(month, -1)] || blankMonth(null));
+      const base = s.months[month] || structuredClone(plan);
       if (!base.paid) base.paid = [];
+      base.entries = base.entries || [];
       s.months[month] = fn(base);
       return s;
-    }), [patch, month]);
+    }), [patch, month, plan]);
 
   const m = state && plan ? model(state, plan, month) : null;
   const envelopeNames = useMemo(() => (plan ? plan.envelopes.map((e) => e.name) : []), [plan]);
@@ -161,6 +167,10 @@ export default function App() {
     if (view === "stew" && state && !(state.faith && state.faith.enabled)) setView("dash");
   }, [view, state]);
 
+  /* Every navigation starts at the top of the new view — otherwise a
+     scrolled phone lands mid-page and the first-glance read is lost. */
+  useEffect(() => { window.scrollTo(0, 0); }, [view]);
+
   const onLogged = useCallback(({ id, amount, envName }) => {
     clearTimeout(toastTimer.current);
     setToast({ id, amount, envName, month });
@@ -179,7 +189,7 @@ export default function App() {
 
   if (loading)
     return <Frame><div className="empty" style={{ padding: 30 }}>Opening your ledger…</div></Frame>;
-  if (!state) return <Setup onDone={(s) => setState(withDefaults(s))} Frame={Frame} />;
+  if (!state) return <Setup onDone={(s) => { setState(withDefaults(s)); window.scrollTo(0, 0); }} Frame={Frame} />;
 
   const ctx = { state, patch, plan, writeMonth, month, setMonth, m, setView };
   /* The stewardship view only exists for households that keep the faith

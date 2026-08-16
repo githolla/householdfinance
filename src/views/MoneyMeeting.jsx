@@ -97,7 +97,7 @@ export default function MoneyMeeting({ ctx }) {
         <div className="card" style={{ maxWidth: 640 }}>
           <div className="meetbig">Ready when you both are.</div>
           <p className="empty">
-            Six short steps: {faith ? "gratitude, " : ""}where you stand, something worth naming,
+            A short walk together: {faith ? "gratitude, " : ""}where you stand, something worth naming,
             one conversation, a decision, and a close. Nobody is the budget cop — the numbers are
             already on the table.
           </p>
@@ -138,7 +138,9 @@ export default function MoneyMeeting({ ctx }) {
           {[
             ["Spent this week", `${money(m.week.spent)} against a ${money(m.week.weeklyAvg)} weekly average`],
             ...(faith ? [["Given this week", money(m.week.giving)]] : []),
-            ["Cash on hand", `${money(m.cashOnHand)} — bills covered through ${m.billsCovered.throughLabel}`],
+            ["Cash on hand", m.billsCovered.known
+              ? `${money(m.cashOnHand)} — bills covered through ${m.billsCovered.throughLabel}`
+              : `${money(m.cashOnHand)} — add bills and cash accounts for the coverage read`],
             ["Coming up", m.week.upcoming.length
               ? m.week.upcoming.map((b) => `${b.name} ${money(b.amount)} in ${b.dueIn}d`).join(" · ")
               : "nothing due in the next two weeks"],

@@ -8,7 +8,7 @@
    ================================================================== */
 
 import { uid, monthKey, shiftMonth, num } from "./format.js";
-import { DEFAULT_TAX, DEFAULT_WATERFALL } from "./engines.js";
+import { DEFAULT_TAX, DEFAULT_WATERFALL, taxReserve } from "./engines.js";
 
 /* ---- the envelopes a 1099 household starts with ---- */
 
@@ -35,9 +35,30 @@ export const blankMonth = (prev, aName, bName) => ({
 
 /* ---- fresh household ---- */
 
-export function newState({ name, aName, bName, aIncome, bIncome, aGross, bGross }) {
+export function newState({ name, aName, bName, aIncome, bIncome, aGross, bGross, faithOn, givePct, quartersPaid }) {
   const cur = monthKey(new Date());
   const emergencyId = uid();
+  const tax = {
+    ...DEFAULT_TAX,
+    partners: {
+      a: { ...DEFAULT_TAX.partners.a, gross1099: num(aGross) },
+      b: { ...DEFAULT_TAX.partners.b, gross1099: num(bGross) },
+    },
+  };
+  /* A household joining mid-year has usually already sent the quarters
+     that were due. When they say so at Setup, record those quarters as
+     handled — at the app's own estimate — instead of opening the ledger
+     with a false "you missed the IRS" alarm. Taxes can correct it. */
+  if (quartersPaid) {
+    const est = taxReserve({ tax, month: cur });
+    if (!est.incomplete)
+      tax.payments = est.quarters
+        .filter((q) => q.past && q.amount > 0)
+        .map((q) => ({
+          id: uid(), date: q.dueDate, amount: q.amount,
+          kind: "paid", quarter: q.label, note: "Marked handled at setup",
+        }));
+  }
   return {
     v: 3,
     household: {
@@ -48,14 +69,12 @@ export function newState({ name, aName, bName, aIncome, bIncome, aGross, bGross 
         { id: "b", name: bName, income: num(bIncome) },
       ],
     },
-    tax: {
-      ...DEFAULT_TAX,
-      partners: {
-        a: { ...DEFAULT_TAX.partners.a, gross1099: num(aGross) },
-        b: { ...DEFAULT_TAX.partners.b, gross1099: num(bGross) },
-      },
+    tax,
+    waterfall: {
+      ...DEFAULT_WATERFALL,
+      emergencyGoalId: emergencyId,
+      tithePct: Math.max(0, Math.min(50, num(givePct))),
     },
-    waterfall: { ...DEFAULT_WATERFALL, emergencyGoalId: emergencyId },
     ui: { defaultWho: "joint" },
     months: { [cur]: blankMonth(null, aName, bName) },
     goals: [
@@ -67,7 +86,7 @@ export function newState({ name, aName, bName, aIncome, bIncome, aGross, bGross 
     merchantMap: {},
     rules: [],
     meeting: { key: "", briefing: "", votes: { a: null, b: null } },
-    faith: { enabled: true },
+    faith: { enabled: faithOn !== false },
     decisions: [],
     enough: { note: "" },
     chat: [],
@@ -207,7 +226,7 @@ export function demoState() {
         { id: uid(), date: `${year}-06-13`, amount: 4600, kind: "paid", quarter: "Q2", note: "EFTPS" },
       ],
     },
-    waterfall: { ...DEFAULT_WATERFALL, emergencyGoalId: emergencyId, debtExtra: 200 },
+    waterfall: { ...DEFAULT_WATERFALL, emergencyGoalId: emergencyId, debtExtra: 200, tithePct: 10 },
     ui: { defaultWho: "joint" },
     months,
     goals: [
