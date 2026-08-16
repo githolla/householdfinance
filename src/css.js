@@ -446,6 +446,15 @@ export const CSS = `
  font-weight:700;margin-bottom:4px;color:var(--soft);}
 .tc .prayer .ptext{font-style:italic;color:var(--ink);}
 
+/* the hero's provision header + Home's stewardship-voiced section labels */
+.tc .heroprov{display:block;background:none;border:none;padding:0;margin:0 0 12px;text-align:left;
+ font-family:inherit;font-size:12px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;
+ color:var(--hero-soft);cursor:pointer;}
+.tc .heroprov b{color:#fff;font-weight:700;font-variant-numeric:tabular-nums;}
+@media(hover:hover){.tc .heroprov:hover{color:#fff;}}
+.tc .homelabel{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--soft);
+ font-weight:700;margin:2px 2px 8px;}
+
 /* the say-it button while it's listening */
 .tc .btn.listening{border-color:var(--warn);color:var(--warn);animation:tclisten 1.2s ease-in-out infinite;}
 @keyframes tclisten{0%,100%{opacity:1;}50%{opacity:.55;}}

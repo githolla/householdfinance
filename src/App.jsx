@@ -60,11 +60,18 @@ const PRIMARY = ["dash", "txn", "bills", "planner"];
 /* Grouped around the couple's mental model: today's loop, the money
    itself, the things they do together, and everything else. Envelopes
    stays routed (Plan links to it) but out of the sidebar — Plan is the
-   user-facing way in. */
+   user-facing way in. With the faith layer on, Together rises above
+   Our money — stewardship is the frame, not an appendix. */
 const SECTIONS = [
   ["Today", ["dash", "txn", "bills"]],
   ["Our money", ["plan", "goals", "worth"]],
   ["Together", ["stew", "meeting", "planner"]],
+  ["More", ["cal", "taxes", "reports", "settings"]],
+];
+const FAITH_SECTIONS = [
+  ["Today", ["dash", "txn", "bills"]],
+  ["Together", ["stew", "meeting", "planner"]],
+  ["Our money", ["plan", "goals", "worth"]],
   ["More", ["cal", "taxes", "reports", "settings"]],
 ];
 
@@ -195,6 +202,7 @@ export default function App() {
   /* The stewardship view only exists for households that keep the faith
      layer on — the toggle lives in Settings. */
   const navVisible = (k) => k !== "stew" || (state.faith && state.faith.enabled);
+  const sections = state.faith && state.faith.enabled ? FAITH_SECTIONS : SECTIONS;
   const quickAdd = (envId, dateISO) =>
     receipt.openBlank({ ...blankDraft(m, envId, state.ui.defaultWho), ...(dateISO ? { dateISO } : {}) });
   const go = (k) => { setView(k); setMore(false); };
@@ -220,7 +228,7 @@ export default function App() {
             </button>
           </div>
           <nav>
-            {SECTIONS.map(([sec, keys]) => (
+            {sections.map(([sec, keys]) => (
               <div key={sec || "misc"} style={{ display: "contents" }}>
                 {sec && <div className="navsec">{sec}</div>}
                 {keys.filter(navVisible).map((k) => {
@@ -309,7 +317,7 @@ export default function App() {
           </div>
         )}
         <div className="morelist">
-          {SECTIONS.map(([sec, keys]) => {
+          {sections.map(([sec, keys]) => {
             const items = keys.filter((k) => !PRIMARY.includes(k) && navVisible(k));
             if (!items.length) return null;
             return (

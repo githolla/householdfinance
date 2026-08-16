@@ -68,7 +68,9 @@ The information architecture copies how financial planners actually present to c
   don't support.
 - **`m.setupSteps`** — the getting-started checklist; the card hides itself once done.
 - The sidebar is sectioned **Today / Our money / Together / More** (`SECTIONS` in App.jsx),
-  grouped around the couple's mental model. Envelopes (the budget view) stays fully routed but
+  grouped around the couple's mental model — and with the faith layer on, `FAITH_SECTIONS`
+  lifts **Together** (Stewardship, Money Meeting, Ask the Planner) above Our money:
+  stewardship is the frame, not an appendix. Envelopes (the budget view) stays fully routed but
   out of the sidebar — Our Plan is the user-facing way in, with an "Open the envelopes" button.
   The phone tab bar is Home / Activity / Bills / Planner / More.
 - **Home has exactly two jobs, in order: see the state, log the spend.** The status hero
@@ -77,7 +79,11 @@ The information architecture copies how financial planners actually present to c
   `.herofig.big`) off `m.today`, plus budget left → Envelopes and bills still due → Bills
   (caption carries the `m.billsCovered` read); a small SVG sparkline of six-month spending;
   the stewardship split as a segmented strip + legend (faith on, monthly buckets, light
-  tints) clicking through to Stewardship; and Today's thread. Under the hero, in this
+  tints) clicking through to Stewardship. With the faith layer on the hero opens
+  faith-first: the `.heroprov` provision line ("What came into our hands · $X") and
+  Today's thread sit ABOVE the figures, and the charts block below carries the
+  "How we're stewarding it" `.homelabel` with Goals titled "Preparing for what's ahead" —
+  all of it absent for a neutral household. Under the hero, in this
   order: log + what-if, then the visualization block — the fused In / Out / Kept row
   (`.fusedrow`, 2px seams) leading the mockup-style charts ("Where it went" as a
   proportional `PIE`-colored strip with rows, over-plan rows flagged in words; "Monthly

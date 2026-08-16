@@ -176,8 +176,26 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
 
-      {/* the household snapshot: deep blue, just the numbers, each one a door */}
+      {/* the household snapshot: deep blue — provision first, then the
+         day's thread, then the numbers, each one a door */}
       <div className="hero">
+        {faith && (
+          <button className="heroprov" onClick={() => setView("stew")}
+            aria-label="What came into our hands — open Stewardship">
+            🌾 What came into our hands · <b>{money(m.income)}</b> this month
+          </button>
+        )}
+        {dayThread && (
+          <button className="daythread" style={{ margin: "0 0 16px" }} onClick={() => setView("stew")}
+            aria-label={`${dayThread.title} — open Stewardship`}>
+            <span className="lifeglyph">{dayThread.glyph}</span>
+            <span style={{ minWidth: 0 }}>
+              <span className="lifenum">Today's thread · {dayThread.title}</span>
+              <span className="dtverse">"{dayThread.refs[0].text}" <b>— {dayThread.refs[0].ref}</b></span>
+            </span>
+            <span className="muted" style={{ marginLeft: "auto", flex: "none" }}>›</span>
+          </button>
+        )}
         <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
         <div className="herofigs" style={{ minWidth: 0 }}>
           {(m.today.known
@@ -224,17 +242,6 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
               ))}
             </button>
           </>
-        )}
-        {dayThread && (
-          <button className="daythread" onClick={() => setView("stew")}
-            aria-label={`${dayThread.title} — open Stewardship`}>
-            <span className="lifeglyph">{dayThread.glyph}</span>
-            <span style={{ minWidth: 0 }}>
-              <span className="lifenum">Today's thread · {dayThread.title}</span>
-              <span className="dtverse">"{dayThread.refs[0].text}" <b>— {dayThread.refs[0].ref}</b></span>
-            </span>
-            <span className="muted" style={{ marginLeft: "auto", flex: "none" }}>›</span>
-          </button>
         )}
       </div>
 
@@ -356,6 +363,7 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
       )}
 
       {/* the charts: in/out/kept, then the visual read of the month */}
+      {faith && <div className="homelabel">How we're stewarding it</div>}
       <div className="fusedrow">
         <div>
           <div className="fk">In</div>
@@ -469,7 +477,7 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
       {/* goals as rings, the mockup way */}
       {state.goals.some((g) => g.target > 0) && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="chead"><h3>Goals</h3><button className="btn ghost tiny" onClick={() => setView("goals")}>Manage</button></div>
+          <div className="chead"><h3>{faith ? "Preparing for what's ahead" : "Goals"}</h3><button className="btn ghost tiny" onClick={() => setView("goals")}>Manage</button></div>
           <div className="grid g3">
             {state.goals.filter((g) => g.target > 0).slice(0, 3).map((g, i) => {
               const st = m.goalStatus(g);
