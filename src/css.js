@@ -36,12 +36,12 @@ export const CSS = `
 .tc :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:6px;}
 .tc .lockscroll{overflow:hidden;}
 
-/* shell — the sidebar sits on the page surface, not in a white column;
-   the content column caps its width so huge monitors don't stretch it.
-   The hamburger collapses it to an icon rail; the choice persists in
+/* shell — the sidebar sits on the page surface, not in a white column,
+   and the layout fills the whole screen edge to edge. The hamburger
+   collapses the sidebar to an icon rail; the choice persists in
    state.ui.sideCollapsed. */
 .tc .shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh;min-height:100dvh;
- max-width:1520px;margin:0 auto;transition:grid-template-columns .18s ease;}
+ width:100%;transition:grid-template-columns .18s ease;}
 .tc .shell.collapsed{grid-template-columns:72px minmax(0,1fr);}
 .tc .sidetop{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .tc .hamb{background:none;border:none;border-radius:10px;padding:8px;color:var(--soft);
@@ -73,7 +73,7 @@ export const CSS = `
 .tc .side nav button.on{background:var(--brand);color:#fff;box-shadow:var(--shadow);}
 .tc .sidefoot{margin-top:auto;font-size:11.5px;color:var(--soft);line-height:1.5;
  background:var(--surface);border-radius:16px;padding:13px;box-shadow:var(--shadow);}
-.tc .main{padding:30px 36px 92px;min-width:0;max-width:1180px;}
+.tc .main{padding:30px 36px 92px;min-width:0;}
 
 /* page head */
 .tc .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;
