@@ -334,26 +334,6 @@ export const CSS = `
 .tc .toast button{background:none;border:none;color:#fff;text-decoration:underline;font-size:13.5px;font-weight:700;}
 @media(min-width:900px){.tc .toast{left:auto;right:24px;bottom:88px;max-width:380px;}}
 
-/* dashboard flow */
-.tc .dashflow{display:grid;gap:14px;grid-template-columns:minmax(0,1fr);}
-/* On the phone the columns dissolve and the d-* order classes take over. */
-.tc .colmain,.tc .colside{display:contents;}
-@media(min-width:900px){
- .tc .dashflow{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:16px;align-items:start;}
- .tc .dashflow>.wideblock{grid-column:1/-1;}
- .tc .colmain,.tc .colside{display:flex;flex-direction:column;gap:16px;min-width:0;}
-}
-.tc .stateline{padding:4px 0 14px;}
-.tc .stateline .fig{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
- font-size:36px;letter-spacing:-.03em;line-height:1.05;margin:6px 0 8px;}
-.tc .stateline .say{font-size:17.5px;line-height:1.4;font-weight:700;letter-spacing:-.01em;}
-.tc .stateline .say span{color:var(--soft);font-weight:500;}
-.tc .pacewrap{padding:2px 0;}
-.tc .pace{position:relative;height:10px;background:var(--surface2);border-radius:6px;overflow:hidden;}
-.tc .pace i{display:block;height:100%;border-radius:6px;background:var(--brand);}
-.tc .pace i.over{background:var(--warn);}
-.tc .pacemark{position:absolute;top:-3px;width:2px;height:16px;border-radius:2px;background:var(--soft);}
-.tc .paceline{font-size:12.5px;color:var(--soft);margin-top:9px;font-weight:500;}
 .tc .envrow{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;
  background:none;border:none;border-bottom:1px solid var(--surface2);padding:12px 2px;
  font-size:14px;font-weight:600;color:var(--ink);text-align:left;}
@@ -489,6 +469,7 @@ export const CSS = `
  .tc .monthnav{justify-content:space-between;}
  .tc .monthnav .m{font-size:15px;min-width:0;}
  .tc .g23{grid-template-columns:minmax(0,1fr);}
+ .tc .g2{grid-template-columns:minmax(0,1fr);}
 
  /* the calendar tightens up; the detail panel below does the talking */
  .tc .calgrid,.tc .calhead{gap:4px;}
@@ -501,16 +482,12 @@ export const CSS = `
  .tc .herofigs{gap:22px;}
  .tc .herofigs .v{font-size:21px;}
 
- .tc .d-state{order:1;} .tc .d-setup{order:2;} .tc .d-next{order:3;}
- .tc .d-pace{order:4;}  .tc .d-envs{order:5;}  .tc .d-due{order:6;}
- .tc .d-budget{order:7;} .tc .d-most{order:8;} .tc .d-steps{order:9;}
- .tc .d-notes{order:10;} .tc .d-recent{order:11;}
- .tc .d-goals{order:12;} .tc .d-kpis{order:13;} .tc .d-rail{order:14;}
- .tc .d-cats{order:15;}  .tc .d-flow{order:16;}
 }
 
 @media(max-width:599px){
  .tc .grid{grid-template-columns:minmax(0,1fr);gap:12px;}
+ /* charts get the full width on a phone — a 180px bar chart tells you nothing */
+ .tc .grid.chartsrow{grid-template-columns:minmax(0,1fr);}
  .tc .g4,.tc .g3{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
  .tc .g3>:last-child:nth-child(odd){grid-column:1/-1;}
  .tc .pair{grid-template-columns:minmax(0,1fr);}

@@ -69,11 +69,17 @@ The information architecture copies how financial planners actually present to c
   grouped around the couple's mental model. Envelopes (the budget view) stays fully routed but
   out of the sidebar — Our Plan is the user-facing way in, with an "Open the envelopes" button.
   The phone tab bar is Home / Activity / Bills / Planner / More.
-- **Home leads with the status hero** (`.hero`): are we okay, came-in / committed / available,
-  bill coverage off `m.billsCovered`, the Planner-recommendation row off `m.monthOutlook.rec`
-  (Use this plan records agreement in `state.ui.agreedRec`; it moves no money), then
-  "Since you were last here" (`state.ui.lastSeen`) and "One thing to decide together" — both
-  hidden when there's nothing real to show.
+- **Home has exactly two jobs, in order: see the state, log the spend.** The status hero
+  (`.hero`) answers "are we okay" in four figures (came in / spent / left to spend /
+  available) plus bill coverage off `m.billsCovered` and the Planner-recommendation row off
+  `m.monthOutlook.rec` (Use this plan records agreement in `state.ui.agreedRec`; it moves no
+  money). Directly under it, the **log card**: snap a receipt (camera capture input), upload
+  a photo, type it in — all driving the same `receipt` hook and EntrySheet — plus one-tap
+  envelope chips and the last few entries. Below: three compact charts (budget ring, where
+  the month went, six-month flow — the `chartsrow` grid goes single-column on phones), then
+  Do-this-next and Coming due. "Since you were last here" and "One thing to decide together"
+  appear only when there's something real. Everything else (steps, notes, goals, rail, most
+  expenses) lives on its own view — don't move it back; Home stays scannable.
 - **The Money Meeting is its own guided view** (MoneyMeeting.jsx): gratitude → where we stand →
   celebrate (`m.celebrate`, null when nothing is honestly worth naming) → one conversation →
   decide (deterministic impact per vote, a middle path, and a Planner hand-off) → close. The

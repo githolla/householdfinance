@@ -1,24 +1,20 @@
 /* ==================================================================
-   dashboard — the state of the month, above the fold
+   home — the state of the month, and the fastest way to log spending
 
-   The JSX is written in desktop order so the two-column grid works by
-   auto-placement; the phone reorders with `order` in CSS. Never wrap a
-   chart in display:none — ResponsiveContainer measures 0 and collapses.
+   Two jobs, in order: answer "are we okay?" in numbers at the top, and
+   put scan / upload / type-it-in one tap away. Everything else lives on
+   its own view — Home stays scannable.
    ================================================================== */
 
 import { useEffect, useRef } from "react";
 import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
 import { money, compact, monthLabel, ordinal, C } from "../lib/format.js";
-import { Head, MonthNav, Tip, Rail, Notes, Ring, SChip, Stepper, axis } from "../components.jsx";
+import { Head, MonthNav, Tip, Ring, SChip, axis } from "../components.jsx";
 
-const GROUP_GLYPH = {
-  Home: "🏠", Daily: "🛒", Lifestyle: "🍜", Health: "💊", Giving: "💛", Other: "📦",
-};
-
-export default function Dashboard({ ctx, onQuickAdd }) {
+export default function Dashboard({ ctx, onQuickAdd, receipt }) {
   const { m, plan, month, setMonth, state, setView, writeMonth, patch } = ctx;
 
   /* ---- since you were last here ------------------------------------
@@ -67,9 +63,6 @@ export default function Dashboard({ ctx, onQuickAdd }) {
     .sort((a, b) => b.spent - a.spent).slice(0, 7);
 
   const spentPct = m.planned > 0 ? Math.min(100, (m.spent / m.planned) * 100) : 0;
-  const aheadOfPace = m.paceDelta > 0;
-  // Rust is the alarm colour and means over plan — not merely ahead of an even
-  // pace, which is normal in a month where rent and tithe go out on the 1st.
   const overPlan = m.planned > 0 && m.spent > m.planned;
 
   const togglePaid = (b) => writeMonth((mm) => {
@@ -98,7 +91,7 @@ export default function Dashboard({ ctx, onQuickAdd }) {
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
 
-      {/* the household status hero: are we okay, what changed, what next */}
+      {/* the household status hero: are we okay, in numbers */}
       <div className="hero">
         <div className="hline">{headline}</div>
         <div className="hsub">
@@ -113,10 +106,15 @@ export default function Dashboard({ ctx, onQuickAdd }) {
             : headline === m.thesis[0] ? m.thesis[1] : ""}
         </div>
         <div className="herofigs">
-          {[["Came in", m.income], ["Committed", m.allocated], ["Available", Math.max(0, m.monthOutlook.available)]].map(([k, v]) => (
+          {[
+            ["Came in", m.income],
+            ["Spent so far", m.spent],
+            ["Left to spend", m.leftToSpend],
+            ["Available", Math.max(0, m.monthOutlook.available)],
+          ].map(([k, v]) => (
             <div key={k}>
               <span className="lbl">{k}</span>
-              <span className="v">{money(v)}</span>
+              <span className={"v" + (k === "Left to spend" && v < 0 ? " down" : "")}>{money(v)}</span>
             </div>
           ))}
         </div>
@@ -139,6 +137,76 @@ export default function Dashboard({ ctx, onQuickAdd }) {
           </div>
         )}
       </div>
+
+      {/* log it, right here — camera, upload, or keyboard */}
+      <div className="card logcard" style={{ marginBottom: 16 }}>
+        <div className="chead" style={{ marginBottom: 10 }}>
+          <h3>Log spending</h3>
+          <span className="meta">a photo just fills the form in — you can always type it</span>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <label className="btn">
+            📷 Snap a receipt
+            <input type="file" accept="image/*" capture="environment" className="hiddenfile"
+              onChange={(e) => { receipt.capture(e.target.files && e.target.files[0]); e.target.value = ""; }} />
+          </label>
+          <label className="btn ghost">
+            Upload a photo
+            <input type="file" accept="image/*" className="hiddenfile"
+              onChange={(e) => { receipt.capture(e.target.files && e.target.files[0]); e.target.value = ""; }} />
+          </label>
+          <button className="btn ghost" onClick={() => onQuickAdd()}>Type it in</button>
+        </div>
+        {m.tightest.length > 0 && (
+          <div className="chips" style={{ marginTop: 10 }}>
+            {m.tightest.map((e) => {
+              const left = m.envRemaining[e.id];
+              return (
+                <button className="chip" key={e.id} onClick={() => onQuickAdd(e.id)}>
+                  {e.name} · {left < 0 ? `${money(-left)} over` : `${money(left)} left`}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {plan.entries.length > 0 && (
+          <div style={{ marginTop: 6 }}>
+            {plan.entries.slice(0, 4).map((t) => {
+              const env = plan.envelopes.find((e) => e.id === t.envId);
+              return (
+                <div className="note" key={t.id} style={{ justifyContent: "space-between" }}>
+                  <span style={{ display: "flex", gap: 9, alignItems: "center", minWidth: 0 }}>
+                    <i className="dot" style={{ background: m.ownerColor(t.who) }} />
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {t.note || (env ? env.name : "Spending")}
+                    </span>
+                  </span>
+                  <span className="num">{money(t.amount)}</span>
+                </div>
+              );
+            })}
+            <button className="btn ghost tiny" style={{ marginTop: 8 }} onClick={() => setView("txn")}>See all transactions</button>
+          </div>
+        )}
+      </div>
+
+      {/* getting-started checklist, only while the household is thin */}
+      {!m.setupDone && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="chead">
+            <h3>Set the table</h3>
+            <span className="meta">{m.setupSteps.filter((s) => s.done).length} of {m.setupSteps.length} done</span>
+          </div>
+          {m.setupSteps.map((s) => (
+            <button className={"check" + (s.done ? " done" : "")} key={s.key}
+              onClick={() => setView(s.view)}>
+              <span className="box">✓</span>
+              <span className="t">{s.label}</span>
+              <span className={"go " + (s.done ? "muted" : "btn ghost tiny")}>{s.done ? "›" : "Go"}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {showSince && (
         <div className="card" style={{ marginBottom: 16 }}>
@@ -163,58 +231,97 @@ export default function Dashboard({ ctx, onQuickAdd }) {
         </div>
       )}
 
-      <div className="dashflow">
-        {/* getting-started checklist, only while the household is thin */}
-        {!m.setupDone && (
-          <div className="card wideblock d-setup">
-            <div className="chead">
-              <h3>Set the table</h3>
-              <span className="meta">{m.setupSteps.filter((s) => s.done).length} of {m.setupSteps.length} done</span>
-            </div>
-            {m.setupSteps.map((s) => (
-              <button className={"check" + (s.done ? " done" : "")} key={s.key}
-                onClick={() => setView(s.view)}>
-                <span className="box">✓</span>
-                <span className="t">{s.label}</span>
-                <span className={"go " + (s.done ? "muted" : "btn ghost tiny")}>{s.done ? "›" : "Go"}</span>
+      {/* the numbers, at a glance */}
+      <div className="grid g3 chartsrow" style={{ marginBottom: 16 }}>
+        <div className="card">
+          <div className="chead"><h3>Monthly budget</h3>
+            {m.planned > 0 && (overPlan
+              ? <SChip tone="over">over plan</SChip>
+              : <SChip tone="ok">on track</SChip>)}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+            <Ring pct={spentPct} size={116} stroke={13} color={overPlan ? C.warn : C.brand}
+              track={overPlan ? "#FBE7EA" : C.brandSoft}>
+              <div>
+                <div className="num" style={{ fontSize: 17, fontWeight: 600 }}>{money(m.spent)}</div>
+                <div style={{ fontSize: 10, color: C.soft, fontWeight: 600 }}>spent</div>
+              </div>
+            </Ring>
+            <div>
+              <div className="lbl">{m.leftToSpend < 0 ? "Over by" : "Left to spend"}</div>
+              <div className={"num" + (m.leftToSpend < 0 ? " down" : "")} style={{ fontSize: 23, letterSpacing: "-.02em" }}>
+                {money(Math.abs(m.leftToSpend))}
+              </div>
+              <div className="muted" style={{ fontSize: 12, marginTop: 3, fontWeight: 500 }}>
+                of {money(m.planned)} · {m.daysLeft} days to go
+              </div>
+              <button className="btn ghost tiny" style={{ marginTop: 8 }} onClick={() => setView("planner")}>
+                Can we afford it?
               </button>
-            ))}
-          </div>
-        )}
-
-        <div className="card phone-only wideblock d-pace">
-          <div className="chead"><h3>Pace</h3><span className="meta">{m.daysLeft} days to go</span></div>
-          <div className="pacewrap">
-            <div className="pace">
-              <i className={overPlan ? "over" : ""} style={{ width: spentPct + "%" }} />
-              <span className="pacemark" style={{ left: m.pacePct + "%" }} />
-            </div>
-            <div className="paceline">
-              <span className="num">{money(m.spent)}</span> of <span className="num">{money(m.planned)}</span>
-              {m.planned > 0 && (aheadOfPace
-                ? ` · ${money(m.paceDelta)} ahead of an even pace`
-                : ` · ${money(-m.paceDelta)} under an even pace`)}
             </div>
           </div>
         </div>
 
-        <div className="card phone-only wideblock d-envs">
-          <div className="chead"><h3>What's left</h3><span className="meta">tap to log against one</span></div>
-          {m.tightest.length === 0 ? <p className="empty">Set a few envelope amounts in Envelopes — Our Plan links to it.</p> :
-            m.tightest.map((e) => {
-              const left = m.envRemaining[e.id];
-              return (
-                <button className="envrow" key={e.id} onClick={() => onQuickAdd(e.id)}>
-                  <span>{e.name}</span>
-                  <span className={"v" + (left < 0 ? " over" : "")}>
-                    {left < 0 ? `${money(-left)} over` : `${money(left)} left`}
-                  </span>
-                </button>
-              );
-            })}
+        <div className="card">
+          <div className="chead"><h3>Where the month went</h3><span className="meta num">{money(m.spent)} spent</span></div>
+          {catData.length === 0 ? <p className="empty">Nothing logged yet this month.</p> : (
+            <div style={{ height: 24 * catData.length + 20 }}>
+              <ResponsiveContainer>
+                <BarChart data={catData} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }} barCategoryGap={5}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" width={92} {...axis} />
+                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(108,114,96,.07)" }} />
+                  <Bar dataKey="planned" name="Planned" fill="rgba(108,114,96,.16)" radius={3} />
+                  <Bar dataKey="spent" name="Spent" fill={C.a} radius={3} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
-        <div className="card phone-only wideblock d-due">
+        <div className="card">
+          <div className="chead"><h3>Six months of cash flow</h3><span className="meta">vs. income</span></div>
+          {m.history.every((h) => h.spent === 0) ? (
+            <p className="empty">
+              Nothing to chart yet — log spending as it happens and six months from now this shows
+              the shape of your year.
+            </p>
+          ) : (
+            <div className="chartbox short">
+              <ResponsiveContainer>
+                <AreaChart data={m.history} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gS" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={C.a} stopOpacity={0.28} />
+                      <stop offset="100%" stopColor={C.a} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={C.line} vertical={false} />
+                  <XAxis dataKey="label" {...axis} />
+                  <YAxis {...axis} tickFormatter={compact} width={44} />
+                  <Tooltip content={<Tip />} cursor={{ stroke: C.line }} />
+                  <Area type="monotone" dataKey="spent" name="Spent" stroke={C.a} fill="url(#gS)" strokeWidth={2} />
+                  <Line type="monotone" dataKey="income" name="Income" stroke={C.ink} strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* what needs attention next */}
+      <div className="grid g2">
+        <div className="card nextcard">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span className="nlab">Do this next</span>
+            <span className="nstep">{m.nextAction.step}</span>
+          </div>
+          <div className="ntitle">{m.nextAction.title}</div>
+          <div className="nwhy">{m.nextAction.why}</div>
+          <button className="btn tiny" onClick={() => setView(m.nextAction.view)}>{m.nextAction.cta}</button>
+        </div>
+
+        <div className="card">
           <div className="chead"><h3>Coming due</h3><span className="meta num">{money(m.billsLeft)} left</span></div>
           {m.dueSoonList.length === 0 ? <p className="empty">Nothing due in the next ten days.</p> :
             m.dueSoonList.map((b) => (
@@ -229,179 +336,7 @@ export default function Dashboard({ ctx, onQuickAdd }) {
                 </span>
               </div>
             ))}
-        </div>
-
-        <div className="card wideblock d-rail desk-only">
-          <div className="chead">
-            <h3>Every dollar, given a job</h3>
-            <span className="meta num">{money(m.income)} in · {money(m.allocated)} assigned</span>
-          </div>
-          <Rail m={m} plan={plan} />
-        </div>
-
-        <div className="colmain">
-        <div className="card d-flow">
-          <div className="chead"><h3>Six months of cash flow</h3><span className="meta">income vs. what you actually spent</span></div>
-          {m.history.every((h) => h.spent === 0) ? (
-            <p className="empty">
-              Nothing to chart yet — log spending as it happens and six months from now this shows
-              the shape of your year.
-            </p>
-          ) : (
-          <div className="chartbox">
-            <ResponsiveContainer>
-              <AreaChart data={m.history} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gS" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={C.a} stopOpacity={0.28} />
-                    <stop offset="100%" stopColor={C.a} stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke={C.line} vertical={false} />
-                <XAxis dataKey="label" {...axis} />
-                <YAxis {...axis} tickFormatter={compact} width={46} />
-                <Tooltip content={<Tip />} cursor={{ stroke: C.line }} />
-                <Area type="monotone" dataKey="spent" name="Spent" stroke={C.a} fill="url(#gS)" strokeWidth={2} />
-                <Line type="monotone" dataKey="income" name="Income" stroke={C.ink} strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          )}
-        </div>
-
-        <div className="card d-cats">
-          <div className="chead"><h3>Where the month went</h3><span className="meta num">{money(m.spent)} spent</span></div>
-          {catData.length === 0 ? <p className="empty">Nothing logged yet this month.</p> : (
-            <div style={{ height: 26 * catData.length + 24 }}>
-              <ResponsiveContainer>
-                <BarChart data={catData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }} barCategoryGap={6}>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" width={96} {...axis} />
-                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(92,104,100,.07)" }} />
-                  <Bar dataKey="planned" name="Planned" fill="rgba(92,104,100,.16)" radius={3} />
-                  <Bar dataKey="spent" name="Spent" fill={C.a} radius={3} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        <div className="card d-recent">
-          <div className="chead"><h3>Recent spending</h3><button className="btn ghost tiny" onClick={() => setView("txn")}>See all</button></div>
-          {plan.entries.length === 0 ? <p className="empty">Nothing logged yet this month.</p> :
-            plan.entries.slice(0, 7).map((t) => {
-              const env = plan.envelopes.find((e) => e.id === t.envId);
-              return (
-                <div className="note" key={t.id} style={{ justifyContent: "space-between" }}>
-                  <span style={{ display: "flex", gap: 9, alignItems: "center", minWidth: 0 }}>
-                    <i className="dot" style={{ background: m.ownerColor(t.who) }} />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {t.note || (env ? env.name : "Spending")}
-                    </span>
-                  </span>
-                  <span className="num">{money(t.amount)}</span>
-                </div>
-              );
-            })}
-        </div>
-        </div>
-
-        <div className="colside">
-        <div className="card nextcard d-next">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span className="nlab">Do this next</span>
-            <span className="nstep">{m.nextAction.step}</span>
-          </div>
-          <div className="ntitle">{m.nextAction.title}</div>
-          <div className="nwhy">{m.nextAction.why}</div>
-          <button className="btn tiny" onClick={() => setView(m.nextAction.view)}>{m.nextAction.cta}</button>
-        </div>
-
-        <div className="card d-budget">
-          <div className="chead"><h3>Monthly budget</h3>
-            {m.planned > 0 && (m.spent > m.planned
-              ? <SChip tone="over">over plan</SChip>
-              : <SChip tone="ok">on track</SChip>)}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-            <Ring pct={spentPct} size={132} stroke={14} color={overPlan ? C.warn : C.brand}
-              track={overPlan ? "#FBE7EA" : C.brandSoft}>
-              <div>
-                <div className="num" style={{ fontSize: 19, fontWeight: 600 }}>{money(m.spent)}</div>
-                <div style={{ fontSize: 10.5, color: C.soft, fontWeight: 600 }}>spent</div>
-              </div>
-            </Ring>
-            <div>
-              <div className="lbl">{m.leftToSpend < 0 ? "Over by" : "Left to spend"}</div>
-              <div className={"num" + (m.leftToSpend < 0 ? " down" : "")} style={{ fontSize: 26, letterSpacing: "-.02em" }}>
-                {money(Math.abs(m.leftToSpend))}
-              </div>
-              <div className="muted" style={{ fontSize: 12.5, marginTop: 4, fontWeight: 500 }}>
-                of {money(m.planned)} planned · {m.daysLeft} days to go
-              </div>
-              <button className="btn ghost tiny" style={{ marginTop: 10 }} onClick={() => setView("planner")}>
-                Can we afford it?
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="card d-most">
-          <div className="chead"><h3>Most expenses</h3><span className="meta">vs last month</span></div>
-          {m.topSpend.length === 0 ? <p className="empty">Nothing logged yet this month.</p> :
-            m.topSpend.map((x) => (
-              <div className="note" key={x.id} style={{ alignItems: "center", gap: 11 }}>
-                <span className="rankicon">{GROUP_GLYPH[x.group] || GROUP_GLYPH.Other}</span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: "block", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.name}</span>
-                  <span className="muted" style={{ fontSize: 11.5 }}>{Math.round(x.pct)}% of the month</span>
-                </span>
-                <span style={{ textAlign: "right" }}>
-                  <span className="num" style={{ display: "block" }}>{money(x.amount)}</span>
-                  {x.deltaPct !== null && Math.abs(x.deltaPct) >= 1 && (
-                    <span className={"trend " + (x.deltaPct > 0 ? "up" : "down")}>
-                      {x.deltaPct > 0 ? "↑" : "↓"} {Math.abs(Math.round(x.deltaPct))}%
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
-        </div>
-
-        <div className="card d-steps">
-          <div className="chead">
-            <h3>Your money steps</h3>
-            <button className="btn ghost tiny" onClick={() => setView("plan")}>The plan</button>
-          </div>
-          <Stepper steps={m.steps} />
-        </div>
-
-        <div className="card d-notes">
-          <div className="chead"><h3>Planner notes</h3><button className="btn ghost tiny" onClick={() => setView("planner")}>Ask why</button></div>
-          <Notes notes={m.notes} limit={6} />
-        </div>
-
-        <div className="card d-goals">
-          <div className="chead"><h3>Goals</h3><button className="btn ghost tiny" onClick={() => setView("goals")}>Manage</button></div>
-          {state.goals.length === 0 ? <p className="empty">No goals yet — the part of the plan that's actually fun.</p> :
-            state.goals.slice(0, 4).map((g) => {
-              const st = m.goalStatus(g);
-              return (
-                <div key={g.id} style={{ marginBottom: 13 }}>
-                  <div className="metaline" style={{ justifyContent: "space-between" }}>
-                    <b style={{ fontWeight: 700, fontSize: 14.5 }}>{g.name}</b>
-                    <span className="num">{money(g.saved)} / {money(g.target)}</span>
-                  </div>
-                  <div className="track"><i style={{ width: st.pct + "%", background: st.late ? C.warn : C.joint }} /></div>
-                  <div className="metaline">
-                    {st.done ? <span className="flag ok">Funded</span> : st.eta ? <span>lands <b>{monthLabel(st.eta)}</b></span> : <span>set a monthly amount</span>}
-                    {st.late && <span className="flag late">needs {money(st.needed)}/mo</span>}
-                  </div>
-                </div>
-              );
-            })}
-        </div>
-
+          <button className="btn ghost tiny" style={{ marginTop: 8 }} onClick={() => setView("bills")}>All bills</button>
         </div>
       </div>
     </>

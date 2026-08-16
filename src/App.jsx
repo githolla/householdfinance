@@ -242,7 +242,7 @@ export default function App() {
         </aside>
 
         <main className="main">
-          {view === "dash" && <Dashboard ctx={ctx} onQuickAdd={quickAdd} />}
+          {view === "dash" && <Dashboard ctx={ctx} onQuickAdd={quickAdd} receipt={receipt} />}
           {view === "plan" && <Plan ctx={ctx} />}
           {view === "budget" && <Budget ctx={ctx} />}
           {view === "txn" && <Spending ctx={ctx} receipt={receipt} />}
