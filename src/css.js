@@ -388,10 +388,6 @@ export const CSS = `
 .tc .herofig .v{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
  font-size:26px;letter-spacing:-.02em;line-height:1.15;}
 .tc .herofoot{display:block;font-size:11px;color:var(--soft);margin-top:3px;font-weight:500;line-height:1.4;}
-.tc .recrow{display:flex;gap:9px;flex-wrap:wrap;margin-top:17px;padding-top:16px;
- border-top:1px solid var(--surface2);align-items:center;}
-.tc .recitem{background:var(--brand-soft);color:var(--brand-deep);border-radius:12px;padding:8px 13px;
- font-size:13px;font-weight:700;}
 
 /* the money-meeting wizard */
 .tc .meetdots{display:flex;gap:6px;margin-bottom:20px;}

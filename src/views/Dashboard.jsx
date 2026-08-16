@@ -96,8 +96,9 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
   else if (m.week && m.week.decision >= 50)
     decide = `About ${money(m.week.decision)} extra is available this month. Where should it go?`;
 
-  const rec = m.monthOutlook.rec;
-  const agreedRec = state.ui.agreedRec === month;
+  const billsFoot = m.billsCovered.known
+    ? `covered through ${m.billsCovered.throughLabel}`
+    : `${m.bills.filter((b) => !b.paid && b.amount > 0).length} unpaid this month`;
 
   const catData = plan.envelopes
     .map((e) => ({ name: e.name, spent: m.spentBy[e.id] || 0, planned: e.planned }))
@@ -140,41 +141,25 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
             ? [
               ["Available today", m.today.allowance, m.today.spentToday > 0 ? `already counting today's ${money(m.today.spentToday)}` : "flexible money, split over the days left", "txn"],
               ["This week", m.today.weekBudget, `${money(m.today.weekSpent)} spent in the last 7 days`, "cal"],
-              ["Left this month", m.leftToSpend, `of ${money(m.planned)} planned`, "budget"],
+              ["Budget left", m.leftToSpend, `of ${money(m.planned)} planned`, "budget"],
+              ["Bills still due", m.billsLeft, billsFoot, "bills"],
               ["Expected left over", Math.max(0, m.monthOutlook.available), "after bills and normal spending", "plan"],
             ]
             : [
               ["Came in", m.income, "what you both bring home", "settings"],
               ["Spent so far", m.spent, `${plan.entries.length} transactions`, "txn"],
-              ["Left to spend", m.leftToSpend, `of ${money(m.planned)} planned`, "budget"],
+              ["Budget left", m.leftToSpend, `of ${money(m.planned)} planned`, "budget"],
+              ["Bills still due", m.billsLeft, billsFoot, "bills"],
               ["Available", Math.max(0, m.monthOutlook.available), "after bills and normal spending", "plan"],
             ]
           ).map(([k, v, f, view]) => (
             <button className="herofig" key={k} onClick={() => setView(view)}>
               <span className="lbl">{k}</span>
-              <span className={"v" + ((k === "Left this month" || k === "Left to spend") && v < 0 ? " down" : "")}>{money(v)}</span>
+              <span className={"v" + (k === "Budget left" && v < 0 ? " down" : "")}>{money(v)}</span>
               <span className="herofoot">{f}</span>
             </button>
           ))}
         </div>
-        {m.live && rec.length > 0 && (
-          <div className="recrow">
-            <span className="lbl" style={{ marginBottom: 0 }}>Planner recommendation</span>
-            {rec.map((r) => (
-              <span className="recitem" key={r.label}><span className="num">{money(r.amount)}</span> {r.label}</span>
-            ))}
-            <span style={{ display: "flex", gap: 6, marginLeft: "auto", flexWrap: "wrap" }}>
-              {agreedRec
-                ? <SChip tone="ok">agreed</SChip>
-                : <button className="btn tiny" onClick={() => patch((s) => { s.ui.agreedRec = month; return s; })}>Use this plan</button>}
-              <button className="btn ghost tiny" onClick={() => setView("plan")}>Adjust</button>
-              <button className="btn ghost tiny" onClick={() => {
-                patch((s) => { s.ui.plannerSeed = "Walk us through this month's recommended split — why these amounts, and what would change it?"; return s; });
-                setView("planner");
-              }}>Why?</button>
-            </span>
-          </div>
-        )}
       </div>
 
       {/* log it and ask it, side by side */}
