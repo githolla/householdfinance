@@ -403,6 +403,10 @@ export const CSS = `
  font-weight:700;margin-bottom:4px;color:var(--soft);}
 .tc .prayer .ptext{font-style:italic;color:var(--ink);}
 
+/* the say-it button while it's listening */
+.tc .btn.listening{border-color:var(--warn);color:var(--warn);animation:tclisten 1.2s ease-in-out infinite;}
+@keyframes tclisten{0%,100%{opacity:1;}50%{opacity:.55;}}
+
 /* today's thread — one piece of the way-of-life on the hero, tappable */
 .tc .daythread{display:flex;gap:11px;align-items:center;width:100%;margin-top:14px;
  background:#FBF6E8;border:none;border-left:3px solid var(--joint);border-radius:0 12px 12px 0;

@@ -14,6 +14,8 @@ import {
 import { money, compact, monthLabel, ordinal, C } from "../lib/format.js";
 import { buildSnapshot, buildSystem, callPlanner } from "../lib/planner.js";
 import { STEW_VERSES, LIFE, PRAYERS, versesOn, prayersOn } from "../lib/verses.js";
+import { voiceSupported, listenOnce, parseSpokenExpense } from "../lib/voice.js";
+import { blankDraft } from "../lib/draft.js";
 import { Head, MonthNav, Tip, Ring, SChip, axis } from "../components.jsx";
 
 /* Quick what-ifs: question for the Planner, amount for the offline
@@ -96,6 +98,31 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
     decide = `About ${money(m.enough.surplus)} this month sits beyond what you've called enough. Give, save, enjoy, invest — or help someone?`;
   else if (m.week && m.week.decision >= 50)
     decide = `About ${money(m.week.decision)} extra is available this month. Where should it go?`;
+
+  /* ---- say it: voice note -> prefilled entry sheet -----------------
+     The browser transcribes on its own (nothing reaches our server);
+     the transcript is parsed deterministically and, like a photo, it's
+     a prefill — the sheet opens and the person confirms. */
+  const [listening, setListening] = useState(false);
+  const [voiceErr, setVoiceErr] = useState("");
+  const sayIt = async () => {
+    if (listening) return;
+    setVoiceErr(""); setListening(true);
+    try {
+      const { transcript } = await listenOnce();
+      const p = parseSpokenExpense(transcript, plan.envelopes.map((e) => e.name));
+      const draft = { ...blankDraft(m, undefined, state.ui.defaultWho), amount: p.amount, note: p.note, merchant: p.merchant };
+      if (p.envelope || p.merchant) {
+        const match = m.matchEnvelope(p.merchant, p.envelope);
+        draft.envId = match.envId;
+        draft.who = match.who;
+      }
+      receipt.openBlank(draft);
+    } catch (e) {
+      setVoiceErr(e.message);
+    }
+    setListening(false);
+  };
 
   const billsFoot = m.billsCovered.known
     ? `covered through ${m.billsCovered.throughLabel}`
@@ -209,6 +236,11 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
             <input type="file" accept="image/*" capture="environment" className="hiddenfile"
               onChange={(e) => { receipt.capture(e.target.files && e.target.files[0]); e.target.value = ""; }} />
           </label>
+          {voiceSupported() && (
+            <button className={"btn ghost" + (listening ? " listening" : "")} onClick={sayIt} aria-pressed={listening}>
+              {listening ? "🔴 Listening…" : "🎤 Say it"}
+            </button>
+          )}
           <label className="btn ghost">
             Upload a photo
             <input type="file" accept="image/*" className="hiddenfile"
@@ -216,6 +248,8 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
           </label>
           <button className="btn ghost" onClick={() => onQuickAdd()}>Type it in</button>
         </div>
+        {voiceErr && <p className="empty" style={{ marginTop: 6, color: C.warn }}>{voiceErr}</p>}
+        {listening && <p className="empty" style={{ marginTop: 6 }}>Try: "23.50 at Trader Joe's for groceries" — it stops when you pause.</p>}
         {m.tightest.length > 0 && (
           <div className="chips" style={{ marginTop: 10 }}>
             {m.tightest.map((e) => {
