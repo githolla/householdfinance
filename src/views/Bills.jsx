@@ -2,14 +2,56 @@
    bills — the fixed stuff, with a link straight to the payment page
    ================================================================== */
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { money, num, uid, ordinal, safeUrl, hostOf, C } from "../lib/format.js";
+import { readBillStack } from "../lib/billread.js";
 import { Head, MonthNav, Kpi } from "../components.jsx";
 
 export default function Bills({ ctx }) {
   const { m, state, patch, plan, writeMonth, month, setMonth } = ctx;
   const [editing, setEditing] = useState("");
   const set = (i, f, v) => patch((s) => { s.bills[i][f] = v; return s; });
+
+  /* ---- upload a stack of bills, review, confirm --------------------
+     Each photo becomes an editable draft row — reading fills it in,
+     the person confirms it. Nothing lands in state.bills until they
+     say so. */
+  const [drafts, setDrafts] = useState([]);
+  const [reading, setReading] = useState("");
+  const abortRef = useRef(null);
+
+  const uploadBills = async (files) => {
+    if (!files || !files.length) return;
+    if (abortRef.current) abortRef.current.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    await readBillStack(
+      Array.from(files),
+      (i, n) => setReading(`Reading ${i} of ${n}…`),
+      (bill) => setDrafts((d) => [...d, {
+        id: uid(), name: bill.name, amount: bill.amount, day: bill.day,
+        payUrl: bill.payUrl, error: bill.error,
+        dup: !!bill.name && state.bills.some((b) => b.name.trim().toLowerCase() === bill.name.trim().toLowerCase()),
+      }]),
+      ctrl.signal
+    );
+    setReading("");
+  };
+
+  const setDraft = (id, f, v) => setDrafts((d) => d.map((x) => (x.id === id ? { ...x, [f]: v } : x)));
+  const dropDraft = (id) => setDrafts((d) => d.filter((x) => x.id !== id));
+  const addDraft = (dr) => {
+    patch((s) => {
+      s.bills.push({
+        id: uid(), name: dr.name.trim() || "New bill", amount: num(dr.amount),
+        day: Math.min(31, Math.max(1, num(dr.day) || 1)), envId: "", owner: "joint",
+        payUrl: dr.payUrl || "",
+      });
+      return s;
+    });
+    dropDraft(dr.id);
+  };
+  const addAll = () => drafts.filter((d) => d.name.trim() && num(d.amount) > 0).forEach(addDraft);
 
   const togglePaid = (b) => writeMonth((mm) => {
     mm.paid = mm.paid || [];
@@ -36,6 +78,61 @@ export default function Bills({ ctx }) {
     <>
       <Head title="Bills" sub="Mark one paid and it logs itself into the right envelope. Add the link you actually pay it on."
         right={<MonthNav month={month} setMonth={setMonth} />} />
+
+      {/* upload the whole stack — photos or screenshots, several at once */}
+      <div className="logger">
+        <label className="btn">
+          📄 Upload your bills
+          <input type="file" accept="image/*" multiple className="hiddenfile"
+            onChange={(e) => { uploadBills(e.target.files); e.target.value = ""; }} />
+        </label>
+        <label className="btn ghost">
+          Snap one
+          <input type="file" accept="image/*" capture="environment" className="hiddenfile"
+            onChange={(e) => { uploadBills(e.target.files); e.target.value = ""; }} />
+        </label>
+        <span className="muted" style={{ alignSelf: "center" }}>
+          {reading || "Photos or screenshots — each one fills a row in for you to confirm."}
+        </span>
+      </div>
+
+      {drafts.length > 0 && (
+        <div className="card" style={{ marginBottom: 16, borderLeft: `4px solid ${C.brand}` }}>
+          <div className="chead">
+            <h3>Read from your uploads</h3>
+            <span className="meta">check each one — nothing is saved until you add it</span>
+          </div>
+          {drafts.map((dr) => (
+            <div className="row wide bill" key={dr.id}>
+              <div className="rowname">
+                <input value={dr.name} placeholder="Biller"
+                  onChange={(e) => setDraft(dr.id, "name", e.target.value)} aria-label="Biller name" />
+                {dr.dup && <span className="tag" style={{ borderColor: C.joint, color: C.joint }}>looks like one you have</span>}
+                {dr.error && <span className="muted" style={{ fontSize: 11.5 }}>{dr.error}</span>}
+              </div>
+              <div className="amt" style={{ textAlign: "left" }}>
+                <span className="muted">due </span>
+                <input className="num" style={{ width: 40, textAlign: "left" }} inputMode="numeric" value={dr.day}
+                  onChange={(e) => setDraft(dr.id, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Due day" />
+              </div>
+              <div className="amt">
+                <input className="num" inputMode="decimal" value={dr.amount || ""} placeholder="0"
+                  onChange={(e) => setDraft(dr.id, "amount", e.target.value)} aria-label="Amount" />
+              </div>
+              <div className="amt" style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                <button className="btn tiny" onClick={() => addDraft(dr)}
+                  disabled={!dr.name.trim() || num(dr.amount) <= 0}>Add</button>
+                <button className="btn ghost tiny" onClick={() => dropDraft(dr.id)}>Skip</button>
+              </div>
+            </div>
+          ))}
+          {drafts.filter((d) => d.name.trim() && num(d.amount) > 0).length > 1 && (
+            <button className="btn tiny" style={{ marginTop: 10 }} onClick={addAll}>
+              Add all {drafts.filter((d) => d.name.trim() && num(d.amount) > 0).length}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* the read that matters: does the cash cover what's coming? */}
       <div className="card" style={{ marginBottom: 16, borderLeft: `4px solid ${!m.billsCovered.known ? "var(--line)" : m.billsCovered.ok ? C.ok : C.warn}` }}>

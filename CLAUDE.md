@@ -31,6 +31,7 @@ src/lib/engines.js    debt payoff · 1099 tax reserve · allocation waterfall (p
 src/lib/model.js      model() — the computation layer
 src/lib/seed.js       seed envelopes, the sample household, withDefaults()
 src/lib/receipt.js    image shrink, the Claude vision call, merchant key
+src/lib/billread.js   the bill-stack reader — same contract: a photo is a prefill, never a write
 src/lib/planner.js    the Planner's snapshot, system prompt, and API call — shared by every AI surface
 src/lib/useReceipt.js the capture → read → review flow as a hook
 src/lib/draft.js      the draft shape EntrySheet is seeded with
