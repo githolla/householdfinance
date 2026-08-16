@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { money, compact, monthLabel, ordinal, C, PIE } from "../lib/format.js";
 import { buildSnapshot, buildSystem, callPlanner } from "../lib/planner.js";
-import { STEW_VERSES, LIFE, PRAYERS, versesOn, prayersOn } from "../lib/verses.js";
+import { LIFE, versesOn } from "../lib/verses.js";
 import { voiceSupported, listenOnce, parseSpokenExpense } from "../lib/voice.js";
 import { blankDraft } from "../lib/draft.js";
 import { Head, MonthNav, Tip, Ring, SChip, axis } from "../components.jsx";
@@ -89,15 +89,6 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
   m.bills.filter((b) => b.overdue).forEach((b) => sinceEvents.push(`${b.name} went past due on the ${ordinal(b.day)}.`));
   m.decisionsDue.forEach((d) => sinceEvents.push(`${d.what} came off the shelf — the time you agreed on has come.`));
   const showSince = lastSeen && lastSeen !== new Date().toISOString().slice(0, 10) && sinceEvents.length > 0;
-
-  /* ---- one thing to decide together, when one honestly exists ---- */
-  let decide = null;
-  if (m.unallocated > 1)
-    decide = `${money(m.unallocated)} a month has no job yet. An envelope, a goal, or a payment against what you owe — which?`;
-  else if (m.enough.met && m.enough.surplus >= 50)
-    decide = `About ${money(m.enough.surplus)} this month sits beyond what you've called enough. Give, save, enjoy, invest — or help someone?`;
-  else if (m.week && m.week.decision >= 50)
-    decide = `About ${money(m.week.decision)} extra is available this month. Where should it go?`;
 
   /* ---- say it: voice note -> prefilled entry sheet -----------------
      The browser transcribes on its own (nothing reaches our server);
@@ -247,25 +238,6 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
         )}
       </div>
 
-      {/* in / out / kept — one fused block */}
-      <div className="fusedrow">
-        <div>
-          <div className="fk">In</div>
-          <div className="fv">{money(m.income)}</div>
-          <div className="ff">each month</div>
-        </div>
-        <div>
-          <div className="fk">Out</div>
-          <div className="fv">{money(m.spent)}</div>
-          <div className="ff">{plan.entries.length} transactions</div>
-        </div>
-        <div>
-          <div className="fk">Kept</div>
-          <div className="fv">{m.income > 0 ? Math.round(Math.max(0, (m.income - m.spent) / m.income) * 100) + "%" : "—"}</div>
-          <div className="ff">of what came in, so far</div>
-        </div>
-      </div>
-
       {/* log it and ask it, side by side */}
       <div className="grid g2" style={{ marginBottom: 16, alignItems: "stretch" }}>
       <div className="card logcard">
@@ -383,25 +355,25 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
         </div>
       )}
 
-      {decide && (
-        <div className="card" style={{ marginBottom: 16, borderLeft: `4px solid ${C.joint}` }}>
-          <div className="chead"><h3>One thing to decide together</h3></div>
-          <p className="empty" style={{ fontSize: 14.5, color: "var(--ink)", fontWeight: 600 }}>{decide}</p>
-          {prayersOn(state) && (
-            <p className="prayer"><span className="plead">If it's your practice</span>
-              <span className="ptext">"{PRAYERS.decision}"</span></p>
-          )}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-            <button className="btn tiny" onClick={() => setView("meeting")}>Take it to the meeting</button>
-            <button className="btn ghost tiny" onClick={() => {
-              patch((s) => { s.ui.plannerSeed = decide + " Lay out the options with our numbers, and leave the decision with us."; return s; });
-              setView("planner");
-            }}>Ask the Planner</button>
-          </div>
+      {/* the charts: in/out/kept, then the visual read of the month */}
+      <div className="fusedrow">
+        <div>
+          <div className="fk">In</div>
+          <div className="fv">{money(m.income)}</div>
+          <div className="ff">each month</div>
         </div>
-      )}
+        <div>
+          <div className="fk">Out</div>
+          <div className="fv">{money(m.spent)}</div>
+          <div className="ff">{plan.entries.length} transactions</div>
+        </div>
+        <div>
+          <div className="fk">Kept</div>
+          <div className="fv">{m.income > 0 ? Math.round(Math.max(0, (m.income - m.spent) / m.income) * 100) + "%" : "—"}</div>
+          <div className="ff">of what came in, so far</div>
+        </div>
+      </div>
 
-      {/* the numbers, at a glance */}
       <div className="grid g3 chartsrow" style={{ marginBottom: 16 }}>
         <div className="card">
           <div className="chead"><h3>Monthly budget</h3>
