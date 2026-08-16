@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { money, compact, monthLabel, ordinal, C } from "../lib/format.js";
 import { buildSnapshot, buildSystem, callPlanner } from "../lib/planner.js";
+import { STEW_VERSES, versesOn } from "../lib/verses.js";
 import { Head, MonthNav, Tip, Ring, SChip, axis } from "../components.jsx";
 
 /* Quick what-ifs: question for the Planner, amount for the offline
@@ -167,12 +168,16 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
         </div>
         {faith && (
           <div className="stewrow">
-            {m.stewardship.map((b) => (
-              <button className="stewchip" key={b.key} onClick={() => setView("stew")}
-                aria-label={`${b.label} — open Stewardship`}>
-                <span>{STEW_GLYPH[b.key]}</span> {b.label} <span className="num">{money(b.figure)}</span>
-              </button>
-            ))}
+            {m.stewardship.map((b) => {
+              const v = versesOn(state) ? STEW_VERSES[b.key] : null;
+              return (
+                <button className="stewchip" key={b.key} onClick={() => setView("stew")}
+                  title={v ? `"${v.text}" — ${v.ref}` : undefined}
+                  aria-label={`${b.label} — open Stewardship`}>
+                  <span>{STEW_GLYPH[b.key]}</span> {b.label} <span className="num">{money(b.figure)}</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

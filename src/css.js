@@ -389,6 +389,10 @@ export const CSS = `
  font-size:26px;letter-spacing:-.02em;line-height:1.15;}
 .tc .herofoot{display:block;font-size:11px;color:var(--soft);margin-top:3px;font-weight:500;line-height:1.4;}
 
+/* a verse beside a number — guidance, never a verdict */
+.tc .verse{font-size:12px;font-style:italic;color:var(--soft);margin-top:8px;line-height:1.55;}
+.tc .verse .vref{font-style:normal;font-weight:600;white-space:nowrap;}
+
 /* the stewardship strip under the hero numbers */
 .tc .stewrow{display:flex;gap:7px;flex-wrap:wrap;margin-top:16px;padding-top:14px;
  border-top:1px solid var(--surface2);}

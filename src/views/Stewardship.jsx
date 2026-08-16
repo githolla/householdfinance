@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { money, C } from "../lib/format.js";
 import { buildSnapshot, buildSystem, callPlanner } from "../lib/planner.js";
+import { STEW_VERSES, versesOn } from "../lib/verses.js";
 import { Head, SChip } from "../components.jsx";
 
 const GLYPH = {
@@ -39,6 +40,10 @@ const SURPLUS_ASKS = [
 
 export default function Stewardship({ ctx }) {
   const { m, state, patch, plan, month, setView } = ctx;
+  const showVerses = versesOn(state);
+  const Verse = ({ k }) => showVerses && STEW_VERSES[k] ? (
+    <p className="verse">"{STEW_VERSES[k].text}" <span className="vref">— {STEW_VERSES[k].ref}</span></p>
+  ) : null;
   const provision = m.stewardship.find((b) => b.key === "provision");
   const buckets = m.stewardship.filter((b) => b.key !== "provision");
   const [building, setBuilding] = useState(false);
@@ -94,6 +99,7 @@ export default function Stewardship({ ctx }) {
           <div className="num" style={{ fontSize: 34, letterSpacing: "-.02em" }}>{money(provision.figure)}</div>
           <div className="muted" style={{ fontSize: 13, marginTop: 4, fontWeight: 500 }}>{provision.foot}</div>
           <p className="empty" style={{ maxWidth: 520, margin: "8px auto 0" }}>{provision.sentence}</p>
+          <div style={{ maxWidth: 520, margin: "0 auto" }}><Verse k="provision" /></div>
         </div>
 
         <div className="flowarrow" style={{ textAlign: "center" }}>↓</div>
@@ -109,6 +115,7 @@ export default function Stewardship({ ctx }) {
               <div className="num" style={{ fontSize: 21, letterSpacing: "-.02em" }}>{money(b.figure)}</div>
               <div className="muted" style={{ fontSize: 11.5, marginTop: 2, fontWeight: 500 }}>{b.foot}</div>
               <p className="empty" style={{ marginTop: 7, fontSize: 12.5 }}>{b.sentence}</p>
+              <Verse k={b.key} />
             </div>
           ))}
         </div>
@@ -125,6 +132,7 @@ export default function Stewardship({ ctx }) {
           <p className="empty" style={{ maxWidth: 560, margin: "8px auto 0" }}>
             Not a scoreboard — a decision the two of you get to make on purpose.
           </p>
+          <div style={{ maxWidth: 560, margin: "0 auto" }}><Verse k="enough" /></div>
         </div>
       </div>
 

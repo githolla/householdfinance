@@ -135,6 +135,12 @@ relationships: money ↔ God, money ↔ marriage, money ↔ future:
   one quiet "set aside instead, that's N months of <goal>" line — space between wanting and
   buying, not a lecture.
 
+- **`src/lib/verses.js`** — one curated verse per stewardship bucket (plus Enough), plain
+  modern English from the public-domain World English Bible. Static copy, never
+  AI-generated; rendered on the Stewardship view and as hero-chip tooltips, gated by
+  `versesOn(state)` (faith on AND `faith.scripture !== "off"`). Guidance beside a number,
+  never a verdict on how the household is doing — keep that framing if you add any.
+
 **The AI never speaks for God.** It may offer at most one relevant biblical principle when a
 question genuinely touches worry, contentment, generosity, disagreement, or a weighty
 decision — introduced as a principle that may be relevant, never a verdict, never decoration,
