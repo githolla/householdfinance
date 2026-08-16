@@ -70,12 +70,17 @@ The information architecture copies how financial planners actually present to c
   out of the sidebar — Our Plan is the user-facing way in, with an "Open the envelopes" button.
   The phone tab bar is Home / Activity / Bills / Planner / More.
 - **Home has exactly two jobs, in order: see the state, log the spend.** The status hero
-  (`.hero`) answers "are we okay" in four figures (came in / spent / left to spend /
-  available) plus bill coverage off `m.billsCovered` and the Planner-recommendation row off
+  (`.hero`) answers "are we okay" in four figures — available today and this week off
+  `m.today` (flexible envelopes only, an even split across the days left; falls back to
+  month figures when nothing flexible is planned) plus left-this-month and expected left
+  over — with bill coverage off `m.billsCovered` and the Planner-recommendation row off
   `m.monthOutlook.rec` (Use this plan records agreement in `state.ui.agreedRec`; it moves no
   money). Directly under it, the **log card**: snap a receipt (camera capture input), upload
   a photo, type it in — all driving the same `receipt` hook and EntrySheet — plus one-tap
-  envelope chips and the last few entries. Below: three compact charts (budget ring, where
+  envelope chips and the last few entries. Beside it, the **quick what-if chat**: same
+  `state.chat` and system prompt as Ask the Planner (via `src/lib/planner.js`), scenario
+  chips, and a deterministic offline fallback that answers amount-based what-ifs from
+  `m.today` when the API is unreachable. Below: three compact charts (budget ring, where
   the month went, six-month flow — the `chartsrow` grid goes single-column on phones), then
   Do-this-next and Coming due. "Since you were last here" and "One thing to decide together"
   appear only when there's something real. Everything else (steps, notes, goals, rail, most

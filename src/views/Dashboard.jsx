@@ -6,16 +6,68 @@
    its own view — Home stays scannable.
    ================================================================== */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
 import { money, compact, monthLabel, ordinal, C } from "../lib/format.js";
+import { buildSnapshot, buildSystem, callPlanner } from "../lib/planner.js";
 import { Head, MonthNav, Tip, Ring, SChip, axis } from "../components.jsx";
+
+/* Quick what-ifs: question for the Planner, amount for the offline
+   fallback — if the API is unreachable the arithmetic still answers. */
+const WHATIFS = [
+  ["A $100 meal we didn't plan", 100, "What if we spend $100 tonight on a meal we didn't plan? What does it do to today, the week, and the month?"],
+  ["A $300 surprise repair", 300, "What if a $300 repair hits us tomorrow? Where does it come from, and what does it push back?"],
+  ["Skip eating out this week", null, "What happens if we skip eating out entirely this week — where does that money do the most good?"],
+];
 
 export default function Dashboard({ ctx, onQuickAdd, receipt }) {
   const { m, plan, month, setMonth, state, setView, writeMonth, patch } = ctx;
+
+  /* ---- the quick what-if chat -------------------------------------
+     Same brain and same history as Ask the Planner (state.chat) — Home
+     just shows the tail of the conversation. When the API is out of
+     reach and the what-if carries an amount, the arithmetic answers. */
+  const [wq, setWq] = useState("");
+  const [wBusy, setWBusy] = useState(false);
+  const [wFallback, setWFallback] = useState("");
+  const chat = state.chat || [];
+  const chatTail = chat.slice(-4);
+  const logRef = useRef(null);
+  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [chat.length, wBusy]);
+
+  const offlineWhatIf = (amount) => {
+    const t = m.today;
+    if (!t.known) return `Spending ${money(amount)} unplanned leaves about ${money(Math.max(0, m.monthOutlook.available - amount))} expected by month end instead of ${money(Math.max(0, m.monthOutlook.available))}.`;
+    const newAllowance = Math.max(0, t.flexLeft - amount) / t.daysRemaining;
+    return `The arithmetic while the Planner is unreachable: ${money(amount)} out of the flexible money drops ` +
+      `today's number from ${money(t.allowance)} to ${money(newAllowance)} a day for the rest of the month, ` +
+      `and the month's expected leftover from ${money(Math.max(0, m.monthOutlook.available))} to ${money(Math.max(0, m.monthOutlook.available - amount))}. ` +
+      `Nothing committed is touched — it comes out of the flexible pool.`;
+  };
+
+  const askWhatIf = async (text, amount = null) => {
+    const question = (text === undefined ? wq : text).trim();
+    if (!question || wBusy) return;
+    const parsed = amount !== null ? amount
+      : (question.match(/\$\s?([\d,]+(?:\.\d+)?)/) ? Number(question.match(/\$\s?([\d,]+(?:\.\d+)?)/)[1].replace(/,/g, "")) : null);
+    const next = [...chat, { role: "user", content: question }];
+    patch((s) => { s.chat = next; return s; });
+    setWq(""); setWFallback(""); setWBusy(true);
+    try {
+      const snapshot = buildSnapshot({ m, state, plan, month });
+      const reply = await callPlanner(buildSystem({ m, state, snapshot }),
+        next.map((x) => ({ role: x.role, content: x.content })), 4000);
+      patch((s) => { s.chat = [...next, { role: "assistant", content: reply || "No answer came back — try again." }]; return s; });
+    } catch (e) {
+      setWFallback(parsed !== null && parsed > 0
+        ? offlineWhatIf(parsed)
+        : "Couldn't reach the Planner just now — try again in a moment, or open Ask the Planner.");
+    }
+    setWBusy(false);
+  };
 
   /* ---- since you were last here ------------------------------------
      The previous visit's date is captured once on mount, then stamped
@@ -105,19 +157,42 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
             ? `${money(overdueHero.amount)} — mark it paid in Bills and it logs itself into the right envelope.`
             : headline === m.thesis[0] ? m.thesis[1] : ""}
         </div>
-        <div className="herofigs">
-          {[
-            ["Came in", m.income],
-            ["Spent so far", m.spent],
-            ["Left to spend", m.leftToSpend],
-            ["Available", Math.max(0, m.monthOutlook.available)],
-          ].map(([k, v]) => (
-            <div key={k}>
-              <span className="lbl">{k}</span>
-              <span className={"v" + (k === "Left to spend" && v < 0 ? " down" : "")}>{money(v)}</span>
+        {m.today.known ? (
+          <>
+            <div className="herofigs">
+              {[
+                ["Available today", m.today.allowance, m.today.spentToday > 0 ? `already counting today's ${money(m.today.spentToday)}` : "flexible money, split over the days left"],
+                ["This week", m.today.weekBudget, `${money(m.today.weekSpent)} spent in the last 7 days`],
+                ["Left this month", m.leftToSpend, `of ${money(m.planned)} planned`],
+                ["Expected left over", Math.max(0, m.monthOutlook.available), "after bills and normal spending"],
+              ].map(([k, v, f]) => (
+                <div key={k}>
+                  <span className="lbl">{k}</span>
+                  <span className={"v" + (k === "Left this month" && v < 0 ? " down" : "")}>{money(v)}</span>
+                  <span className="herofoot">{f}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            <p className="herofoot" style={{ marginTop: 10 }}>
+              Today and this week count only the flexible envelopes — rent, groceries, the tax
+              set-aside and the rest of the committed money are already spoken for.
+            </p>
+          </>
+        ) : (
+          <div className="herofigs">
+            {[
+              ["Came in", m.income],
+              ["Spent so far", m.spent],
+              ["Left to spend", m.leftToSpend],
+              ["Available", Math.max(0, m.monthOutlook.available)],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <span className="lbl">{k}</span>
+                <span className={"v" + (k === "Left to spend" && v < 0 ? " down" : "")}>{money(v)}</span>
+              </div>
+            ))}
+          </div>
+        )}
         {m.live && rec.length > 0 && (
           <div className="recrow">
             <span className="lbl" style={{ marginBottom: 0 }}>Planner recommendation</span>
@@ -138,8 +213,9 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
         )}
       </div>
 
-      {/* log it, right here — camera, upload, or keyboard */}
-      <div className="card logcard" style={{ marginBottom: 16 }}>
+      {/* log it and ask it, side by side */}
+      <div className="grid g2" style={{ marginBottom: 16, alignItems: "stretch" }}>
+      <div className="card logcard">
         <div className="chead" style={{ marginBottom: 10 }}>
           <h3>Log spending</h3>
           <span className="meta">a photo just fills the form in — you can always type it</span>
@@ -188,6 +264,36 @@ export default function Dashboard({ ctx, onQuickAdd, receipt }) {
             <button className="btn ghost tiny" style={{ marginTop: 8 }} onClick={() => setView("txn")}>See all transactions</button>
           </div>
         )}
+      </div>
+
+      <div className="card" style={{ display: "flex", flexDirection: "column" }}>
+        <div className="chead" style={{ marginBottom: 8 }}>
+          <h3>Quick what-if</h3>
+          <span className="meta">the Planner answers with your numbers</span>
+        </div>
+        <div className="chatlog" ref={logRef} style={{ flex: 1, maxHeight: 190, minHeight: 60 }}>
+          {chatTail.length === 0 && !wBusy && (
+            <p className="empty">"What if we spend $100 on a meal we didn't plan?" — ask before it happens, not after.</p>
+          )}
+          {chatTail.map((x, i) => <div key={i} className={"msg " + (x.role === "user" ? "me" : "them")}>{x.content}</div>)}
+          {wBusy && <div className="msg them muted">Running your numbers…</div>}
+          {wFallback && <div className="msg them">{wFallback}</div>}
+        </div>
+        <div className="chips" style={{ marginTop: 8 }}>
+          {WHATIFS.map(([label, amount, q]) => (
+            <button key={label} className="chip" disabled={wBusy} onClick={() => askWhatIf(q, amount)}>{label}</button>
+          ))}
+        </div>
+        <div className="askrow" style={{ marginTop: 8 }}>
+          <input className="field" placeholder="What if we…" value={wq} onChange={(e) => setWq(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && askWhatIf()} aria-label="Ask a what-if" />
+          <button className="btn" onClick={() => askWhatIf()} disabled={wBusy || !wq.trim()}>Ask</button>
+        </div>
+        {chat.length > 4 && (
+          <button className="btn ghost tiny" style={{ marginTop: 8, alignSelf: "flex-start" }}
+            onClick={() => setView("planner")}>Full conversation on Ask the Planner</button>
+        )}
+      </div>
       </div>
 
       {/* getting-started checklist, only while the household is thin */}

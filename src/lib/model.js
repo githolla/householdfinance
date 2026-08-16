@@ -253,6 +253,7 @@ export function model(state, plan, month) {
       dated.push({
         amount: t.amount, name: nameOf[t.envId] || "Spending", d: new Date(yy, mo - 1, t.day),
         giving: !!env && (env.group === "Giving" || env.role === "tithe"),
+        flex: !!env && !env.essential && env.role !== "tax",
       });
     });
   }
@@ -324,6 +325,32 @@ export function model(state, plan, month) {
     });
   }
   const calendar = { firstDow: calFirstDow, days: calDays };
+
+  /* ---- today and this week: the daily read -------------------------
+     Flexible money only — envelopes that aren't essential and aren't
+     the tax set-aside. Rent and groceries are already spoken for; this
+     is the "can we get takeout tonight?" number. An even split of
+     what's left across the days that remain, today included. ---- */
+  const flexEnvs = plan.envelopes.filter((e) => !e.essential && e.role !== "tax");
+  const flexPlanned = flexEnvs.reduce((n, e) => n + e.planned, 0);
+  const flexSpentTotal = flexEnvs.reduce((n, e) => n + (spentBy[e.id] || 0), 0);
+  const flexLeft = flexPlanned - flexSpentTotal;
+  const daysRemaining = daysLeft + 1;
+  const flexIds = new Set(flexEnvs.map((e) => e.id));
+  const spentTodayFlex = live
+    ? plan.entries.filter((t) => t.day === dayOfMonth && flexIds.has(t.envId)).reduce((n, t) => n + t.amount, 0)
+    : 0;
+  const weekFlexSpent = dated.filter((e) => inLast(7, e) && e.flex).reduce((n, e) => n + e.amount, 0);
+  const todayAllowance = Math.max(0, flexLeft) / daysRemaining;
+  const today = {
+    known: live && flexPlanned > 0,
+    allowance: todayAllowance,
+    spentToday: spentTodayFlex,
+    weekBudget: todayAllowance * Math.min(7, daysRemaining),
+    weekSpent: weekFlexSpent,
+    flexLeft,
+    daysRemaining,
+  };
 
   /* ---- a light 12-month look ahead, for "what if" questions ---- */
   const goalSavedNow = state.goals.reduce((n, g) => n + g.saved, 0);
@@ -808,7 +835,7 @@ export function model(state, plan, month) {
     steps, currentStep, nextAction, setupSteps, setupDone,
     avgByName, threeMoAvgTotal, paceDiag, monthOutlook, week, weekKey, forecast12, afford, calendar,
     stewardship, decisions, decisionsDue, enough,
-    cashOnHand, billsCovered, celebrate, insights, taxOverdue: !!overdueQ,
+    cashOnHand, billsCovered, celebrate, insights, taxOverdue: !!overdueQ, today,
     envByName, matchEnvelope, merchantFavourites,
     merchantCount: Object.keys(merchantMap).length,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),

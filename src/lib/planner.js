@@ -92,6 +92,15 @@ export function buildSnapshot({ m, state, plan, month }) {
     unassignedEachMonth: m.unallocated,
     savingsRatePct: Math.round(m.savingsRate),
     lastSixMonths: m.history.map((h) => ({ month: h.label, spent: h.spent })),
+    todayAndThisWeek: m.today.known ? {
+      note: "Flexible money only — essentials, bills, and the tax set-aside are already covered elsewhere in this snapshot.",
+      safeToSpendToday: Math.round(m.today.allowance),
+      spentFromItToday: Math.round(m.today.spentToday),
+      thisWeeksFlexibleBudget: Math.round(m.today.weekBudget),
+      flexibleSpentLastSevenDays: Math.round(m.today.weekSpent),
+      flexibleLeftThisMonth: Math.round(m.today.flexLeft),
+      daysLeftInMonth: m.today.daysRemaining,
+    } : null,
     thisWeek: m.week ? {
       spent: m.week.spent, weeklyAverage: Math.round(m.week.weeklyAvg),
       vsAverage: m.week.delta === null ? null : Math.round(m.week.delta),
