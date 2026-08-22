@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v40";
+const APP_VERSION = "v42";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -240,6 +240,7 @@ const NAV_SECTIONS = [
     ["txn", "Spending"],
     ["bills", "Bills & files"],
     ["goals", "Pots"],
+    ["calendar", "Calendar"],
   ]],
   ["Longer view", [
     ["plan", "Plan ahead"],
@@ -258,6 +259,7 @@ const IC = {
   bills: <><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h4" /></>,
   goals: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" /></>,
   plan: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>,
+  calendar: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></>,
   worth: <path d="M3 20h18M6 16l4-6 4 3 5-8" />,
   reports: <path d="M5 20v-8M12 20V5M19 20v-5" />,
   planner: <path d="M4 5h16v11H9l-5 4z" />,
@@ -568,7 +570,17 @@ body{margin:0;background:#F5F1EA;}
 .tc .lbl{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--soft);margin-bottom:5px;}
 .tc .brk{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
 .tc .brk-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;}
-.tc .brk-row{display:grid;grid-template-columns:1fr 130px auto;gap:8px;align-items:center;margin-bottom:6px;}
+.tc .brk-item{margin-bottom:6px;}
+.tc .brk-row{display:grid;grid-template-columns:1fr 120px auto auto;gap:8px;align-items:center;}
+.tc .calcbtn{background:none;border:1px solid var(--line);border-radius:8px;color:var(--soft);padding:7px;display:grid;place-items:center;}
+.tc .calcbtn:hover{border-color:var(--a);color:var(--a);}
+.tc .calcbtn.on{background:var(--accsoft);border-color:var(--a);color:var(--a);}
+.tc .calcpanel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;margin:6px 0 4px;}
+.tc .calc-title{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin-bottom:9px;}
+.tc .calc-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;}
+.tc .calc-f{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--soft);}
+.tc .calc-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:11px;flex-wrap:wrap;}
+.tc .calc-res{font-size:13px;color:#3A453F;}
 .tc .planread{margin-top:12px;border-radius:12px;padding:14px 16px;border:1px solid var(--line);background:var(--paper);}
 .tc .planread.ok{border-left:4px solid var(--good);}
 .tc .planread.short{border-left:4px solid var(--warn);background:rgba(192,57,43,.05);}
@@ -659,6 +671,26 @@ body{margin:0;background:#F5F1EA;}
 .tc .bs{border-left:4px solid var(--line);background:var(--paper);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;}
 .tc .bs-l{font-size:11.5px;color:var(--soft);}
 .tc .bs-v{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;}
+
+/* calendar */
+.tc .cal-key{display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:14px;font-size:12px;color:var(--soft);}
+.tc .cal-key span{display:flex;align-items:center;gap:6px;}
+.tc .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.tc .cal-head{margin-bottom:6px;}
+.tc .cal-wd{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);text-align:center;padding:2px 0;}
+.tc .cal-cell{min-height:82px;border:1px solid var(--line);border-radius:10px;background:var(--paper);padding:7px 8px;
+ display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;cursor:pointer;transition:border-color .12s,background .12s;}
+.tc .cal-cell:hover{border-color:var(--a);background:var(--surface);}
+.tc .cal-cell.empty{background:none;border:none;cursor:default;}
+.tc .cal-cell.today{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);}
+.tc .cal-cell.sel{border-color:var(--a);box-shadow:inset 0 0 0 1px var(--a);background:var(--accsoft);}
+.tc .cal-d{font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:600;}
+.tc .cal-cell.today .cal-d{color:var(--a);}
+.tc .cal-dots{display:flex;gap:3px;flex-wrap:wrap;}
+.tc .cal-dot{width:6px;height:6px;border-radius:99px;}
+.tc .cal-ev{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.tc .cal-more{font-size:10px;color:var(--soft);}
+@media(max-width:640px){.tc .cal-cell{min-height:56px;padding:5px;}.tc .cal-ev{display:none;}.tc .cal-more{display:none;}}
 
 /* financial health — the planner's read */
 .tc .health{margin-bottom:16px;padding:22px 24px;}
@@ -883,6 +915,7 @@ export default function App() {
           {view === "txn" && <Spending ctx={ctx} />}
           {view === "bills" && <BillsView ctx={ctx} />}
           {view === "goals" && <GoalsView ctx={ctx} />}
+          {view === "calendar" && <CalendarView ctx={ctx} />}
           {view === "plan" && <PlanAhead ctx={ctx} />}
           {view === "worth" && <NetWorth ctx={ctx} />}
           {view === "reports" && <Reports ctx={ctx} />}
@@ -3788,8 +3821,202 @@ function PotCard({ g, ctx }) {
 }
 
 /* ================================================================== */
+/*  5c. calendar — the month at a glance                               */
+/* ================================================================== */
+
+// A month grid showing what lands each day: bills due, income expected,
+// and spending logged. Click a day to see everything on it.
+function CalendarView({ ctx }) {
+  const { m, plan, state, month, setMonth, setView } = ctx;
+  const [sel, setSel] = useState(null);
+  const [y, mo] = month.split("-").map(Number);
+  const first = new Date(y, mo - 1, 1).getDay(); // 0 Sun … 6 Sat
+  const days = new Date(y, mo, 0).getDate();
+  const isLive = month === monthKey(new Date());
+  const todayD = isLive ? todayDay() : -1;
+
+  // Build a per-day bucket of events.
+  const byDay = {};
+  const push = (d, ev) => { if (d >= 1 && d <= days) (byDay[d] = byDay[d] || []).push(ev); };
+  m.bills.forEach((b) => push(b.day, {
+    kind: "bill", label: b.name, amount: b.amount,
+    tone: b.paid ? "paid" : b.overdue ? "warn" : "bill",
+    note: b.paid ? "paid" : b.overdue ? "overdue" : "due",
+  }));
+  m.paychecks.forEach((i) => push(i.day, { kind: "in", label: i.name, amount: i.amount, tone: "in", note: "income" }));
+  m.expected.forEach((i) => push(i.day, { kind: "in", label: i.name, amount: i.amount, tone: "in", note: "expected" }));
+  plan.entries.forEach((t) => {
+    if (!t.day) return;
+    const e = plan.envelopes.find((x) => x.id === t.envId);
+    push(t.day, { kind: "spend", label: t.note || (e ? e.name : "Spending"), amount: t.amount, tone: "spend", note: "spent" });
+  });
+  (state.scenarios || []).forEach((sc) => {
+    if ((sc.date || "").slice(0, 7) === month) push(Number(sc.date.slice(8, 10)), { kind: "plan", label: sc.name, amount: num(sc.amount), tone: "plan", note: "planned" });
+  });
+
+  const toneC = { bill: C.b, warn: C.warn, paid: C.good, in: C.good, spend: C.a, plan: C.joint };
+  const cells = [];
+  for (let i = 0; i < first; i++) cells.push(null);
+  for (let d = 1; d <= days; d++) cells.push(d);
+  const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  const selItems = sel ? (byDay[sel] || []) : [];
+  const dueThisMonth = m.bills.reduce((n, b) => n + (b.paid ? 0 : b.amount), 0);
+
+  return (
+    <>
+      <Head title="Calendar" sub="Everything that lands this month — bills, income, and spending, day by day."
+        right={<MonthNav month={month} setMonth={setMonth} />} />
+
+      <Guidance m={m} theme="planning"
+        line={dueThisMonth > 0 ? `${money(dueThisMonth)} in bills still to land this month.` : "Nothing left to pay this month."} />
+
+      <div className="card">
+        <div className="cal-key">
+          <span><i className="dot" style={{ background: C.b }} />Bill due</span>
+          <span><i className="dot" style={{ background: C.warn }} />Overdue</span>
+          <span><i className="dot" style={{ background: C.good }} />Income</span>
+          <span><i className="dot" style={{ background: C.a }} />Spending</span>
+          <span><i className="dot" style={{ background: C.joint }} />Planned</span>
+        </div>
+        <div className="cal-grid cal-head">
+          {wd.map((d) => <div key={d} className="cal-wd">{d}</div>)}
+        </div>
+        <div className="cal-grid">
+          {cells.map((d, i) => {
+            if (d === null) return <div key={"e" + i} className="cal-cell empty" />;
+            const items = byDay[d] || [];
+            return (
+              <button key={d} className={"cal-cell" + (d === todayD ? " today" : "") + (sel === d ? " sel" : "")}
+                onClick={() => setSel(sel === d ? null : d)} aria-label={`Day ${d}, ${items.length} item${items.length === 1 ? "" : "s"}`}>
+                <span className="cal-d">{d}</span>
+                <span className="cal-dots">
+                  {items.slice(0, 4).map((ev, k) => <i key={k} className="cal-dot" style={{ background: toneC[ev.tone] }} />)}
+                </span>
+                {items.slice(0, 2).map((ev, k) => (
+                  <span key={k} className="cal-ev" style={{ color: toneC[ev.tone] }}>{money(ev.amount)}</span>
+                ))}
+                {items.length > 2 && <span className="cal-more">+{items.length - 2} more</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {sel && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="chead">
+            <h3>{monthLabel(month, false).replace(/ \d{4}/, "")} {sel}{sel === todayD ? " · today" : ""}</h3>
+            <button className="seelink" onClick={() => setSel(null)}>Close</button>
+          </div>
+          {selItems.length === 0 ? <p className="empty">Nothing lands on this day.</p> :
+            selItems.map((ev, k) => (
+              <div className="note" key={k} style={{ justifyContent: "space-between" }}>
+                <span style={{ display: "flex", gap: 9, alignItems: "center" }}>
+                  <span className="tick" style={{ background: toneC[ev.tone], minHeight: 15 }} />
+                  <span>{ev.label}<span className="muted"> · {ev.note}</span></span>
+                </span>
+                <span className="num" style={{ color: ev.tone === "in" ? C.good : undefined }}>
+                  {ev.tone === "in" ? "+" : ev.tone === "spend" || ev.tone === "bill" || ev.tone === "warn" ? "−" : ""}{money(ev.amount).replace(/^-/, "")}
+                </span>
+              </div>
+            ))}
+          {selItems.some((e) => e.kind === "bill") && (
+            <button className="btn ghost tiny" style={{ marginTop: 12 }} onClick={() => setView("bills")}>Open bills</button>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ================================================================== */
 /*  5b. plan ahead — the what-if builder                               */
 /* ================================================================== */
+
+// Little estimators so a line item isn't a wild guess. The right one is
+// chosen from the item's name; each returns a dollar figure to drop in.
+function calcSpec(name, tripDays) {
+  const n = (name || "").toLowerCase();
+  const d = num(tripDays) || "";
+  if (/gas|fuel|petrol|mileage|drive|driving/.test(n)) return {
+    title: "Gas estimator",
+    fields: [["miles", "Round-trip miles", ""], ["mpg", "Your car's MPG", "25"], ["price", "$ per gallon", "3.50"]],
+    compute: (v) => num(v.mpg) > 0 ? (num(v.miles) / num(v.mpg)) * num(v.price) : 0,
+    line: (v) => `${num(v.miles)} mi ÷ ${num(v.mpg)} mpg × $${num(v.price)}/gal`,
+  };
+  if (/food|grocer|meal|eat|dining/.test(n)) return {
+    title: "Food estimator",
+    fields: [["people", "People", "2"], ["days", "Days", d || "7"], ["rate", "$ per person / day", "40"]],
+    compute: (v) => num(v.people) * num(v.days) * num(v.rate),
+    line: (v) => `${num(v.people)} people × ${num(v.days)} days × $${num(v.rate)}/day`,
+  };
+  if (/hotel|lodg|airbnb|stay|resort|room/.test(n)) return {
+    title: "Lodging estimator",
+    fields: [["nights", "Nights", d || "6"], ["rate", "$ per night", "150"]],
+    compute: (v) => num(v.nights) * num(v.rate),
+    line: (v) => `${num(v.nights)} nights × $${num(v.rate)}/night`,
+  };
+  if (/flight|airfare|plane|air|ticket/.test(n)) return {
+    title: "Flights estimator",
+    fields: [["travelers", "Travelers", "2"], ["price", "$ per ticket", "350"]],
+    compute: (v) => num(v.travelers) * num(v.price),
+    line: (v) => `${num(v.travelers)} tickets × $${num(v.price)}`,
+  };
+  if (/car|rental|uber|lyft|taxi|transport/.test(n)) return {
+    title: "Rental / rides estimator",
+    fields: [["days", "Days", d || "7"], ["rate", "$ per day", "55"]],
+    compute: (v) => num(v.days) * num(v.rate),
+    line: (v) => `${num(v.days)} days × $${num(v.rate)}/day`,
+  };
+  return {
+    title: "Quick estimator",
+    fields: [["qty", "How many", "1"], ["rate", "$ each", "0"]],
+    compute: (v) => num(v.qty) * num(v.rate),
+    line: (v) => `${num(v.qty)} × $${num(v.rate)}`,
+  };
+}
+
+function TripItem({ it, tripDays, onName, onAmount, onDel }) {
+  const [open, setOpen] = useState(false);
+  const spec = calcSpec(it.name, tripDays);
+  const [vals, setVals] = useState(() => Object.fromEntries(spec.fields.map(([k, , def]) => [k, def])));
+  // Re-seed defaults when the item name changes the estimator type.
+  const specKey = spec.title;
+  useEffect(() => { setVals(Object.fromEntries(spec.fields.map(([k, , def]) => [k, def]))); }, [specKey]);
+  const result = spec.compute(vals);
+  return (
+    <div className="brk-item">
+      <div className="brk-row">
+        <input className="field" placeholder="e.g. Flights" value={it.name}
+          onChange={(e) => onName(e.target.value)} aria-label="Item name" />
+        <MoneyInput value={it.amount} placeholder="$0" onCommit={onAmount} aria-label="Item amount" />
+        <button className={"calcbtn" + (open ? " on" : "")} onClick={() => setOpen(!open)} title="Estimate this" aria-label="Estimate this line">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" /><path d="M8 6h8M8 10h0M12 10h0M16 10h0M8 14h0M12 14h0M16 14h4M8 18h0M12 18h0" /></svg>
+        </button>
+        <button className="kill" onClick={onDel} aria-label="Remove item">×</button>
+      </div>
+      {open && (
+        <div className="calcpanel">
+          <div className="calc-title">{spec.title}</div>
+          <div className="calc-fields">
+            {spec.fields.map(([k, label]) => (
+              <label className="calc-f" key={k}>
+                <span>{label}</span>
+                <input className="field num" inputMode="decimal" value={vals[k]}
+                  onChange={(e) => setVals({ ...vals, [k]: e.target.value })} aria-label={label} />
+              </label>
+            ))}
+          </div>
+          <div className="calc-foot">
+            <span className="calc-res">{spec.line(vals)} = <b className="num">{money(result)}</b></span>
+            <button className="btn tiny" onClick={() => { onAmount(Math.round(result * 100) / 100); setOpen(false); }}>Use {money(result)}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Enter something big and dated (a vacation, a move, a big purchase) and
 // see how it lands on the month: what it takes to be ready, what it does
@@ -3960,12 +4187,10 @@ function PlanAhead({ ctx }) {
                 {!r.items.length && <button className="btn ghost tiny" onClick={() => seedItems(r.id)}>Use a trip template</button>}
               </div>
               {r.items.map((it) => (
-                <div className="brk-row" key={it.id}>
-                  <input className="field" placeholder="e.g. Flights" value={it.name}
-                    onChange={(e) => setItem(r.id, it.id, "name", e.target.value)} aria-label="Item name" />
-                  <MoneyInput value={it.amount} placeholder="$0" onCommit={(v) => setItem(r.id, it.id, "amount", v)} aria-label="Item amount" />
-                  <button className="kill" onClick={() => delItem(r.id, it.id)} aria-label="Remove item">×</button>
-                </div>
+                <TripItem key={it.id} it={it} tripDays={r.days}
+                  onName={(v) => setItem(r.id, it.id, "name", v)}
+                  onAmount={(v) => setItem(r.id, it.id, "amount", v)}
+                  onDel={() => delItem(r.id, it.id)} />
               ))}
               <button className="btn ghost tiny" style={{ marginTop: 6 }} onClick={() => addItem(r.id)}>+ Add a line</button>
             </div>
