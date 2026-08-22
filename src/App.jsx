@@ -414,6 +414,10 @@ body{margin:0;background:#F2EDE2;}
 .tc .concierge .askrow .btn{white-space:nowrap;flex:none;}
 .tc .concierge .field{padding:12px 14px;font-size:14px;}
 .tc .concierge .confirm{font-size:12.5px;color:rgba(243,237,225,.88);margin:12px 0 0;}
+.tc .bulkcard{text-align:left;margin-top:16px;color:var(--ink);}
+.tc .bulkrow{display:grid;grid-template-columns:minmax(140px,1fr) 86px 150px 110px 64px 22px;gap:6px;
+ align-items:center;padding:4px 0;}
+@media(max-width:760px){.tc .bulkrow{grid-template-columns:1fr 80px;}}
 .tc .analysis{border-left:2px solid var(--joint);padding:6px 0 6px 12px;margin-top:10px;}
 .tc .analysis p{font-size:13px;line-height:1.55;margin:5px 0 0;white-space:pre-wrap;}
 .tc .doc{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;background:var(--surface);}
@@ -896,17 +900,99 @@ function EntryRow({ t, plan, m, writeMonth }) {
   );
 }
 
+/*  Bulk paste: "Electric — $185" style lines become a proposed setup —
+    recurring bills, budget envelopes, or logged spending, one per line. */
+function parseBulk(text) {
+  const items = [];
+  for (const raw of String(text).split(/\n+/)) {
+    const l = raw.trim();
+    if (!l) continue;
+    if (/total/i.test(l)) continue;
+    const mch = l.match(/^[\s*•\-–—\[\]()]*(.+?)[\s]*[—–\-:]+[\s]*\$?([\d,]+(?:\.\d+)?)[\s]*$/);
+    if (!mch) continue;
+    const name = mch[1].replace(/^[\s*•\-–—\[\]()]+/, "").replace(/\s+/g, " ").trim();
+    const amount = num(mch[2]);
+    if (name && amount) items.push({ name, amount });
+  }
+  return items;
+}
+
+const BILL_LIKE = /rent|mortgage|electric|water|sewer|natural gas|internet|wifi|cable|phone|insurance|payment|loan|streaming|subscript|membership|gym|hoa|daycare|tuition/i;
+
+function classifyItem(name) {
+  const n = name.toLowerCase();
+  let group = "Other";
+  if (/tithe|giving|charity|church|donat/.test(n)) group = "Giving";
+  else if (/health|medical|dental|vision|gym|therapy/.test(n)) group = "Health";
+  else if (/grocer|fuel|gas\/fuel|pet|transport|commute|diaper/.test(n)) group = "Daily";
+  else if (/dining|restaurant|coffee|takeout|streaming|entertain|subscript|travel|hobby|fun/.test(n)) group = "Lifestyle";
+  else if (/rent|mortgage|electric|water|sewer|gas|internet|cable|phone|insurance|maintenance|lawn|household|hoa|utilit|payment|loan|debt/.test(n)) group = "Home";
+  return { type: BILL_LIKE.test(n) ? "bill" : "budget", group };
+}
+
 /*  The concierge: one sentence — typed or spoken — becomes a logged
     transaction. Tries the AI route first; a local parser catches it
-    if the route is down, so logging never depends on the network.    */
+    if the route is down, so logging never depends on the network.
+    Pasting a multi-line list opens the bulk setup review instead.     */
 function Concierge({ ctx }) {
-  const { m, plan, writeMonth } = ctx;
+  const { m, plan, writeMonth, patch, month } = ctx;
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState(null);
   const [listening, setListening] = useState(false);
+  const [bulk, setBulk] = useState(null);
   const recRef = useRef(null);
   const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  const onPaste = (e) => {
+    const pasted = e.clipboardData ? e.clipboardData.getData("text") : "";
+    const items = parseBulk(pasted);
+    if (items.length >= 2) {
+      e.preventDefault();
+      setLast(null);
+      setBulk(items.map((it) => ({ ...it, ...classifyItem(it.name), day: 1 })));
+    }
+  };
+
+  const setBulkItem = (i, f, v) => setBulk(bulk.map((it, j) => (j === i ? { ...it, [f]: v } : it)));
+
+  const applyBulk = () => {
+    const items = bulk.filter((it) => it.name.trim() && num(it.amount));
+    if (!items.length) { setBulk(null); return; }
+    patch((s) => {
+      const base = s.months[month] || structuredClone(plan);
+      if (!base.paid) base.paid = [];
+      items.forEach((it) => {
+        const amount = num(it.amount);
+        let env = base.envelopes.find((e) => e.name.toLowerCase() === it.name.toLowerCase());
+        if (!env) {
+          env = { id: uid(), name: it.name, group: it.group, planned: 0, owner: "joint" };
+          base.envelopes.push(env);
+        }
+        if (it.type === "spend") {
+          base.entries.unshift({
+            id: uid(), envId: env.id, amount, who: "joint", note: it.name,
+            date: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          });
+        } else {
+          env.planned = amount;
+          env.group = it.group;
+        }
+        if (it.type === "bill") {
+          const day = Math.min(31, Math.max(1, num(it.day) || 1));
+          const existing = s.bills.find((b) => b.name.toLowerCase() === it.name.toLowerCase());
+          if (existing) { existing.amount = amount; existing.day = day; existing.envId = env.id; }
+          else s.bills.push({ id: uid(), name: it.name, amount, day, envId: env.id, owner: "joint" });
+        }
+      });
+      s.months[month] = base;
+      return s;
+    });
+    const billCount = items.filter((i) => i.type === "bill").length;
+    const total = items.reduce((n, i) => n + num(i.amount), 0);
+    setBulk(null);
+    setLast({ msg: `Set up ${items.length} items — ${money(total)} a month, ${billCount} of them recurring bills. The budget and bills pages have them now.` });
+  };
 
   const hear = () => {
     if (!SR) return;
@@ -982,7 +1068,7 @@ function Concierge({ ctx }) {
 
   return (
     <div className="concierge">
-      <div className="conlab">Tell it what you spent — say it or type it</div>
+      <div className="conlab">Tell it what you spent — say it, type it, or paste a whole list of monthly expenses</div>
       <div className="askrow">
         {SR && (
           <button className={"btn tiny" + (listening ? "" : " ghost")} onClick={hear}
@@ -991,18 +1077,53 @@ function Concierge({ ctx }) {
           </button>
         )}
         <input className="field" placeholder={`Try “$42 groceries at the farmers market” or “coffee 6.50, ${m.pA.name}”`}
-          value={text}
+          value={text} onPaste={onPaste}
           onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && log()}
           aria-label="Log spending in one sentence" />
         <button className="btn" onClick={log} disabled={busy || !text.trim()}>{busy ? "…" : "Log it"}</button>
       </div>
+      {bulk && (
+        <div className="card bulkcard">
+          <div className="chead">
+            <h3>Set up your month from that list</h3>
+            <span className="meta num">{bulk.length} items · {money(bulk.reduce((n, i) => n + num(i.amount), 0))}/mo</span>
+          </div>
+          <p className="empty" style={{ marginTop: 0 }}>
+            Each line becomes a bill, a budget envelope, or logged spending — adjust anything, then set it all up at once.
+          </p>
+          {bulk.map((it, i) => (
+            <div className="bulkrow" key={i}>
+              <input className="field" value={it.name} onChange={(e) => setBulkItem(i, "name", e.target.value)} aria-label="Item name" />
+              <input className="field num" value={it.amount} onChange={(e) => setBulkItem(i, "amount", num(e.target.value))} aria-label="Amount" />
+              <select className="field" value={it.type} onChange={(e) => setBulkItem(i, "type", e.target.value)} aria-label="What it is">
+                <option value="bill">Monthly bill</option>
+                <option value="budget">Budget envelope</option>
+                <option value="spend">Spent — log it</option>
+              </select>
+              <select className="field" value={it.group} onChange={(e) => setBulkItem(i, "group", e.target.value)} aria-label="Group">
+                {GROUPS.map((g) => <option key={g}>{g}</option>)}
+              </select>
+              {it.type === "bill"
+                ? <input className="field num" value={it.day} onChange={(e) => setBulkItem(i, "day", e.target.value)} aria-label="Due day" title="Due day of month" />
+                : <span />}
+              <button className="kill" onClick={() => setBulk(bulk.filter((_, j) => j !== i))} aria-label="Remove line">×</button>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+            <button className="btn" onClick={applyBulk}>Set up {bulk.length} items</button>
+            <button className="btn ghost" onClick={() => setBulk(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
       {last && last.msg && (
         <p className="confirm">
           {last.msg}
-          <button className="btn ghost tiny" style={{ marginLeft: 10 }}
-            onClick={() => { writeMonth((mm) => { mm.entries = mm.entries.filter((t) => t.id !== last.entryId); return mm; }); setLast(null); }}>
-            Undo
-          </button>
+          {last.entryId && (
+            <button className="btn ghost tiny" style={{ marginLeft: 10 }}
+              onClick={() => { writeMonth((mm) => { mm.entries = mm.entries.filter((t) => t.id !== last.entryId); return mm; }); setLast(null); }}>
+              Undo
+            </button>
+          )}
         </p>
       )}
       {last && last.err && <p className="confirm" style={{ color: "#E39A8B" }}>{last.err}</p>}
