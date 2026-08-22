@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v37";
+const APP_VERSION = "v38";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -2463,8 +2463,11 @@ function Budget({ ctx }) {
   });
 
   const [ni, setNi] = useState({ kind: "other", name: "", amount: "", timing: "monthly", day: "", date: "" });
+  const [niErr, setNiErr] = useState("");
   const addIncome = () => {
-    if (!ni.name.trim() || !num(ni.amount)) return;
+    if (!ni.name.trim()) { setNiErr("Name what's coming in."); return; }
+    if (!num(ni.amount)) { setNiErr("Enter an amount."); return; }
+    setNiErr("");
     const recurring = ni.timing === "monthly";
     const date = recurring ? "" : (ni.date || `${month}-15`);
     patch((s) => {
@@ -2599,8 +2602,9 @@ function Budget({ ctx }) {
           <input className="field num" placeholder="$0" value={ni.amount}
             onChange={(e) => setNi({ ...ni, amount: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addIncome()}
             aria-label="Amount" />
-          <button className="btn" onClick={addIncome} disabled={!ni.name.trim() || !num(ni.amount)}>Add</button>
+          <button className="btn" onClick={addIncome}>Add</button>
         </div>
+        {niErr && <p className="fielderr" style={{ marginTop: 8 }}>{niErr}</p>}
         <p className="empty" style={{ marginTop: 10 }}>
           Paychecks set the take-home above; a bonus, an invoice, a side job counts on top. Either way it flows into
           everything — available to spend, the plan, the fair split, the cash-flow chart, and the planner's advice.
@@ -3027,6 +3031,7 @@ function BillsView({ ctx }) {
   const [unpaidOnly, setUnpaidOnly] = useState(false);
   const [sortBy, setSortBy] = useState("day");
   const [billQ, setBillQ] = useState("");
+  const [nbErr, setNbErr] = useState("");
 
   // Typing an amount changes THIS month only; the usual amount stays as
   // the default for future months until "make usual" adopts the new one.
@@ -3069,7 +3074,9 @@ function BillsView({ ctx }) {
   };
 
   const addBill = () => {
-    if (!nb.name.trim() || !num(nb.amount)) return;
+    if (!nb.name.trim()) { setNbErr("Give the bill a name."); return; }
+    if (!num(nb.amount)) { setNbErr("Enter how much it costs."); return; }
+    setNbErr("");
     patch((s) => {
       s.bills.push({
         id: uid(), name: nb.name.trim(), company: nb.company.trim(), amount: num(nb.amount),
@@ -3157,8 +3164,9 @@ function BillsView({ ctx }) {
             <option value="">no envelope</option>
             {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>
-          <button className="btn" onClick={addBill} disabled={!nb.name.trim() || !num(nb.amount)}>Add</button>
+          <button className="btn" onClick={addBill}>Add</button>
         </div>
+        {nbErr && <p className="fielderr" style={{ marginTop: 8 }}>{nbErr}</p>}
         <p className="empty" style={{ marginTop: 10 }}>
           Link an envelope and marking the bill paid logs the spending into it automatically. Amounts can change
           month to month — retype the amount when the real bill arrives and only that month changes; tap
