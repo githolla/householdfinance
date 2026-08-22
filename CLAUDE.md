@@ -25,6 +25,7 @@ src/main.jsx     mounts App, imports the storage shim first
 src/storage.js   window.storage backed by localStorage (see contract in the file)
 src/scripture.js verse list (World English Bible, public domain) + deterministic daily pick
 vite.config.js   dev proxy that attaches the Anthropic key server-side
+api/anthropic/v1/messages.js  the same proxy as a Vercel serverless function (needs ANTHROPIC_API_KEY env var in Vercel)
 docs/            data model + roadmap
 ```
 
@@ -76,7 +77,7 @@ The app talks like a planner who knows them, not a dashboard: one plain sentence
 
 1. **Single-browser storage.** Both partners can't use it. This is the big one — see `docs/roadmap.md`.
 2. **Manual transaction entry.** No bank feed.
-3. **API key exposure.** The dev proxy is dev-only. The planner needs a real backend route before this is deployed anywhere.
+3. **AI on other hosts.** `api/anthropic/v1/messages.js` covers Vercel (set `ANTHROPIC_API_KEY` in project env vars); the app path `/api/anthropic/v1/messages` is served by the Vite proxy in dev. Any other host needs its own equivalent route. The route is public — keep the model allowlist and token cap in it.
 4. **No tests.** No test runner installed.
 5. `App.jsx` is one file. Split it when it starts hurting, not before — and split by view, keeping `model()` and the shared components together.
 6. Net worth is a live snapshot, not a tracked series. There's no history to chart yet.

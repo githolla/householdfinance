@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v27";
+const APP_VERSION = "v28";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
