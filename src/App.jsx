@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v39";
+const APP_VERSION = "v40";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -566,6 +566,14 @@ body{margin:0;background:#F5F1EA;}
  border-top:1px solid var(--line);}
 @media(max-width:640px){.tc .fourup{grid-template-columns:repeat(2,1fr);}}
 .tc .lbl{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--soft);margin-bottom:5px;}
+.tc .brk{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
+.tc .brk-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;}
+.tc .brk-row{display:grid;grid-template-columns:1fr 130px auto;gap:8px;align-items:center;margin-bottom:6px;}
+.tc .planread{margin-top:12px;border-radius:12px;padding:14px 16px;border:1px solid var(--line);background:var(--paper);}
+.tc .planread.ok{border-left:4px solid var(--good);}
+.tc .planread.short{border-left:4px solid var(--warn);background:rgba(192,57,43,.05);}
+.tc .planread .pr-line{font-size:14px;margin-bottom:6px;}
+.tc .planread .pr-verdict{font-size:13.5px;color:#3A453F;line-height:1.5;}
 .tc .potnum{margin:2px 0 4px;}
 .tc .potnum b{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-.02em;}
 .tc .potmove{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;}
@@ -3799,18 +3807,51 @@ function PlanAhead({ ctx }) {
     return s;
   });
   const add = () => patch((s) => {
-    s.scenarios = [...(s.scenarios || []), { id: uid(), name: "Vacation", amount: 3000, date: defaultDate, fund: "save" }];
+    s.scenarios = [...(s.scenarios || []), { id: uid(), name: "Vacation", amount: 3000, date: defaultDate, fund: "save", items: [], days: "" }];
     return s;
   });
   const remove = (id) => patch((s) => { s.scenarios = (s.scenarios || []).filter((y) => y.id !== id); return s; });
+  // Line items — the penny-level breakdown of a trip.
+  const addItem = (id) => patch((s) => {
+    const x = (s.scenarios || []).find((y) => y.id === id);
+    if (x) x.items = [...(x.items || []), { id: uid(), name: "", amount: 0 }];
+    return s;
+  });
+  const setItem = (id, iid, f, v) => patch((s) => {
+    const x = (s.scenarios || []).find((y) => y.id === id);
+    const it = x && (x.items || []).find((z) => z.id === iid);
+    if (it) it[f] = v;
+    return s;
+  });
+  const delItem = (id, iid) => patch((s) => {
+    const x = (s.scenarios || []).find((y) => y.id === id);
+    if (x) x.items = (x.items || []).filter((z) => z.id !== iid);
+    return s;
+  });
+  const TRIP_ITEMS = ["Flights", "Hotel", "Food", "Rental car", "Activities", "Spending money"];
+  const seedItems = (id) => patch((s) => {
+    const x = (s.scenarios || []).find((y) => y.id === id);
+    if (x && (!x.items || !x.items.length)) x.items = TRIP_ITEMS.map((n) => ({ id: uid(), name: n, amount: 0 }));
+    return s;
+  });
 
-  // Per-scenario math + aggregate impact on the month.
+  // Per-scenario math. When a breakdown exists, the cost is the sum of the
+  // line items (to the penny); otherwise the single Cost figure.
   const rows = scenarios.map((sc) => {
     const target = (sc.date || defaultDate).slice(0, 7);
     const monthsUntil = Math.max(1, monthsBetween(month, target));
-    const amount = num(sc.amount);
+    const items = sc.items || [];
+    const hasItems = items.length > 0;
+    const amount = hasItems ? items.reduce((n, it) => n + num(it.amount), 0) : num(sc.amount);
     const monthly = sc.fund === "save" ? amount / monthsUntil : 0;
-    return { ...sc, amount, target, monthsUntil, monthly };
+    // What you could set aside by the date at today's free cash flow, and the
+    // exact gap or headroom against the trip's cost.
+    const canSaveBy = Math.max(0, m.monthlyNet) * monthsUntil;
+    const pool = sc.fund === "cash" ? m.cashTotal : canSaveBy;
+    const headroom = pool - amount;
+    const days = num(sc.days);
+    const perDay = days > 0 ? amount / days : 0;
+    return { ...sc, amount, target, monthsUntil, monthly, items, hasItems, canSaveBy, pool, headroom, days, perDay };
   });
   const extraMonthly = rows.filter((r) => r.fund === "save").reduce((n, r) => n + r.monthly, 0);
   const cashHit = rows.filter((r) => r.fund === "cash").reduce((n, r) => n + r.amount, 0);
@@ -3888,8 +3929,10 @@ function PlanAhead({ ctx }) {
                 <input className="field" value={r.name} onChange={(e) => upsert(r.id, "name", e.target.value)} aria-label="What is it" />
               </div>
               <div>
-                <label className="lbl">Cost</label>
-                <MoneyInput value={r.amount} onCommit={(v) => upsert(r.id, "amount", v)} aria-label="Cost" />
+                <label className="lbl">{r.hasItems ? "Total (from breakdown)" : "Total cost"}</label>
+                {r.hasItems
+                  ? <div className="field num" style={{ background: "#EFEADF", color: C.soft }}>{money(r.amount)}</div>
+                  : <MoneyInput value={r.amount} onCommit={(v) => upsert(r.id, "amount", v)} aria-label="Total cost" />}
               </div>
               <div>
                 <label className="lbl">When</label>
@@ -3903,12 +3946,50 @@ function PlanAhead({ ctx }) {
                   <option value="cash">Pay from savings</option>
                 </select>
               </div>
+              <div>
+                <label className="lbl">Trip length (nights)</label>
+                <input className="field num" inputMode="numeric" placeholder="—" value={r.days || ""}
+                  onChange={(e) => upsert(r.id, "days", e.target.value)} aria-label="Nights" />
+              </div>
             </div>
-            <div className="snip" style={{ marginTop: 10 }}>
-              {r.fund === "save"
-                ? <>Set aside <b className="num">{money(r.monthly)}</b> a month for <b>{r.monthsUntil}</b> month{r.monthsUntil === 1 ? "" : "s"} to have <b className="num">{money(r.amount)}</b> by {monthLabel(r.target)}.</>
-                : <>Pays <b className="num">{money(r.amount)}</b> out of savings around {monthLabel(r.target)} — cash goes to <b className="num">{money(m.cashTotal - r.amount)}</b> that month.</>}
+
+            {/* Penny-level breakdown */}
+            <div className="brk">
+              <div className="brk-head">
+                <span className="lbl" style={{ margin: 0 }}>Break it down — to the penny</span>
+                {!r.items.length && <button className="btn ghost tiny" onClick={() => seedItems(r.id)}>Use a trip template</button>}
+              </div>
+              {r.items.map((it) => (
+                <div className="brk-row" key={it.id}>
+                  <input className="field" placeholder="e.g. Flights" value={it.name}
+                    onChange={(e) => setItem(r.id, it.id, "name", e.target.value)} aria-label="Item name" />
+                  <MoneyInput value={it.amount} placeholder="$0" onCommit={(v) => setItem(r.id, it.id, "amount", v)} aria-label="Item amount" />
+                  <button className="kill" onClick={() => delItem(r.id, it.id)} aria-label="Remove item">×</button>
+                </div>
+              ))}
+              <button className="btn ghost tiny" style={{ marginTop: 6 }} onClick={() => addItem(r.id)}>+ Add a line</button>
             </div>
+
+            {/* The precise read: exactly what it takes and whether it fits */}
+            <div className={"planread " + (r.headroom < -0.005 ? "short" : "ok")}>
+              <div className="pr-line">
+                <b className="num">{money(r.amount)}</b> total
+                {r.days > 0 && <> · <b className="num">{money(r.perDay)}</b>/night</>}
+                {r.fund === "save"
+                  ? <> · save <b className="num">{money(r.monthly)}</b>/mo for <b>{r.monthsUntil}</b> mo to be ready by {monthLabel(r.target)}</>
+                  : <> · paid from savings around {monthLabel(r.target)}</>}
+              </div>
+              <div className="pr-verdict">
+                {r.fund === "save"
+                  ? (r.headroom >= -0.005
+                    ? <>At your free cash flow you can set aside <b className="num">{money(r.canSaveBy)}</b> by then — this fits with <b className="num">{money(r.headroom)}</b> to spare.</>
+                    : <>You're <b className="num">{money(-r.headroom)}</b> short: free cash flow only builds <b className="num">{money(r.canSaveBy)}</b> by then. Push the date out, trim a line, or fund part from savings.</>)
+                  : (r.headroom >= -0.005
+                    ? <>Savings can cover it — <b className="num">{money(m.cashTotal)}</b> on hand drops to <b className="num">{money(m.cashTotal - r.amount)}</b>, leaving <b className="num">{money(r.headroom)}</b> cushion.</>
+                    : <>Savings fall <b className="num">{money(-r.headroom)}</b> short — only <b className="num">{money(m.cashTotal)}</b> is on hand.</>)}
+              </div>
+            </div>
+
             <div className="efoot">
               {r.fund === "save" && (
                 <button className="btn ghost tiny" onClick={() => {
@@ -3919,7 +4000,7 @@ function PlanAhead({ ctx }) {
                     return s;
                   });
                   setView("goals");
-                }}>Make it a goal</button>
+                }}>Make it a savings pot</button>
               )}
               <button className="btn ghost tiny" style={{ marginLeft: "auto", color: C.warn }} onClick={() => remove(r.id)}>Remove</button>
             </div>
