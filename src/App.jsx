@@ -1185,7 +1185,30 @@ function parseBulk(text) {
   return items;
 }
 
-const BILL_LIKE = /rent|mortgage|electric|water|sewer|natural gas|internet|wifi|cable|phone|insurance|payment|loan|streaming|subscript|membership|gym|hoa|daycare|tuition/i;
+const BILL_LIKE = /rent|mortgage|electric|water|sewer|natural gas|internet|wifi|cable|phone|insurance|payment|loan|streaming|subscript|membership|gym|hoa|daycare|tuition|netflix|spotify|hulu|disney/i;
+
+const WORD_DAYS = {
+  first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8,
+  ninth: 9, tenth: 10, eleventh: 11, twelfth: 12, thirteenth: 13, fourteenth: 14, fifteenth: 15,
+  twentieth: 20, "twenty-first": 21, "twenty first": 21, "twenty-fifth": 25, "twenty fifth": 25,
+  thirtieth: 30, "thirty-first": 31, "thirty first": 31,
+};
+
+function parseDayFromText(t) {
+  const a = t.match(/\bthe\s+(\d{1,2})(?:st|nd|rd|th)?\b/);
+  if (a) { const d = parseInt(a[1], 10); if (d >= 1 && d <= 31) return d; }
+  const b = t.match(/\b(\d{1,2})(?:st|nd|rd|th)\b/);
+  if (b) { const d = parseInt(b[1], 10); if (d >= 1 && d <= 31) return d; }
+  for (const [w, d] of Object.entries(WORD_DAYS)) if (t.includes(`the ${w}`)) return d;
+  return null;
+}
+
+// "Mortgage $2700 on the first" → the words before the amount are the name.
+function nameBeforeAmount(raw) {
+  const cut = raw.search(/[$]?\d/);
+  const n = (cut > 0 ? raw.slice(0, cut) : raw).replace(/[\s\-–—:,]+$/, "").trim();
+  return n ? n.charAt(0).toUpperCase() + n.slice(1) : "";
+}
 
 function classifyItem(name) {
   const n = name.toLowerCase();
@@ -1278,15 +1301,99 @@ function Concierge({ ctx }) {
 
   const localParse = (raw) => {
     const amt = raw.replace(/,/g, "").match(/-?\d+(\.\d+)?/);
+    const amount = amt ? Math.abs(parseFloat(amt[0])) : 0;
     const lower = raw.toLowerCase();
-    let env = plan.envelopes.find((e) =>
-      e.name.toLowerCase().split(/[^a-z]+/).some((w) => w.length > 2 && lower.includes(w)));
-    if (!env) env = plan.envelopes.find((e) => e.name === "Everything else") || plan.envelopes[0];
+    const day = parseDayFromText(lower);
     let who = "joint";
     if (m.pA.name && lower.includes(m.pA.name.toLowerCase())) who = "a";
     else if (m.pB.name && lower.includes(m.pB.name.toLowerCase())) who = "b";
+
+    if (/paycheck|payday|gets? paid|salary|bonus|refund|deposit|coming in/.test(lower)) {
+      return {
+        type: "income", name: nameBeforeAmount(raw) || "Expected income", amount, day: day || 15, who,
+        recurring: /every|each month|monthly|paycheck|salary/.test(lower),
+        paycheck: /paycheck|salary|gets? paid|payday/.test(lower),
+      };
+    }
+    if (amount && (/(^|\s)bill(s?\s|$)|every month|monthly|\bdue\b/.test(lower) || (day !== null && BILL_LIKE.test(lower)))) {
+      return { type: "bill", name: nameBeforeAmount(raw) || "New bill", amount, day: day || 1, who };
+    }
+    let env = plan.envelopes.find((e) =>
+      e.name.toLowerCase().split(/[^a-z]+/).some((w) => w.length > 2 && lower.includes(w)));
+    if (!env) env = plan.envelopes.find((e) => e.name === "Everything else") || plan.envelopes[0];
     const note = raw.replace(/[$]?-?\d+([.,]\d+)?/, "").replace(/\s+/g, " ").trim();
-    return { amount: amt ? Math.abs(parseFloat(amt[0])) : 0, envelope: env ? env.name : "", who, note };
+    return { type: "spend", amount, envelope: env ? env.name : "", who, note };
+  };
+
+  // "Mortgage $2700 on the first" → bill + linked envelope, ready to edit.
+  const doBill = (p) => {
+    const name = (p.name || "New bill").slice(0, 40);
+    const amount = num(p.amount);
+    const day = Math.min(31, Math.max(1, num(p.day) || 1));
+    const who = ["a", "b", "joint"].includes(p.who) ? p.who : "joint";
+    let billId, createdEnv = null;
+    patch((s) => {
+      const base = s.months[month] || structuredClone(plan);
+      if (!base.paid) base.paid = [];
+      if (!base.received) base.received = [];
+      let env = base.envelopes.find((e) => e.name.toLowerCase() === name.toLowerCase());
+      if (!env) {
+        env = { id: uid(), name, group: classifyItem(name).group, planned: 0, owner: who };
+        base.envelopes.push(env);
+        createdEnv = env.id;
+      }
+      if (!env.planned) env.planned = amount;
+      s.months[month] = base;
+      billId = uid();
+      s.bills.push({ id: billId, name, amount, day, envId: env.id, owner: who });
+      return s;
+    });
+    setLast({
+      msg: `Set up ${name} — ${money(amount)} due the ${ordinal(day)}, every month, with its own envelope in the plan. Adjust anything on Bills & files.`,
+      undo: { kind: "bill", billId, createdEnv },
+    });
+    setText(""); setBusy(false);
+  };
+
+  const doIncome = (p) => {
+    const name = (p.name || "Expected income").slice(0, 40);
+    const amount = num(p.amount);
+    const day = Math.min(31, Math.max(1, num(p.day) || 15));
+    const who = ["a", "b"].includes(p.who) ? p.who : "joint";
+    const recurring = !!p.recurring;
+    const pay = !!p.paycheck && who !== "joint";
+    const id = uid();
+    patch((s) => {
+      s.incomes = s.incomes || [];
+      s.incomes.push({
+        id, name, amount, day, who, pay, recurring,
+        month: recurring ? "" : month,
+        date: recurring ? "" : `${month}-${String(day).padStart(2, "0")}`,
+      });
+      return s;
+    });
+    setLast({
+      msg: `Posted ${name} — ${money(amount)} expected the ${ordinal(day)}${recurring ? ", every month" : ""}. Adjust it under Money coming in on Budget.`,
+      undo: { kind: "income", id },
+    });
+    setText(""); setBusy(false);
+  };
+
+  const undoLast = () => {
+    if (last && last.entryId) {
+      writeMonth((mm) => { mm.entries = mm.entries.filter((t) => t.id !== last.entryId); return mm; });
+    } else if (last && last.undo && last.undo.kind === "bill") {
+      patch((s) => {
+        s.bills = s.bills.filter((b) => b.id !== last.undo.billId);
+        const base = s.months[month];
+        if (last.undo.createdEnv && base && !base.entries.some((t) => t.envId === last.undo.createdEnv))
+          base.envelopes = base.envelopes.filter((e) => e.id !== last.undo.createdEnv);
+        return s;
+      });
+    } else if (last && last.undo && last.undo.kind === "income") {
+      patch((s) => { s.incomes = (s.incomes || []).filter((i) => i.id !== last.undo.id); return s; });
+    }
+    setLast(null);
   };
 
   const log = async () => {
@@ -1300,11 +1407,13 @@ function Concierge({ ctx }) {
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 300,
           system:
-            `You turn one sentence about household spending into JSON. ` +
-            `Envelopes: ${plan.envelopes.map((e) => e.name).join("; ")}. ` +
+            `You turn one sentence about household money into ONE JSON object. ` +
             `People: "a" is ${m.pA.name}, "b" is ${m.pB.name}, "joint" means both or unspecified. ` +
-            `Reply with ONLY a JSON object: {"amount": number, "envelope": "<exact envelope name>", "who": "a"|"b"|"joint", "note": "<the merchant or what it was, a few words>"}. ` +
-            `Pick the closest envelope. No other text.`,
+            `Pick the type: ` +
+            `"spend" for a purchase that already happened — {"type":"spend","amount":n,"envelope":"<exact name from: ${plan.envelopes.map((e) => e.name).join("; ")}>","who":"a"|"b"|"joint","note":"merchant or what it was"}. ` +
+            `"bill" for setting up a recurring bill, e.g. "Mortgage $2700 on the first" — {"type":"bill","name":"Mortgage","amount":2700,"day":1,"who":"joint"}. ` +
+            `"income" for money arriving (paycheck, bonus, refund, invoice) — {"type":"income","name":"...","amount":n,"day":n,"who":"a"|"b"|"joint","recurring":true|false,"paycheck":true|false}. ` +
+            `Reply with ONLY the JSON object, no other text.`,
           messages: [{ role: "user", content: raw }],
         }),
       });
@@ -1314,6 +1423,8 @@ function Concierge({ ctx }) {
       if (jm) parsed = JSON.parse(jm[0]);
     } catch (e) { /* offline or proxy down — the local parser takes it */ }
     if (!parsed || !num(parsed.amount)) parsed = localParse(raw);
+    if (parsed.type === "bill" && num(parsed.amount)) { doBill(parsed); return; }
+    if (parsed.type === "income" && num(parsed.amount)) { doIncome(parsed); return; }
     const env = plan.envelopes.find((e) => e.name === parsed.envelope)
       || plan.envelopes.find((e) => e.name.toLowerCase() === String(parsed.envelope || "").toLowerCase())
       || plan.envelopes.find((e) => e.name === "Everything else") || plan.envelopes[0];
@@ -1340,7 +1451,7 @@ function Concierge({ ctx }) {
       <div className="conbar">
         <input placeholder={month !== monthKey(new Date())
           ? `Logging into ${monthLabel(month)} — flip back to this month for today's spending`
-          : `Say or type what you spent — “$42 groceries at the farmers market” — or paste a whole list`}
+          : `Try “$42 groceries”, “Mortgage $2,700 on the first”, “bonus $900 the 10th” — or paste a whole list`}
           value={text} onPaste={onPaste}
           onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && log()}
           aria-label="Log spending in one sentence" />
@@ -1390,11 +1501,8 @@ function Concierge({ ctx }) {
       {last && last.msg && (
         <p className="confirm">
           {last.msg}
-          {last.entryId && (
-            <button className="btn ghost tiny" style={{ marginLeft: 10 }}
-              onClick={() => { writeMonth((mm) => { mm.entries = mm.entries.filter((t) => t.id !== last.entryId); return mm; }); setLast(null); }}>
-              Undo
-            </button>
+          {(last.entryId || last.undo) && (
+            <button className="btn ghost tiny" style={{ marginLeft: 10 }} onClick={undoLast}>Undo</button>
           )}
         </p>
       )}
