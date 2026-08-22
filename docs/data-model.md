@@ -44,6 +44,11 @@ One JSON object, persisted whole under `twocolumn:v2`.
 
   "chat": [{ "role": "user", "content": "..." }],            // planner history
 
+  "docs": [
+    { "id": "d1", "name": "Car insurance renewal.txt", "folder": "Insurance",
+      "added": "Aug 22, 2026", "text": "..." }               // folder is one of FOLDERS; text capped at 100k chars
+  ],
+
   "faith": { "enabled": true }        // daily-scripture layer; absent means enabled
 }
 ```

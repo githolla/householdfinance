@@ -28,7 +28,7 @@ vite.config.js   dev proxy that attaches the Anthropic key server-side
 docs/            data model + roadmap
 ```
 
-`App.jsx` is organised in labelled sections, top to bottom: helpers → demo-data generator → CSS → `App` (shell, nav, persistence) → `model()` → shared components → nine view components → `Setup`.
+`App.jsx` is organised in labelled sections, top to bottom: helpers → demo-data generator → CSS → `App` (shell, nav, persistence) → `model()` → shared components (including `Concierge`, the centered AI spending logger on the dashboard — typed or spoken sentence → parsed entry, with a local regex fallback when the AI route is unreachable) → ten view components → `Setup`. The `Files` view is the household's searchable text drawer (`state.docs`, text only, capped at 100k chars per doc).
 
 ## The one thing that matters architecturally
 

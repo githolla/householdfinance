@@ -190,6 +190,13 @@ function demoState() {
       { id: uid(), name: "Credit card", type: "debt", balance: 3850, owner: "joint", apr: 22.9, minPayment: 120 },
     ],
     bills,
+    docs: [
+      {
+        id: uid(), name: "Car insurance renewal.txt", folder: "Insurance",
+        added: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+        text: "Policy 84-7723-A renews Oct 1.\nPremium $1,284/yr ($107/mo) — up $9 from last year.\nDeductible $500 comprehensive / $1,000 collision.\nAgent: Marisol Vega, (555) 014-2210.",
+      },
+    ],
     chat: [],
   };
 }
@@ -199,6 +206,7 @@ const NAV = [
   ["budget", "Budget"],
   ["txn", "Spending"],
   ["bills", "Bills"],
+  ["files", "Files"],
   ["goals", "Goals"],
   ["worth", "Net worth"],
   ["reports", "Reports"],
@@ -207,10 +215,10 @@ const NAV = [
 ];
 
 const C = {
-  a: "#5FA893", b: "#A08FD8", joint: "#C9A227", warn: "#C96A57",
-  soft: "#A2988A", ink: "#EDE6DA", line: "#332C25",
+  a: "#2E6F63", b: "#6B5CA5", joint: "#A5821F", warn: "#A93E2F",
+  soft: "#7A7264", ink: "#221D17", line: "#E2DACB",
 };
-const PIE = ["#C9A227", "#5FA893", "#A08FD8", "#B9862B", "#7FB8A6", "#C96A57", "#8FA5A0", "#D8C08A"];
+const PIE = ["#A5821F", "#2E6F63", "#6B5CA5", "#B9862B", "#4C8C7E", "#A93E2F", "#3F5C57", "#C9A227"];
 
 /* ================================================================== */
 /*  styles                                                             */
@@ -219,12 +227,12 @@ const PIE = ["#C9A227", "#5FA893", "#A08FD8", "#B9862B", "#7FB8A6", "#C96A57", "
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-body{margin:0;background:#141110;}
-.tc{--paper:#141110;--surface:#1D1815;--ink:#EDE6DA;--soft:#A2988A;--line:#332C25;
- --a:#5FA893;--b:#A08FD8;--joint:#C9A227;--warn:#C96A57;--r:12px;
- --goldline:rgba(201,162,39,.38);--goldsoft:rgba(201,162,39,.14);--hair:rgba(237,230,218,.09);
+body{margin:0;background:#F5F1E8;}
+.tc{--paper:#F5F1E8;--surface:#FCFAF5;--ink:#221D17;--soft:#7A7264;--line:#E2DACB;
+ --a:#2E6F63;--b:#6B5CA5;--joint:#A5821F;--warn:#A93E2F;--r:12px;
+ --goldline:rgba(165,130,31,.4);--goldsoft:rgba(165,130,31,.1);--hair:rgba(34,29,23,.08);
  background:var(--paper);color:var(--ink);font-family:'Jost',ui-sans-serif,system-ui,sans-serif;
- min-height:100vh;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-size:14px;font-weight:300;}
+ min-height:100vh;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-size:14px;font-weight:400;}
 .tc *,.tc *::before,.tc *::after{box-sizing:border-box;}
 .tc .num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;}
 .tc h1,.tc h2,.tc h3,.tc .serif{font-family:'Cormorant Garamond','Iowan Old Style',Georgia,serif;font-weight:500;margin:0;}
@@ -237,7 +245,7 @@ body{margin:0;background:#141110;}
 /* shell — top bar with clickable tabs */
 .tc .shell{min-height:100vh;}
 .tc .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:24px;flex-wrap:wrap;
- padding:14px 28px;background:rgba(20,17,16,.94);backdrop-filter:blur(10px);
+ padding:14px 28px;background:rgba(245,241,232,.94);backdrop-filter:blur(10px);
  border-bottom:1px solid var(--line);}
 .tc .mark{line-height:1.2;min-width:150px;}
 .tc .mark .nm{font-family:'Cormorant Garamond',Georgia,serif;font-size:19px;letter-spacing:.08em;display:block;}
@@ -249,7 +257,7 @@ body{margin:0;background:#141110;}
 .tc nav button.on{color:var(--joint);border-bottom-color:var(--joint);}
 .tc .topnet{text-align:right;min-width:110px;line-height:1.4;}
 .tc .topnet .who{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--soft);display:block;}
-.tc .main{padding:26px 28px 80px;min-width:0;max-width:1240px;margin:0 auto;}
+.tc .main{padding:26px 32px 80px;min-width:0;}
 @media(max-width:980px){
  .tc .top{gap:10px;padding:12px 16px;}
  .tc nav{order:3;flex-basis:100%;justify-content:flex-start;}
@@ -268,16 +276,17 @@ body{margin:0;background:#141110;}
  color:var(--soft);font-size:13px;display:grid;place-items:center;line-height:1;}
 .tc .arrow:hover{border-color:var(--joint);color:var(--joint);}
 
-/* hero + thesis */
-.tc .hero{position:relative;border-radius:14px;overflow:hidden;text-align:center;
+/* hero + thesis — stays a dark photo band against the light page */
+.tc .hero{position:relative;border-radius:14px;overflow:hidden;text-align:center;color:#F3EDE1;
  padding:58px 28px 54px;margin-bottom:24px;border:1px solid var(--goldline);
  background:linear-gradient(180deg,rgba(20,17,16,.5),rgba(20,17,16,.82)),
   url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1600&q=60') center/cover,
   #1D1815;}
-.tc .hero .gem{margin-bottom:18px;}
+.tc .hero .gem{margin-bottom:18px;color:#C9A227;}
+.tc .hero .gem::before,.tc .hero .gem::after{background:rgba(201,162,39,.5);}
 .tc .thesis{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(24px,3.4vw,38px);line-height:1.3;
- letter-spacing:.05em;max-width:860px;margin:0 auto;font-weight:500;}
-.tc .thesis span{display:block;font-size:clamp(14px,1.6vw,17px);color:rgba(237,230,218,.76);
+ letter-spacing:.05em;max-width:1080px;margin:0 auto;font-weight:500;}
+.tc .thesis span{display:block;font-size:clamp(14px,1.6vw,17px);color:rgba(243,237,225,.78);
  letter-spacing:.06em;margin-top:12px;font-style:italic;}
 
 /* grid + cards */
@@ -295,7 +304,7 @@ body{margin:0;background:#141110;}
 
 /* kpi */
 .tc .kpi{padding:15px 16px;}
-.tc .kpi .lab{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(201,162,39,.8);}
+.tc .kpi .lab{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(165,130,31,.9);}
 .tc .kpi .val{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
  font-size:22px;letter-spacing:-.02em;margin-top:8px;line-height:1.1;word-break:break-word;}
 .tc .kpi .foot{font-size:11.5px;color:var(--soft);margin-top:7px;line-height:1.4;}
@@ -304,7 +313,7 @@ body{margin:0;background:#141110;}
 /* rail */
 .tc .rail{display:flex;height:30px;width:100%;gap:2px;}
 .tc .seg{min-width:2px;border-radius:3px;}
-.tc .seg.gap{background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(237,230,218,.14) 5px,rgba(237,230,218,.14) 6px);
+.tc .seg.gap{background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(34,29,23,.12) 5px,rgba(34,29,23,.12) 6px);
  border:1px dashed var(--soft);}
 .tc .railkey{display:flex;flex-wrap:wrap;gap:13px;margin-top:10px;font-size:11.5px;color:var(--soft);}
 .tc .railkey span{display:flex;align-items:center;gap:6px;}
@@ -327,22 +336,22 @@ body{margin:0;background:#141110;}
 .tc .amt input:hover,.tc .amt input:focus{border-bottom:1px solid var(--line);outline:none;}
 .tc .muted{color:var(--soft);}
 .tc .over{color:var(--warn);font-weight:500;}
-.tc .bar{grid-column:1/-1;height:4px;background:rgba(237,230,218,.08);border-radius:3px;overflow:hidden;}
+.tc .bar{grid-column:1/-1;height:4px;background:rgba(34,29,23,.08);border-radius:3px;overflow:hidden;}
 .tc .bar i{display:block;height:100%;border-radius:3px;}
-.tc .kill{background:none;border:none;color:#4A4038;font-size:15px;padding:0 2px;line-height:1;}
+.tc .kill{background:none;border:none;color:#CFC6B4;font-size:15px;padding:0 2px;line-height:1;}
 .tc .kill:hover{color:var(--warn);}
 .tc .tag{border:1px solid var(--line);background:none;border-radius:20px;font-size:10px;
  letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;color:var(--soft);white-space:nowrap;
  font-family:inherit;max-width:120px;}
-.tc .grouphead{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(201,162,39,.8);
+.tc .grouphead{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(165,130,31,.9);
  padding:16px 0 4px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;}
 
 /* controls */
-.tc .field{border:1px solid rgba(201,162,39,.28);background:#191412;border-radius:var(--r);padding:9px 11px;
+.tc .field{border:1px solid rgba(201,162,39,.28);background:#FFFFFF;border-radius:var(--r);padding:9px 11px;
  font-size:13.5px;color:var(--ink);font-family:inherit;width:100%;}
-.tc .field::placeholder{color:#6E645A;}
+.tc .field::placeholder{color:#A79D8C;}
 .tc .field:focus{border-color:var(--joint);outline:none;}
-.tc select.field option{background:#191412;color:var(--ink);}
+.tc select.field option{background:#FFFFFF;color:var(--ink);}
 .tc .btn{border:1px solid var(--goldline);background:none;color:var(--ink);border-radius:var(--r);
  padding:10px 16px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;}
 .tc .btn:hover{background:var(--goldsoft);border-color:var(--joint);}
@@ -357,7 +366,7 @@ body{margin:0;background:#141110;}
 @media(max-width:760px){.tc .logger{grid-template-columns:1fr 1fr;}.tc .logger .wide{grid-column:1/-1;}}
 
 /* goals */
-.tc .track{height:7px;background:rgba(237,230,218,.1);border-radius:4px;margin:11px 0 9px;overflow:hidden;}
+.tc .track{height:7px;background:rgba(34,29,23,.1);border-radius:4px;margin:11px 0 9px;overflow:hidden;}
 .tc .track i{display:block;height:100%;background:var(--joint);border-radius:4px;transition:width .4s ease;}
 .tc .flag{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:20px;
  border:1px solid currentColor;white-space:nowrap;}
@@ -367,7 +376,7 @@ body{margin:0;background:#141110;}
 .tc .fourup{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px;padding-top:12px;
  border-top:1px solid var(--line);}
 @media(max-width:640px){.tc .fourup{grid-template-columns:repeat(2,1fr);}}
-.tc .lbl{display:block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(201,162,39,.8);margin-bottom:5px;}
+.tc .lbl{display:block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(165,130,31,.9);margin-bottom:5px;}
 
 /* notes + chat */
 .tc .note{display:flex;gap:9px;font-size:13px;line-height:1.45;padding:8px 0;
@@ -376,15 +385,30 @@ body{margin:0;background:#141110;}
 .tc .tick{width:4px;flex:none;border-radius:3px;margin:3px 0;}
 .tc .chatlog{display:flex;flex-direction:column;gap:12px;overflow-y:auto;margin-bottom:12px;}
 .tc .msg{font-size:13.5px;line-height:1.55;white-space:pre-wrap;}
-.tc .msg.me{align-self:flex-end;background:#241E19;border:1px solid var(--goldline);color:var(--ink);
+.tc .msg.me{align-self:flex-end;background:#FFFDF8;border:1px solid var(--goldline);color:var(--ink);
  padding:8px 12px;border-radius:12px 12px 3px 12px;max-width:86%;}
 .tc .msg.them{border-left:2px solid var(--joint);padding-left:12px;}
 .tc .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px;}
 .tc .chip{border:1px solid var(--line);background:none;border-radius:20px;padding:5px 12px;font-size:12px;color:var(--soft);}
 .tc .chip:hover{border-color:var(--joint);color:var(--joint);}
-.tc .chip.on{background:var(--joint);color:#141110;border-color:var(--joint);}
+.tc .chip.on{background:var(--joint);color:#FDFCF7;border-color:var(--joint);}
 .tc .askrow{display:flex;gap:7px;}
 .tc .empty{font-size:13px;color:var(--soft);line-height:1.55;padding:8px 0;margin:0;}
+
+/* concierge + files */
+.tc .concierge{max-width:860px;margin:0 auto 24px;text-align:center;padding:24px 26px;}
+.tc .concierge .why{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;color:var(--joint);
+ font-size:14.5px;margin:8px 0 15px;}
+.tc .concierge .askrow{max-width:680px;margin:0 auto;}
+.tc .concierge .askrow .btn{white-space:nowrap;flex:none;}
+.tc .concierge .confirm{font-size:12.5px;color:var(--soft);margin:12px 0 0;}
+.tc .doc{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;background:var(--surface);}
+.tc .doc .snip{font-size:12.5px;color:var(--soft);margin:7px 0 0;line-height:1.5;}
+.tc .doc pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:12.5px;color:var(--soft);
+ margin:10px 0 0;padding-top:10px;border-top:1px solid var(--hair);max-height:300px;overflow-y:auto;}
+.tc .dropzone{border:1px dashed var(--goldline);border-radius:var(--r);padding:18px;text-align:center;
+ color:var(--soft);font-size:12.5px;margin-bottom:14px;}
+.tc .dropzone.over{background:var(--goldsoft);border-color:var(--joint);}
 
 /* daily bread */
 .tc .verse{font-size:19px;line-height:1.5;letter-spacing:.015em;margin:4px 0 10px;max-width:680px;font-style:italic;}
@@ -393,12 +417,12 @@ body{margin:0;background:#141110;}
  border-top:1px solid var(--hair);}
 
 /* tooltip */
-.tc .tip{background:#241E19;border:1px solid var(--goldline);color:var(--ink);border-radius:7px;
+.tc .tip{background:#FFFDF8;border:1px solid var(--goldline);color:var(--ink);border-radius:7px;
  padding:7px 10px;font-size:12px;line-height:1.5;}
 .tc .tip .k{color:var(--soft);}
 
 /* setup */
-.tc .setup{max-width:920px;margin:0 auto;padding:7vh 18px 60px;}
+.tc .setup{margin:0 auto;padding:7vh 32px 60px;}
 .tc .setup .hero{padding:64px 28px;}
 .tc .setup h1{font-size:clamp(30px,4.6vw,46px);line-height:1.15;letter-spacing:.06em;font-weight:500;}
 .tc .setup .sub{color:var(--soft);font-size:14.5px;line-height:1.6;margin:0 0 26px;letter-spacing:.02em;}
@@ -502,6 +526,7 @@ export default function App() {
           {view === "budget" && <Budget ctx={ctx} />}
           {view === "txn" && <Spending ctx={ctx} />}
           {view === "bills" && <BillsView ctx={ctx} />}
+          {view === "files" && <FilesView ctx={ctx} />}
           {view === "goals" && <GoalsView ctx={ctx} />}
           {view === "worth" && <NetWorth ctx={ctx} />}
           {view === "reports" && <Reports ctx={ctx} />}
@@ -533,6 +558,7 @@ function upgrade(v1) {
     goals: (v1.goals || []).map((g) => ({ ...g, owner: "joint" })),
     accounts: [],
     bills: [],
+    docs: [],
     chat: v1.chat || [],
   };
 }
@@ -807,6 +833,121 @@ const Notes = ({ notes, limit }) => (
   </div>
 );
 
+/*  The concierge: one sentence — typed or spoken — becomes a logged
+    transaction. Tries the AI route first; a local parser catches it
+    if the route is down, so logging never depends on the network.    */
+function Concierge({ ctx }) {
+  const { m, plan, writeMonth } = ctx;
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [last, setLast] = useState(null);
+  const [listening, setListening] = useState(false);
+  const recRef = useRef(null);
+  const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  const hear = () => {
+    if (!SR) return;
+    if (listening) { if (recRef.current) recRef.current.stop(); return; }
+    const rec = new SR();
+    recRef.current = rec;
+    rec.lang = navigator.language || "en-US";
+    rec.interimResults = false;
+    rec.onresult = (e) => setText((x) => (x ? x + " " : "") + e.results[0][0].transcript);
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    setListening(true);
+    rec.start();
+  };
+
+  const localParse = (raw) => {
+    const amt = raw.replace(/,/g, "").match(/-?\d+(\.\d+)?/);
+    const lower = raw.toLowerCase();
+    let env = plan.envelopes.find((e) =>
+      e.name.toLowerCase().split(/[^a-z]+/).some((w) => w.length > 2 && lower.includes(w)));
+    if (!env) env = plan.envelopes.find((e) => e.name === "Everything else") || plan.envelopes[0];
+    let who = "joint";
+    if (m.pA.name && lower.includes(m.pA.name.toLowerCase())) who = "a";
+    else if (m.pB.name && lower.includes(m.pB.name.toLowerCase())) who = "b";
+    const note = raw.replace(/[$]?-?\d+([.,]\d+)?/, "").replace(/\s+/g, " ").trim();
+    return { amount: amt ? Math.abs(parseFloat(amt[0])) : 0, envelope: env ? env.name : "", who, note };
+  };
+
+  const log = async () => {
+    const raw = text.trim();
+    if (!raw || busy) return;
+    setBusy(true); setLast(null);
+    let parsed = null;
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6", max_tokens: 300,
+          system:
+            `You turn one sentence about household spending into JSON. ` +
+            `Envelopes: ${plan.envelopes.map((e) => e.name).join("; ")}. ` +
+            `People: "a" is ${m.pA.name}, "b" is ${m.pB.name}, "joint" means both or unspecified. ` +
+            `Reply with ONLY a JSON object: {"amount": number, "envelope": "<exact envelope name>", "who": "a"|"b"|"joint", "note": "<the merchant or what it was, a few words>"}. ` +
+            `Pick the closest envelope. No other text.`,
+          messages: [{ role: "user", content: raw }],
+        }),
+      });
+      const data = await res.json();
+      const t = (data.content || []).filter((c) => c.type === "text").map((c) => c.text).join("");
+      const jm = t.match(/\{[\s\S]*\}/);
+      if (jm) parsed = JSON.parse(jm[0]);
+    } catch (e) { /* offline or proxy down — the local parser takes it */ }
+    if (!parsed || !num(parsed.amount)) parsed = localParse(raw);
+    const env = plan.envelopes.find((e) => e.name === parsed.envelope)
+      || plan.envelopes.find((e) => e.name.toLowerCase() === String(parsed.envelope || "").toLowerCase())
+      || plan.envelopes.find((e) => e.name === "Everything else") || plan.envelopes[0];
+    const amount = num(parsed.amount);
+    if (!amount || !env) {
+      setLast({ err: "Couldn't find an amount in that — try something like “14.50 coffee”." });
+      setBusy(false);
+      return;
+    }
+    const entry = {
+      id: uid(), envId: env.id, amount,
+      who: ["a", "b", "joint"].includes(parsed.who) ? parsed.who : "joint",
+      note: String(parsed.note || "").slice(0, 60),
+      date: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    };
+    writeMonth((mm) => { mm.entries.unshift(entry); return mm; });
+    setLast({ msg: `Logged ${money(amount, true)} to ${env.name}${entry.note ? ` — ${entry.note}` : ""}, ${m.ownerName(entry.who)}.`, entryId: entry.id });
+    setText(""); setBusy(false);
+  };
+
+  return (
+    <div className="card concierge">
+      <div className="gem">◆</div>
+      <h3>Tell it what you spent</h3>
+      <p className="why">“$42 groceries at the farmers market” · “coffee 6.50, {m.pA.name}”</p>
+      <div className="askrow">
+        {SR && (
+          <button className={"btn tiny" + (listening ? "" : " ghost")} onClick={hear}
+            aria-label={listening ? "Stop listening" : "Speak instead of typing"}>
+            {listening ? "Listening…" : "Speak"}
+          </button>
+        )}
+        <input className="field" placeholder="Say it or type it — amount, what, who" value={text}
+          onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && log()}
+          aria-label="Log spending in one sentence" />
+        <button className="btn" onClick={log} disabled={busy || !text.trim()}>{busy ? "…" : "Log it"}</button>
+      </div>
+      {last && last.msg && (
+        <p className="confirm">
+          {last.msg}
+          <button className="btn ghost tiny" style={{ marginLeft: 10 }}
+            onClick={() => { writeMonth((mm) => { mm.entries = mm.entries.filter((t) => t.id !== last.entryId); return mm; }); setLast(null); }}>
+            Undo
+          </button>
+        </p>
+      )}
+      {last && last.err && <p className="confirm" style={{ color: C.warn }}>{last.err}</p>}
+    </div>
+  );
+}
+
 /* ================================================================== */
 /*  1. dashboard                                                       */
 /* ================================================================== */
@@ -824,6 +965,8 @@ function Dashboard({ ctx }) {
         <div className="gem">◆</div>
         <h2 className="thesis">{m.thesis[0]} <span>{m.thesis[1]}</span></h2>
       </div>
+
+      <Concierge ctx={ctx} />
 
       <Head
         title="Dashboard"
@@ -896,8 +1039,8 @@ function Dashboard({ ctx }) {
                 <BarChart data={catData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }} barCategoryGap={6}>
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" width={112} {...axis} />
-                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(237,230,218,.05)" }} />
-                  <Bar dataKey="planned" name="Planned" fill="rgba(237,230,218,.14)" radius={3} />
+                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(34,29,23,.05)" }} />
+                  <Bar dataKey="planned" name="Planned" fill="rgba(34,29,23,.12)" radius={3} />
                   <Bar dataKey="spent" name="Spent" fill={C.a} radius={3} />
                 </BarChart>
               </ResponsiveContainer>
@@ -1234,6 +1377,131 @@ function BillsView({ ctx }) {
 }
 
 /* ================================================================== */
+/*  4b. files — the household's paper drawer                           */
+/* ================================================================== */
+
+const FOLDERS = ["Receipts", "Statements", "Insurance", "Taxes", "Home", "Other"];
+
+function FilesView({ ctx }) {
+  const { state, patch } = ctx;
+  const docs = state.docs || [];
+  const [q, setQ] = useState("");
+  const [folder, setFolder] = useState("all");
+  const [open, setOpen] = useState(null);
+  const [paste, setPaste] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef(null);
+
+  const addDoc = (name, text) => patch((s) => {
+    s.docs = s.docs || [];
+    s.docs.unshift({
+      id: uid(), name: String(name).slice(0, 80), text: String(text).slice(0, 100000),
+      folder: "Other",
+      added: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+    });
+    return s;
+  });
+
+  const onFiles = (list) => {
+    Array.from(list || []).forEach((f) => {
+      const reader = new FileReader();
+      reader.onload = () => addDoc(f.name, reader.result);
+      reader.readAsText(f);
+    });
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const set = (id, f, v) => patch((s) => {
+    const d = (s.docs || []).find((x) => x.id === id);
+    if (d) d[f] = v;
+    return s;
+  });
+
+  const rows = docs.filter((d) => {
+    if (folder !== "all" && d.folder !== folder) return false;
+    if (q) {
+      const s = q.toLowerCase();
+      return d.name.toLowerCase().includes(s) || d.text.toLowerCase().includes(s);
+    }
+    return true;
+  });
+
+  const snippet = (d) => {
+    if (!q) return d.text.slice(0, 150);
+    const i = d.text.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return d.text.slice(0, 150);
+    return (i > 30 ? "…" : "") + d.text.slice(Math.max(0, i - 30), i + 120);
+  };
+
+  return (
+    <>
+      <Head title="Files" sub="The paper you'd otherwise lose — receipts, statements, renewal letters. Search finds it later." />
+
+      <div
+        className={"dropzone" + (dragOver ? " over" : "")}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); onFiles(e.dataTransfer.files); }}
+      >
+        Drop text files here, or{" "}
+        <button className="btn ghost tiny" onClick={() => fileRef.current && fileRef.current.click()}>choose files</button>
+        <input ref={fileRef} type="file" multiple accept=".txt,.md,.csv,.log,text/*" style={{ display: "none" }}
+          onChange={(e) => onFiles(e.target.files)} aria-label="Upload files" />
+        <div style={{ marginTop: 6, fontSize: 11 }}>Text only for now, stored in this browser with everything else.</div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="chead"><h3>Or paste it in</h3><span className="meta">an emailed receipt, a confirmation, a policy summary</span></div>
+        <textarea className="field" rows={3} placeholder="Paste any text worth keeping…" value={paste}
+          onChange={(e) => setPaste(e.target.value)} aria-label="Paste text" />
+        <button className="btn tiny" style={{ marginTop: 10 }} disabled={!paste.trim()}
+          onClick={() => {
+            const firstLine = paste.trim().split("\n")[0].slice(0, 50);
+            addDoc(firstLine || "Pasted note", paste.trim());
+            setPaste("");
+          }}>Keep it</button>
+      </div>
+
+      <div className="toolbar">
+        <input className="field" style={{ minWidth: 220 }} placeholder="Search inside everything"
+          value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search files" />
+        <select className="field" value={folder} onChange={(e) => setFolder(e.target.value)} aria-label="Filter by folder">
+          <option value="all">All folders</option>
+          {FOLDERS.map((f) => <option key={f}>{f}</option>)}
+        </select>
+        <span className="muted num" style={{ marginLeft: "auto" }}>{rows.length} of {docs.length}</span>
+      </div>
+
+      {docs.length === 0 && (
+        <div className="card"><p className="empty">Nothing filed yet. Drop in the first receipt and this becomes the drawer you actually find things in.</p></div>
+      )}
+      {rows.map((d) => (
+        <div className="doc" key={d.id}>
+          <div className="rowname" style={{ justifyContent: "space-between" }}>
+            <input value={d.name} onChange={(e) => set(d.id, "name", e.target.value)} aria-label="File name"
+              style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 16 }} />
+            <span style={{ display: "flex", gap: 6, alignItems: "center", flex: "none" }}>
+              <select className="tag" value={d.folder || "Other"} onChange={(e) => set(d.id, "folder", e.target.value)} aria-label="File under">
+                {FOLDERS.map((f) => <option key={f}>{f}</option>)}
+              </select>
+              <span className="muted" style={{ fontSize: 11 }}>{d.added}</span>
+              <button className="btn ghost tiny" onClick={() => setOpen(open === d.id ? null : d.id)}>
+                {open === d.id ? "Close" : "Open"}
+              </button>
+              <button className="kill" onClick={() => patch((s) => { s.docs = (s.docs || []).filter((x) => x.id !== d.id); return s; })}
+                aria-label={`Remove ${d.name}`}>×</button>
+            </span>
+          </div>
+          {open === d.id
+            ? <pre>{d.text}</pre>
+            : <p className="snip">{snippet(d)}{d.text.length > 150 ? "…" : ""}</p>}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* ================================================================== */
 /*  5. goals                                                           */
 /* ================================================================== */
 
@@ -1462,8 +1730,8 @@ function Reports({ ctx }) {
                   <CartesianGrid stroke={C.line} vertical={false} />
                   <XAxis dataKey="name" {...axis} />
                   <YAxis {...axis} tickFormatter={compact} width={46} />
-                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(237,230,218,.05)" }} />
-                  <Bar dataKey="Planned" fill="rgba(237,230,218,.16)" radius={3} />
+                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(34,29,23,.05)" }} />
+                  <Bar dataKey="Planned" fill="rgba(34,29,23,.14)" radius={3} />
                   <Bar dataKey="Spent" fill={C.a} radius={3} />
                 </BarChart>
               </ResponsiveContainer>
@@ -1501,7 +1769,7 @@ function Reports({ ctx }) {
                 <CartesianGrid stroke={C.line} vertical={false} />
                 <XAxis dataKey="label" {...axis} />
                 <YAxis {...axis} tickFormatter={compact} width={46} />
-                <Tooltip content={<Tip />} cursor={{ fill: "rgba(237,230,218,.05)" }} />
+                <Tooltip content={<Tip />} cursor={{ fill: "rgba(34,29,23,.05)" }} />
                 <Bar dataKey="Spent" stackId="s" fill={C.a} radius={[0, 0, 3, 3]} />
                 <Bar dataKey="Toward goals" stackId="s" fill={C.joint} radius={[3, 3, 0, 0]} />
                 <ReferenceLine y={m.income} stroke={C.ink} strokeDasharray="4 3" />
@@ -1762,6 +2030,7 @@ function SettingsView({ ctx, setState }) {
             ["Goals", state.goals.length],
             ["Accounts", state.accounts.length],
             ["Bills", state.bills.length],
+            ["Files", (state.docs || []).length],
           ].map(([k, v]) => (
             <div className="note" key={k} style={{ justifyContent: "space-between" }}>
               <span className="muted">{k}</span><span className="num">{v}</span>
@@ -1800,6 +2069,7 @@ function Setup({ onDone }) {
       goals: [],
       accounts: [],
       bills: [],
+      docs: [],
       chat: [],
     });
   };
