@@ -60,6 +60,10 @@ const ordinal = (d) => {
 };
 
 const GROUPS = ["Home", "Daily", "Lifestyle", "Health", "Giving", "Other"];
+const GROUP_COLORS = {
+  Home: "#A5821F", Daily: "#2E6F63", Lifestyle: "#6B5CA5",
+  Health: "#4C8C7E", Giving: "#C9A227", Other: "#8C7BC0",
+};
 
 const seedEnvelopes = () => [
   { id: uid(), name: "Rent / mortgage", group: "Home", planned: 0, owner: "joint" },
@@ -311,6 +315,12 @@ body{margin:0;background:#F2EDE2;}
 .tc .kpi .val{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
  font-size:22px;letter-spacing:-.02em;margin-top:8px;line-height:1.1;word-break:break-word;}
 .tc .kpi .foot{font-size:11.5px;color:var(--soft);margin-top:7px;line-height:1.4;}
+.tc .kpi.click{cursor:pointer;text-align:left;width:100%;font-family:inherit;font-size:inherit;color:inherit;
+ transition:border-color .15s ease;}
+.tc .kpi.click:hover{border-color:var(--joint);}
+.tc .kpi.click.on{border-color:var(--joint);background:var(--goldsoft);}
+.tc .quickbill{display:grid;grid-template-columns:minmax(150px,1fr) 110px 100px 190px auto;gap:8px;align-items:center;}
+@media(max-width:760px){.tc .quickbill{grid-template-columns:1fr 1fr;}}
 .tc .up{color:var(--a);}.tc .down{color:var(--warn);}.tc .mid{color:var(--joint);}
 
 /* rail */
@@ -514,8 +524,8 @@ export default function App() {
             ))}
           </nav>
           <div className="topnet">
-            <span className="num" style={{ fontSize: 14 }}>{money(m.netWorth)}</span>
-            <span className="who">net worth</span>
+            <span className="num" style={{ fontSize: 14, color: m.available < 0 ? C.warn : undefined }}>{money(m.available)}</span>
+            <span className="who">free to spend</span>
             {state.demo && (
               <button className="btn ghost tiny" style={{ marginTop: 6 }}
                 onClick={async () => {
@@ -637,6 +647,14 @@ function model(state, plan, month) {
   const billsTotal = bills.reduce((n, b) => n + b.amount, 0);
   const billsLeft = bills.filter((b) => !b.paid).reduce((n, b) => n + b.amount, 0);
 
+  // What's genuinely still spendable: income, less goal savings, less what
+  // has already gone out, less the bills that haven't hit yet.
+  const available = income - goalMonthly - spent - billsLeft;
+  const liveMonth = month === monthKey(new Date());
+  const [my, mo] = month.split("-").map(Number);
+  const daysLeft = liveMonth ? new Date(my, mo, 0).getDate() - todayDay() + 1 : 0;
+  const perDay = liveMonth && daysLeft > 0 && available > 0 ? available / daysLeft : null;
+
   const payoff = (extra, strategy) => {
     const list = debts.map((d) => ({ ...d }));
     if (!list.length) return { months: 0, interest: 0, order: [] };
@@ -757,7 +775,7 @@ function model(state, plan, month) {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
     goalStatus, history, bills, billsTotal, billsLeft, payoff, notes, thesis, shareA, jointCost,
-    faithOn, giving, verse, verseLine,
+    faithOn, giving, verse, verseLine, available, daysLeft, perDay,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),
     ownerName: (o) => (o === "a" ? pA.name : o === "b" ? pB.name : "Both"),
   };
@@ -782,13 +800,18 @@ const MonthNav = ({ month, setMonth }) => (
   </div>
 );
 
-const Kpi = ({ label, value, foot, tone }) => (
-  <div className="card kpi">
-    <div className="lab">{label}</div>
-    <div className={"val " + (tone || "")}>{value}</div>
-    {foot && <div className="foot">{foot}</div>}
-  </div>
-);
+const Kpi = ({ label, value, foot, tone, onClick, active }) => {
+  const inner = (
+    <>
+      <div className="lab">{label}</div>
+      <div className={"val " + (tone || "")}>{value}</div>
+      {foot && <div className="foot">{foot}</div>}
+    </>
+  );
+  return onClick
+    ? <button className={"card kpi click" + (active ? " on" : "")} onClick={onClick}>{inner}</button>
+    : <div className="card kpi">{inner}</div>;
+};
 
 const Tip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
@@ -836,6 +859,42 @@ const Notes = ({ notes, limit }) => (
     ))}
   </div>
 );
+
+/*  One spending entry, editable in place — note, envelope, who, amount.
+    Used on the dashboard (detail + group drill-down) and in Spending.   */
+function EntryRow({ t, plan, m, writeMonth }) {
+  const env = plan.envelopes.find((e) => e.id === t.envId);
+  const set = (f, v) => writeMonth((mm) => {
+    const x = mm.entries.find((y) => y.id === t.id);
+    if (x) x[f] = v;
+    return mm;
+  });
+  return (
+    <div className="row wide">
+      <div className="rowname">
+        <button className="tag" style={{ color: m.ownerColor(t.who), borderColor: m.ownerColor(t.who) }}
+          onClick={() => {
+            const order = ["joint", "a", "b"];
+            set("who", order[(order.indexOf(t.who) + 1) % 3]);
+          }} title="Who spent it — tap to change">{m.ownerName(t.who)}</button>
+        <input value={t.note || ""} placeholder={env ? env.name : "Spending"}
+          onChange={(e) => set("note", e.target.value)} aria-label="Note" />
+        <select className="tag hideS" value={t.envId} onChange={(e) => set("envId", e.target.value)} aria-label="Envelope">
+          {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+      </div>
+      <div className="amt muted hideS">{t.date}</div>
+      <div className="amt">
+        <input className="num" value={t.amount || ""} placeholder="0"
+          onChange={(e) => set("amount", num(e.target.value))} aria-label="Amount" />
+      </div>
+      <div className="amt">
+        <button className="kill" onClick={() => writeMonth((mm) => { mm.entries = mm.entries.filter((y) => y.id !== t.id); return mm; })}
+          aria-label="Remove entry">×</button>
+      </div>
+    </div>
+  );
+}
 
 /*  The concierge: one sentence — typed or spoken — becomes a logged
     transaction. Tries the AI route first; a local parser catches it
@@ -956,11 +1015,18 @@ function Concierge({ ctx }) {
 /* ================================================================== */
 
 function Dashboard({ ctx }) {
-  const { m, plan, month, setMonth, state, setView } = ctx;
-  const catData = plan.envelopes
-    .map((e) => ({ name: e.name, spent: m.spentBy[e.id] || 0, planned: e.planned }))
-    .filter((d) => d.spent > 0 || d.planned > 0)
-    .sort((a, b) => b.spent - a.spent).slice(0, 7);
+  const { m, plan, month, setMonth, state, setView, writeMonth } = ctx;
+  const [showSpend, setShowSpend] = useState(false);
+  const [selGroup, setSelGroup] = useState(null);
+
+  const groupData = GROUPS
+    .map((g) => ({ name: g, value: (m.byGroup[g] || {}).spent || 0, planned: (m.byGroup[g] || {}).planned || 0 }))
+    .filter((d) => d.value > 0 || d.planned > 0);
+  const groupEnvIds = selGroup
+    ? plan.envelopes.filter((e) => (e.group || "Other") === selGroup).map((e) => e.id)
+    : [];
+  const groupEntries = plan.entries.filter((t) => groupEnvIds.includes(t.envId));
+  const selStats = selGroup ? (m.byGroup[selGroup] || { spent: 0, planned: 0 }) : null;
 
   return (
     <>
@@ -989,12 +1055,31 @@ function Dashboard({ ctx }) {
       )}
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi label="Net worth" value={money(m.netWorth)} foot={`${money(m.assetTotal)} assets · ${money(m.debtTotal)} owed`} tone={m.netWorth < 0 ? "down" : ""} />
-        <Kpi label="Left to spend" value={money(m.leftToSpend)} foot={`of ${money(m.planned)} planned`} tone={m.leftToSpend < 0 ? "down" : "up"} />
+        <Kpi label="Available to spend" value={money(m.available)} tone={m.available < 0 ? "down" : "up"}
+          foot={m.perDay !== null
+            ? `after bills & goals · ${money(m.perDay)}/day for ${m.daysLeft} more day${m.daysLeft === 1 ? "" : "s"}`
+            : "after unpaid bills and goal savings"} />
+        <Kpi label="Spent this month" value={money(m.spent)} tone={m.leftToSpend < 0 ? "down" : "up"}
+          foot={`${money(m.leftToSpend)} left of ${money(m.planned)} — tap to see & edit`}
+          onClick={() => setShowSpend(!showSpend)} active={showSpend} />
         <Kpi label="Unassigned" value={money(m.unallocated)} tone={m.unallocated < -1 ? "down" : m.unallocated > 1 ? "mid" : "up"}
           foot={m.unallocated > 1 ? "give it a job" : m.unallocated < -1 ? "over-planned" : "fully allocated"} />
         <Kpi label="Savings rate" value={Math.round(m.savingsRate) + "%"} foot={`${money(m.goalMonthly)} toward goals`} tone={m.savingsRate >= 15 ? "up" : "mid"} />
       </div>
+
+      {showSpend && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="chead">
+            <h3>This month, in detail</h3>
+            <span className="meta num">{money(m.spent)} across {plan.entries.length} entries — everything here is editable</span>
+          </div>
+          <div style={{ maxHeight: 340, overflowY: "auto" }}>
+            {plan.entries.length === 0
+              ? <p className="empty">Nothing logged yet this month. Tell the concierge above what you spent.</p>
+              : plan.entries.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} writeMonth={writeMonth} />)}
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="chead">
@@ -1002,6 +1087,72 @@ function Dashboard({ ctx }) {
           <span className="meta num">{money(m.income)} in · {money(m.allocated)} assigned</span>
         </div>
         <Rail m={m} plan={plan} />
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="chead">
+          <h3>Where it went</h3>
+          <span className="meta">{selGroup ? `${selGroup} — tap the slice again to close it` : "tap a slice or a chip to open it"}</span>
+        </div>
+        {groupData.length === 0 ? <p className="empty">Nothing planned or spent yet this month.</p> : (
+          <div className="grid g2">
+            <div>
+              <div style={{ height: 235 }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={groupData} dataKey="value" nameKey="name" innerRadius={56} outerRadius={86}
+                      paddingAngle={2} stroke="none" style={{ cursor: "pointer" }}
+                      onClick={(d) => {
+                        const n = d && (d.name || (d.payload && d.payload.name));
+                        if (n) setSelGroup(selGroup === n ? null : n);
+                      }}>
+                      {groupData.map((d, i) => (
+                        <Cell key={i} fill={GROUP_COLORS[d.name] || C.soft}
+                          opacity={selGroup && selGroup !== d.name ? 0.3 : 1} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<Tip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="chips" style={{ justifyContent: "center", marginBottom: 0 }}>
+                {groupData.map((d) => (
+                  <button key={d.name} className={"chip " + (selGroup === d.name ? "on" : "")}
+                    onClick={() => setSelGroup(selGroup === d.name ? null : d.name)}>
+                    <i className="dot" style={{ background: GROUP_COLORS[d.name] || C.soft, marginRight: 6 }} />
+                    {d.name} · {money(d.value)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              {!selGroup ? (
+                <p className="empty">
+                  The house, daily life, the fun, giving — each slice opens into every entry inside it,
+                  and anything can be changed right here.
+                </p>
+              ) : (
+                <>
+                  <div className="metaline" style={{ justifyContent: "space-between", marginBottom: 6 }}>
+                    <b style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 17 }}>{selGroup}</b>
+                    <span className="num">{money(selStats.spent)} of {money(selStats.planned)} planned</span>
+                  </div>
+                  <div className="track">
+                    <i style={{
+                      width: Math.min(100, selStats.planned > 0 ? (selStats.spent / selStats.planned) * 100 : (selStats.spent > 0 ? 100 : 0)) + "%",
+                      background: selStats.planned > 0 && selStats.spent > selStats.planned ? C.warn : GROUP_COLORS[selGroup],
+                    }} />
+                  </div>
+                  <div style={{ maxHeight: 250, overflowY: "auto" }}>
+                    {groupEntries.length === 0
+                      ? <p className="empty">Nothing logged in {selGroup} yet this month.</p>
+                      : groupEntries.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} writeMonth={writeMonth} />)}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid g23" style={{ marginBottom: 16 }}>
@@ -1032,39 +1183,6 @@ function Dashboard({ ctx }) {
         </div>
       </div>
 
-      <div className="grid g23" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <div className="chead"><h3>Where the month went</h3><span className="meta num">{money(m.spent)} spent</span></div>
-          {catData.length === 0 ? <p className="empty">Nothing logged yet this month.</p> : (
-            <div style={{ height: 26 * catData.length + 24 }}>
-              <ResponsiveContainer>
-                <BarChart data={catData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }} barCategoryGap={6}>
-                  <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" width={112} {...axis} />
-                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(34,29,23,.05)" }} />
-                  <Bar dataKey="planned" name="Planned" fill="rgba(34,29,23,.12)" radius={3} />
-                  <Bar dataKey="spent" name="Spent" fill={C.a} radius={3} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <div className="chead"><h3>Coming due</h3><span className="meta num">{money(m.billsLeft)} left</span></div>
-          {m.bills.length === 0 ? (
-            <p className="empty">No recurring bills yet. <button className="btn ghost tiny" onClick={() => setView("bills")}>Add some</button></p>
-          ) : m.bills.slice(0, 6).map((b) => (
-            <div className="note" key={b.id} style={{ justifyContent: "space-between" }}>
-              <span style={{ display: "flex", gap: 9, alignItems: "center" }}>
-                <span className="tick" style={{ background: b.paid ? C.a : b.overdue ? C.warn : C.joint, minHeight: 15 }} />
-                <span>{b.name}<span className="muted"> · {ordinal(b.day)}</span></span>
-              </span>
-              <span className={"num " + (b.paid ? "muted" : "")}>{money(b.amount)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div className="grid g2">
         <div className="card">
           <div className="chead"><h3>Goals</h3><button className="btn ghost tiny" onClick={() => setView("goals")}>Manage</button></div>
@@ -1087,22 +1205,24 @@ function Dashboard({ ctx }) {
             })}
         </div>
         <div className="card">
-          <div className="chead"><h3>Recent spending</h3><button className="btn ghost tiny" onClick={() => setView("txn")}>See all</button></div>
-          {plan.entries.length === 0 ? <p className="empty">Nothing logged yet this month.</p> :
-            plan.entries.slice(0, 7).map((t) => {
-              const env = plan.envelopes.find((e) => e.id === t.envId);
-              return (
-                <div className="note" key={t.id} style={{ justifyContent: "space-between" }}>
-                  <span style={{ display: "flex", gap: 9, alignItems: "center", minWidth: 0 }}>
-                    <i className="dot" style={{ background: m.ownerColor(t.who) }} />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {t.note || (env ? env.name : "Spending")}
-                    </span>
-                  </span>
-                  <span className="num">{money(t.amount)}</span>
-                </div>
-              );
-            })}
+          <div className="chead">
+            <h3>Coming due</h3>
+            <span style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+              <span className="meta num">{money(m.billsLeft)} left</span>
+              <button className="btn ghost tiny" onClick={() => setView("bills")}>Manage</button>
+            </span>
+          </div>
+          {m.bills.length === 0 ? (
+            <p className="empty">No recurring bills yet. <button className="btn ghost tiny" onClick={() => setView("bills")}>Add some</button></p>
+          ) : m.bills.slice(0, 7).map((b) => (
+            <div className="note" key={b.id} style={{ justifyContent: "space-between" }}>
+              <span style={{ display: "flex", gap: 9, alignItems: "center" }}>
+                <span className="tick" style={{ background: b.paid ? C.a : b.overdue ? C.warn : C.joint, minHeight: 15 }} />
+                <span>{b.name}<span className="muted"> · {ordinal(b.day)}</span></span>
+              </span>
+              <span className={"num " + (b.paid ? "muted" : "")}>{money(b.amount)}</span>
+            </div>
+          ))}
         </div>
       </div>
     </>
@@ -1242,25 +1362,7 @@ function Spending({ ctx }) {
 
       <div className="card">
         {rows.length === 0 ? <p className="empty">Nothing matches. Clear the filters, or log something above.</p> :
-          rows.map((t) => {
-            const e = plan.envelopes.find((x) => x.id === t.envId);
-            const idx = plan.entries.indexOf(t);
-            return (
-              <div className="row wide" key={t.id}>
-                <div className="rowname">
-                  <i className="dot" style={{ background: m.ownerColor(t.who) }} />
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.note || "Spending"}</span>
-                  <span className="tag">{e ? e.name : "unfiled"}</span>
-                </div>
-                <div className="amt muted hideS" style={{ textAlign: "left" }}>{m.ownerName(t.who)}</div>
-                <div className="amt muted hideS">{t.date}</div>
-                <div className="amt num">
-                  {money(t.amount, true)}
-                  <button className="kill" onClick={() => writeMonth((mm) => { mm.entries.splice(idx, 1); return mm; })} aria-label="Remove">×</button>
-                </div>
-              </div>
-            );
-          })}
+          rows.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} writeMonth={writeMonth} />)}
       </div>
     </>
   );
@@ -1307,9 +1409,44 @@ function Logger({ envelopes, m, onAdd }) {
 /*  4. bills                                                           */
 /* ================================================================== */
 
+const COMMON_BILLS = ["Rent", "Mortgage", "Electric", "Water", "Gas", "Internet", "Phone plan", "Car payment", "Car insurance", "Streaming", "Gym"];
+
 function BillsView({ ctx }) {
   const { m, state, patch, plan, writeMonth, month, setMonth } = ctx;
   const set = (i, f, v) => patch((s) => { s.bills[i][f] = v; return s; });
+  const [nb, setNb] = useState({ name: "", amount: "", day: "", envId: "" });
+
+  const guessEnv = (name) => {
+    const n = name.toLowerCase();
+    const rules = [
+      [/rent|mortgage/, /rent|mortgage/],
+      [/electric|water|gas|internet|wifi|phone|utilit|trash|sewer/, /utilit/],
+      [/car payment|auto loan|loan|card/, /debt/],
+      [/stream|subscript|music/, /subscript/],
+      [/gym|dental|insurance|health/, /health/],
+    ];
+    for (const [k, e] of rules) {
+      if (k.test(n)) {
+        const env = plan.envelopes.find((x) => e.test(x.name.toLowerCase()));
+        if (env) return env.id;
+      }
+    }
+    return "";
+  };
+
+  const addBill = () => {
+    if (!nb.name.trim() || !num(nb.amount)) return;
+    patch((s) => {
+      s.bills.push({
+        id: uid(), name: nb.name.trim(), amount: num(nb.amount),
+        day: Math.min(31, Math.max(1, num(nb.day) || 1)),
+        envId: nb.envId, owner: "joint",
+      });
+      return s;
+    });
+    setNb({ name: "", amount: "", day: "", envId: "" });
+  };
+  const nbKey = (e) => e.key === "Enter" && addBill();
 
   const togglePaid = (b) => writeMonth((mm) => {
     mm.paid = mm.paid || [];
@@ -1334,6 +1471,33 @@ function BillsView({ ctx }) {
         <Kpi label="Monthly bills" value={money(m.billsTotal)} foot={`${state.bills.length} recurring`} />
         <Kpi label="Still unpaid" value={money(m.billsLeft)} tone={m.billsLeft > 0 ? "mid" : "up"} />
         <Kpi label="Share of income" value={m.income ? Math.round((m.billsTotal / m.income) * 100) + "%" : "—"} />
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="chead"><h3>Add a bill</h3><span className="meta">tap one below, or type your own — it picks the envelope for you</span></div>
+        <div className="chips">
+          {COMMON_BILLS.map((b) => (
+            <button key={b} className={"chip " + (nb.name === b ? "on" : "")}
+              onClick={() => setNb({ ...nb, name: b, envId: guessEnv(b) })}>{b}</button>
+          ))}
+        </div>
+        <div className="quickbill">
+          <input className="field" placeholder="Bill name" value={nb.name}
+            onChange={(e) => setNb({ ...nb, name: e.target.value, envId: nb.envId || guessEnv(e.target.value) })}
+            onKeyDown={nbKey} aria-label="Bill name" />
+          <input className="field num" placeholder="$0" value={nb.amount}
+            onChange={(e) => setNb({ ...nb, amount: e.target.value })} onKeyDown={nbKey} aria-label="Amount" />
+          <input className="field num" placeholder="Due day" value={nb.day}
+            onChange={(e) => setNb({ ...nb, day: e.target.value })} onKeyDown={nbKey} aria-label="Due day of month" />
+          <select className="field" value={nb.envId} onChange={(e) => setNb({ ...nb, envId: e.target.value })} aria-label="Envelope">
+            <option value="">no envelope</option>
+            {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+          <button className="btn" onClick={addBill} disabled={!nb.name.trim() || !num(nb.amount)}>Add</button>
+        </div>
+        <p className="empty" style={{ marginTop: 10 }}>
+          Link an envelope and marking the bill paid logs the spending into it automatically.
+        </p>
       </div>
 
       <div className="card">
@@ -1369,10 +1533,6 @@ function BillsView({ ctx }) {
             </div>
           );
         })}
-        <button className="btn ghost tiny" style={{ marginTop: 14 }} onClick={() => patch((s) => {
-          s.bills.push({ id: uid(), name: "New bill", amount: 0, day: 1, envId: "", owner: "joint" });
-          return s;
-        })}>Add a bill</button>
       </div>
     </>
   );
@@ -1944,6 +2104,7 @@ function PlannerPage({ ctx }) {
     netWorth: m.netWorth,
     totalDebt: m.debtTotal,
     unassignedEachMonth: m.unallocated,
+    availableToSpendRestOfMonth: m.available,
     savingsRatePct: Math.round(m.savingsRate),
     lastSixMonths: m.history.map((h) => ({ month: h.label, spent: h.spent })),
     ...(m.faithOn && {
@@ -2027,7 +2188,7 @@ function PlannerPage({ ctx }) {
         <div>
           <div className="card" style={{ marginBottom: 16 }}>
             <div className="chead"><h3>What it's looking at</h3></div>
-            {[["Income", m.income], ["Planned out", m.planned], ["Bills", m.billsTotal], ["Goals", m.goalMonthly], ["Net worth", m.netWorth]].map(([k, v]) => (
+            {[["Income", m.income], ["Available to spend", m.available], ["Planned out", m.planned], ["Bills", m.billsTotal], ["Goals", m.goalMonthly]].map(([k, v]) => (
               <div className="note" key={k} style={{ justifyContent: "space-between" }}>
                 <span className="muted">{k}</span><span className="num">{money(v)}</span>
               </div>
