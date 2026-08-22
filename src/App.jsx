@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v34";
+const APP_VERSION = "v35";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -242,6 +242,7 @@ const NAV_SECTIONS = [
     ["goals", "Goals"],
   ]],
   ["Longer view", [
+    ["plan", "Plan ahead"],
     ["worth", "Net worth"],
     ["reports", "Reports"],
     ["planner", "Assistant"],
@@ -256,6 +257,7 @@ const IC = {
   txn: <path d="M4 6h16M4 12h16M4 18h10" />,
   bills: <><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h4" /></>,
   goals: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" /></>,
+  plan: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>,
   worth: <path d="M3 20h18M6 16l4-6 4 3 5-8" />,
   reports: <path d="M5 20v-8M12 20V5M19 20v-5" />,
   planner: <path d="M4 5h16v11H9l-5 4z" />,
@@ -784,6 +786,7 @@ export default function App() {
           {view === "txn" && <Spending ctx={ctx} />}
           {view === "bills" && <BillsView ctx={ctx} />}
           {view === "goals" && <GoalsView ctx={ctx} />}
+          {view === "plan" && <PlanAhead ctx={ctx} />}
           {view === "worth" && <NetWorth ctx={ctx} />}
           {view === "reports" && <Reports ctx={ctx} />}
           {view === "planner" && <PlannerPage ctx={ctx} />}
@@ -1253,7 +1256,7 @@ function model(state, plan, month) {
   return {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
-    cashTotal, runwayMonths, monthlyNet, health,
+    cashTotal, runwayMonths, monthlyNet, monthlyCost, health,
     goalStatus, history, bills, billsTotal, billsLeft, billHistory, billPaidByMonth, billMethodMix, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, celebrations, verse, verseLine, available, daysLeft, perDay,
     baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
@@ -3429,6 +3432,179 @@ function GoalsView({ ctx }) {
 }
 
 /* ================================================================== */
+/*  5b. plan ahead — the what-if builder                               */
+/* ================================================================== */
+
+// Enter something big and dated (a vacation, a move, a big purchase) and
+// see how it lands on the month: what it takes to be ready, what it does
+// to free cash flow and the emergency cushion. Scenarios persist in
+// state.scenarios and can be committed as a real goal.
+function PlanAhead({ ctx }) {
+  const { m, state, patch, month, setView } = ctx;
+  const scenarios = state.scenarios || [];
+  const defaultDate = `${shiftMonth(month, 3)}-15`;
+
+  const upsert = (id, f, v) => patch((s) => {
+    s.scenarios = s.scenarios || [];
+    const x = s.scenarios.find((y) => y.id === id);
+    if (x) x[f] = v;
+    return s;
+  });
+  const add = () => patch((s) => {
+    s.scenarios = [...(s.scenarios || []), { id: uid(), name: "Vacation", amount: 3000, date: defaultDate, fund: "save" }];
+    return s;
+  });
+  const remove = (id) => patch((s) => { s.scenarios = (s.scenarios || []).filter((y) => y.id !== id); return s; });
+
+  // Per-scenario math + aggregate impact on the month.
+  const rows = scenarios.map((sc) => {
+    const target = (sc.date || defaultDate).slice(0, 7);
+    const monthsUntil = Math.max(1, monthsBetween(month, target));
+    const amount = num(sc.amount);
+    const monthly = sc.fund === "save" ? amount / monthsUntil : 0;
+    return { ...sc, amount, target, monthsUntil, monthly };
+  });
+  const extraMonthly = rows.filter((r) => r.fund === "save").reduce((n, r) => n + r.monthly, 0);
+  const cashHit = rows.filter((r) => r.fund === "cash").reduce((n, r) => n + r.amount, 0);
+  const newNet = m.monthlyNet - extraMonthly;
+  const newCash = m.cashTotal - cashHit;
+  const newRunway = m.monthlyCost > 0 ? newCash / m.monthlyCost : 0;
+
+  // Rough cash projection: general cash climbs by free cash flow, less
+  // what these plans set aside or spend, month by month for a year.
+  const horizon = Math.min(18, Math.max(12, ...rows.map((r) => r.monthsUntil + 1)));
+  const proj = [];
+  for (let i = 0; i <= horizon; i++) {
+    let drag = 0;
+    rows.forEach((r) => {
+      if (r.fund === "save") drag += Math.min(i, r.monthsUntil) * r.monthly;
+      else if (i >= r.monthsUntil) drag += r.amount;
+    });
+    proj.push({
+      label: monthLabel(shiftMonth(month, i), true),
+      "As you are": Math.round(m.cashTotal + m.monthlyNet * i),
+      "With this plan": Math.round(m.cashTotal + m.monthlyNet * i - drag),
+    });
+  }
+
+  const verdict = !rows.length ? null
+    : newNet < -1 ? { tone: "serious", text: `Setting aside ${money(extraMonthly)} a month would run the month ${money(-newNet)} short. Push the date out, trim a category, or cover part from savings.` }
+    : cashHit > 0 && newRunway < 1 ? { tone: "serious", text: `Paying ${money(cashHit)} from savings drops your cushion to ${newRunway.toFixed(1)} months — below one month of costs. Consider saving toward it instead.` }
+    : cashHit > 0 && newRunway < 3 ? { tone: "watch", text: `Doable — but paying from savings takes your cushion from ${m.runwayMonths.toFixed(1)} to ${newRunway.toFixed(1)} months. Building it back is the follow-up.` }
+    : extraMonthly > 0 ? { tone: "good", text: `You can do this. ${money(extraMonthly)} a month gets you there and still leaves ${money(newNet)} of free cash flow.` }
+    : { tone: "good", text: `Covered from savings with the cushion intact at ${newRunway.toFixed(1)} months.` };
+
+  return (
+    <>
+      <Head title="Plan ahead" sub="Enter something big and coming up — see what it takes and how it lands on your month." />
+
+      <Guidance m={m} theme="planning"
+        line={rows.length ? `${rows.length} plan${rows.length === 1 ? "" : "s"} on the board, ${money(extraMonthly)} a month to be ready.` : "Nothing on the board yet — add a trip, a move, or a big purchase below."} />
+
+      {verdict && (
+        <div className={"card health"} style={{ marginBottom: 16 }}>
+          <div className="health-top">
+            <div className="health-head" style={{ minWidth: 0 }}>
+              <div className="biglab">The read</div>
+              <p className="hr" style={{ marginTop: 8, fontSize: 15 }}>{verdict.text}</p>
+            </div>
+          </div>
+          <div className="vitals" style={{ marginTop: 16, paddingTop: 16 }}>
+            <div className="vital">
+              <div className="v-h"><span className="v-dot" style={{ background: extraMonthly > 0 ? C.b : C.soft }} /><span className="v-l">Set aside / month</span></div>
+              <div className="v-v">{extraMonthly > 0 ? money(extraMonthly) : "—"}</div>
+              <div className="v-n">across {rows.filter((r) => r.fund === "save").length || "no"} saved-up plan{rows.filter((r) => r.fund === "save").length === 1 ? "" : "s"}</div>
+            </div>
+            <div className="vital">
+              <div className="v-h"><span className="v-dot" style={{ background: newNet < 0 ? C.warn : C.good }} /><span className="v-l">Free cash flow</span></div>
+              <div className={"v-v " + (newNet < 0 ? "v-serious" : "v-good")}>{(newNet >= 0 ? "+" : "−") + money(Math.abs(newNet)).replace(/^-/, "")}</div>
+              <div className="v-n">was {(m.monthlyNet >= 0 ? "+" : "−") + money(Math.abs(m.monthlyNet)).replace(/^-/, "")} a month</div>
+            </div>
+            <div className="vital">
+              <div className="v-h"><span className="v-dot" style={{ background: cashHit === 0 ? C.soft : newRunway < 1 ? C.warn : newRunway < 3 ? C.b : C.good }} /><span className="v-l">Emergency runway</span></div>
+              <div className="v-v">{cashHit > 0 ? `${newRunway.toFixed(1)} mo` : `${m.runwayMonths.toFixed(1)} mo`}</div>
+              <div className="v-n">{cashHit > 0 ? `was ${m.runwayMonths.toFixed(1)} months before this` : "unchanged — nothing from savings"}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="chead"><h3>What's coming up</h3><span className="meta">a trip, a move, a big purchase</span></div>
+        {rows.length === 0 && <p className="empty">Add something you know is coming and we'll show what it takes to be ready.</p>}
+        {rows.map((r) => (
+          <div className="editor" key={r.id} style={{ marginTop: 10 }}>
+            <div className="fields">
+              <div>
+                <label className="lbl">What is it</label>
+                <input className="field" value={r.name} onChange={(e) => upsert(r.id, "name", e.target.value)} aria-label="What is it" />
+              </div>
+              <div>
+                <label className="lbl">Cost</label>
+                <MoneyInput value={r.amount} onCommit={(v) => upsert(r.id, "amount", v)} aria-label="Cost" />
+              </div>
+              <div>
+                <label className="lbl">When</label>
+                <input className="field num" type="date" value={r.date || defaultDate}
+                  onChange={(e) => e.target.value && upsert(r.id, "date", e.target.value)} aria-label="When" />
+              </div>
+              <div>
+                <label className="lbl">How you'll fund it</label>
+                <select className="field" value={r.fund} onChange={(e) => upsert(r.id, "fund", e.target.value)} aria-label="How you'll fund it">
+                  <option value="save">Save up monthly</option>
+                  <option value="cash">Pay from savings</option>
+                </select>
+              </div>
+            </div>
+            <div className="snip" style={{ marginTop: 10 }}>
+              {r.fund === "save"
+                ? <>Set aside <b className="num">{money(r.monthly)}</b> a month for <b>{r.monthsUntil}</b> month{r.monthsUntil === 1 ? "" : "s"} to have <b className="num">{money(r.amount)}</b> by {monthLabel(r.target)}.</>
+                : <>Pays <b className="num">{money(r.amount)}</b> out of savings around {monthLabel(r.target)} — cash goes to <b className="num">{money(m.cashTotal - r.amount)}</b> that month.</>}
+            </div>
+            <div className="efoot">
+              {r.fund === "save" && (
+                <button className="btn ghost tiny" onClick={() => {
+                  patch((s) => {
+                    s.goals = s.goals || [];
+                    s.goals.push({ id: uid(), name: r.name, target: r.amount, saved: 0, monthly: Math.round(r.monthly), due: r.target, owner: "joint" });
+                    s.scenarios = (s.scenarios || []).filter((y) => y.id !== r.id);
+                    return s;
+                  });
+                  setView("goals");
+                }}>Make it a goal</button>
+              )}
+              <button className="btn ghost tiny" style={{ marginLeft: "auto", color: C.warn }} onClick={() => remove(r.id)}>Remove</button>
+            </div>
+          </div>
+        ))}
+        <button className="btn ghost tiny" style={{ marginTop: 14 }} onClick={add}>Add something coming up</button>
+      </div>
+
+      {rows.length > 0 && (
+        <div className="card">
+          <div className="chead"><h3>Your cash, the next year</h3><span className="meta">rough projection — as you are vs. with this plan</span></div>
+          <ResponsiveContainer width="100%" height={230}>
+            <LineChart data={proj} margin={{ top: 6, right: 10, left: 6, bottom: 0 }}>
+              <CartesianGrid stroke={C.line} vertical={false} />
+              <XAxis dataKey="label" {...axis} interval="preserveStartEnd" />
+              <YAxis {...axis} tickFormatter={compact} width={46} />
+              <Tooltip content={<Tip />} />
+              <ReferenceLine y={0} stroke={C.warn} strokeDasharray="3 3" />
+              <Line type="monotone" dataKey="As you are" stroke={C.soft} strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+              <Line type="monotone" dataKey="With this plan" stroke={C.a} strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+          <div className="railkey" style={{ marginTop: 12 }}>
+            <span><i className="dot" style={{ background: C.soft }} />As you are</span>
+            <span><i className="dot" style={{ background: C.a }} />With this plan</span>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ================================================================== */
 /*  6. net worth + debt                                                */
 /* ================================================================== */
 
@@ -3729,6 +3905,9 @@ function buildSnapshot(state, m, plan, month) {
       score: m.health.score, standing: m.health.label,
       vitals: m.health.vitals.map((v) => ({ what: v.label, value: v.value, status: v.status })),
     },
+    upcomingPlans: (state.scenarios || []).map((sc) => ({
+      what: sc.name, cost: num(sc.amount), when: sc.date, funding: sc.fund === "cash" ? "from savings" : "saving monthly",
+    })),
     lastSixMonths: m.history.map((h) => ({ month: h.label, spent: h.spent })),
     ...(m.faithOn && {
       stewardship: {

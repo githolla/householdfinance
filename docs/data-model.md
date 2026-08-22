@@ -73,6 +73,11 @@ One JSON object, persisted whole under `twocolumn:v2`.
       "analysis": "..." }                                    // optional stored AI read of the doc
   ],
 
+  "scenarios": [                                     // Plan-ahead builder: upcoming big items
+    { "id": "s1", "name": "Vacation", "amount": 3000,
+      "date": "2026-12-15", "fund": "save" }          // fund: "save" (set aside monthly) | "cash" (pay from savings)
+  ],
+
   "faith": { "enabled": true, "givingTarget": 10 },  // scripture layer (absent = on) + giving % target (default 10)
 
   "milestones": ["debt:a1", "tithe:2026-08"],        // celebration ids already marked
