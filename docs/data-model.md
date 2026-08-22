@@ -30,9 +30,12 @@ One JSON object, persisted whole under `twocolumn:v2`.
 
   "incomes": [
     { "id": "i1", "name": "Freelance invoice", "amount": 600, "day": 25,
-      "who": "a", "recurring": false, "month": "2026-08" }
-    // recurring: true applies every month (month is ""); false applies only to `month`.
-    // model() adds these to the partners' take-home for every derived number.
+      "who": "a", "recurring": false, "month": "2026-08", "date": "2026-08-25" }
+    // recurring: true applies every month on `day` (month/date are "").
+    // One-time incomes carry a real `date`; month and day are kept in sync
+    // with it so month-keyed computations work. A date in a later month
+    // shows on Budget as "on the horizon" and counts when that month comes.
+    // model() adds the month's incomes to take-home for every derived number.
   ],
 
   "goals": [

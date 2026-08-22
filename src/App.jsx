@@ -198,7 +198,7 @@ function demoState() {
     ],
     bills,
     incomes: [
-      { id: uid(), name: `${A}'s freelance invoice`, amount: 600, day: 25, who: "a", recurring: false, month: cur },
+      { id: uid(), name: `${A}'s freelance invoice`, amount: 600, day: 25, who: "a", recurring: false, month: cur, date: `${cur}-25` },
     ],
     docs: [
       {
@@ -712,6 +712,10 @@ function model(state, plan, month) {
   const extrasTotal = extras.reduce((n, i) => n + i.amount, 0);
   const incomingLeft = expected.filter((e) => !e.landed).reduce((n, e) => n + e.amount, 0);
   const income = baseIncome + extrasTotal;
+  // One-time incomes dated to a later month: visible now, counted then.
+  const upcoming = (state.incomes || [])
+    .filter((i) => !i.recurring && i.month && i.month > month)
+    .sort((x, y) => ((x.date || x.month) > (y.date || y.month) ? 1 : -1));
 
   const spentBy = {};
   plan.entries.forEach((t) => { spentBy[t.envId] = (spentBy[t.envId] || 0) + t.amount; });
@@ -824,7 +828,7 @@ function model(state, plan, month) {
   });
   bills.filter((b) => b.overdue).forEach((b) => notes.push(["warn", `${b.name} was due the ${ordinal(b.day)} and isn't marked paid.`]));
   bills.filter((b) => b.dueSoon).forEach((b) => notes.push(["joint", `${b.name} (${money(b.amount)}) is due the ${ordinal(b.day)}.`]));
-  expected.filter((e) => e.late).forEach((e) => notes.push(["joint", `${e.name} (${money(e.amount)}) was expected the ${ordinal(e.day)} and isn't marked landed.`]));
+  expected.filter((e) => e.late).forEach((e) => notes.push(["joint", `${e.name} (${money(e.amount)}) was expected the ${ordinal(e.day)} and hasn't been marked received.`]));
   state.goals.forEach((g) => {
     const st = goalStatus(g);
     if (st.late) notes.push(["warn", `${g.name} misses ${monthLabel(g.due)} at ${money(g.monthly)}/mo — it needs ${money(st.needed)}.`]);
@@ -926,7 +930,7 @@ function model(state, plan, month) {
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
     goalStatus, history, bills, billsTotal, billsLeft, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, verse, verseLine, available, daysLeft, perDay,
-    baseIncome, extrasTotal, expected, incomingLeft, singleIncome, covered,
+    baseIncome, extrasTotal, expected, incomingLeft, upcoming, singleIncome, covered,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),
     ownerText: (o) => (o === "a" ? CT.a : o === "b" ? CT.b : CT.joint),
     ownerName: (o) => (o === "a" ? pA.name : o === "b" ? pB.name : "Both"),
@@ -1335,7 +1339,7 @@ function Dashboard({ ctx }) {
       <div className="card herocard">
         <div className="biglab">Available to spend</div>
         <div className="bignum num" style={{ color: m.available < 0 ? C.warn : C.ink }}>
-          {money(m.available)}<span className="ofinc"> of {money(m.income)} coming in{m.incomingLeft > 0 ? ` (${money(m.incomingLeft)} still to land)` : ""}{m.perDay !== null ? ` · ${money(m.perDay)}/day for ${m.daysLeft} more day${m.daysLeft === 1 ? "" : "s"}` : ""}</span>
+          {money(m.available)}<span className="ofinc"> of {money(m.income)} coming in{m.incomingLeft > 0 ? ` (${money(m.incomingLeft)} still to come)` : ""}{m.perDay !== null ? ` · ${money(m.perDay)}/day for ${m.daysLeft} more day${m.daysLeft === 1 ? "" : "s"}` : ""}</span>
         </div>
         <p className="herosub">{m.thesis[0]} {m.thesis[1]}</p>
         <Rail m={m} plan={plan} />
@@ -1344,7 +1348,7 @@ function Dashboard({ ctx }) {
       <div className="grid g4" style={{ marginBottom: 16 }}>
         <Kpi label="Coming in" value={money(m.income)}
           foot={m.extrasTotal > 0
-            ? `${money(m.baseIncome)} take-home + ${money(m.extrasTotal)} posted${m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} yet to land` : ""}`
+            ? `${money(m.baseIncome)} take-home + ${money(m.extrasTotal)} posted${m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} yet to arrive` : ""}`
             : `${m.pA.name} & ${m.pB.name}, take-home`} />
         <Kpi label="Assigned" value={money(m.allocated)}
           foot={m.income > 0 ? `${money(m.planned)} to envelopes + ${money(m.goalMonthly)} to goals` : "set incomes in Settings"} />
@@ -1523,6 +1527,17 @@ function Budget({ ctx }) {
     if (x) x[f] = v;
     return s;
   });
+  // A one-time income carries a real calendar date; month and day stay
+  // synced to it so every month-keyed computation keeps working.
+  const setIncDate = (id, val) => patch((s) => {
+    const x = (s.incomes || []).find((y) => y.id === id);
+    if (x && val) {
+      x.date = val;
+      x.month = val.slice(0, 7);
+      x.day = Math.min(31, Number(val.slice(8, 10)) || 1);
+    }
+    return s;
+  });
   const toggleLanded = (inc) => writeMonth((mm) => {
     mm.received = mm.received.includes(inc.id)
       ? mm.received.filter((x) => x !== inc.id)
@@ -1543,7 +1558,7 @@ function Budget({ ctx }) {
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="chead">
           <h3>Money coming in</h3>
-          <span className="meta num">{money(m.income)} expected{m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} still to land` : ""}</span>
+          <span className="meta num">{money(m.income)} expected{m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} still to come` : ""}</span>
         </div>
         {[0, 1].map((i) => (
           <div className="row" key={i}>
@@ -1570,33 +1585,75 @@ function Budget({ ctx }) {
                   setInc(inc.id, "who", order[(order.indexOf(inc.who) + 1) % 3]);
                 }} title="Whose money — tap to change">{m.ownerName(inc.who)}</button>
               <input value={inc.name} onChange={(e) => setInc(inc.id, "name", e.target.value)} aria-label="Income name" />
+              {inc.late && <span className="tag" style={{ color: C.warn, borderColor: C.warn }}>running late</span>}
               <button className="tag hideS" onClick={() => patch((s) => {
                 const x = (s.incomes || []).find((y) => y.id === inc.id);
-                if (x) { x.recurring = !x.recurring; x.month = x.recurring ? "" : month; }
+                if (x) {
+                  x.recurring = !x.recurring;
+                  if (x.recurring) { x.month = ""; x.date = ""; }
+                  else { x.month = month; x.date = `${month}-${String(x.day || 15).padStart(2, "0")}`; }
+                }
                 return s;
-              })} title="One-time or every month">{inc.recurring ? "every month" : `${monthLabel(inc.month || month, true)} only`}</button>
+              })} title="One-time or every month">{inc.recurring ? "every month" : "one time"}</button>
               <button className="kill" onClick={() => patch((s) => { s.incomes = (s.incomes || []).filter((y) => y.id !== inc.id); return s; })}
                 aria-label={`Remove ${inc.name}`}>×</button>
             </div>
             <div className="amt hideS" style={{ textAlign: "left" }}>
-              <span className="muted">lands </span>
-              <input className="num" style={{ width: 36, textAlign: "left" }} value={inc.day}
-                onChange={(e) => setInc(inc.id, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Expected day" />
+              {inc.recurring ? (
+                <>
+                  <span className="muted">on the </span>
+                  <input className="num" style={{ width: 36, textAlign: "left" }} value={inc.day}
+                    onChange={(e) => setInc(inc.id, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Day of month" />
+                </>
+              ) : (
+                <input className="field num" type="date" style={{ width: 155, padding: "4px 8px", fontSize: 12.5 }}
+                  value={inc.date || `${month}-${String(inc.day || 15).padStart(2, "0")}`}
+                  onChange={(e) => setIncDate(inc.id, e.target.value)} aria-label="Expected date" />
+              )}
             </div>
             <div className="amt">
               <input className="num" value={inc.amount || ""} placeholder="0"
                 onChange={(e) => setInc(inc.id, "amount", num(e.target.value))} aria-label="Amount" />
             </div>
             <div className="amt">
-              <button className={"btn tiny " + (inc.landed ? "" : "ghost")} onClick={() => toggleLanded(inc)}>
-                {inc.landed ? "Landed" : inc.late ? "Late — landed?" : "Mark landed"}
+              <button className={"btn tiny " + (inc.landed ? "" : "ghost")} onClick={() => toggleLanded(inc)}
+                title={inc.landed ? "Tap if it hasn't actually arrived" : "Tap when the money arrives"}>
+                {inc.landed ? "Received" : "Mark received"}
               </button>
             </div>
           </div>
         ))}
+        {m.upcoming.length > 0 && (
+          <>
+            <div className="grouphead">
+              <span>On the horizon</span>
+              <span className="num">{money(m.upcoming.reduce((n, i) => n + i.amount, 0))} in later months</span>
+            </div>
+            {m.upcoming.map((inc) => (
+              <div className="row wide" key={inc.id}>
+                <div className="rowname">
+                  <span className="tag" style={{ color: m.ownerText(inc.who), borderColor: m.ownerColor(inc.who) }}>{m.ownerName(inc.who)}</span>
+                  <input value={inc.name} onChange={(e) => setInc(inc.id, "name", e.target.value)} aria-label="Income name" />
+                  <button className="kill" onClick={() => patch((s) => { s.incomes = (s.incomes || []).filter((y) => y.id !== inc.id); return s; })}
+                    aria-label={`Remove ${inc.name}`}>×</button>
+                </div>
+                <div className="amt hideS" style={{ textAlign: "left" }}>
+                  <input className="field num" type="date" style={{ width: 155, padding: "4px 8px", fontSize: 12.5 }}
+                    value={inc.date || `${inc.month}-01`}
+                    onChange={(e) => setIncDate(inc.id, e.target.value)} aria-label="Expected date" />
+                </div>
+                <div className="amt">
+                  <input className="num" value={inc.amount || ""} placeholder="0"
+                    onChange={(e) => setInc(inc.id, "amount", num(e.target.value))} aria-label="Amount" />
+                </div>
+                <div className="amt muted" style={{ fontSize: 11.5 }}>counts in {monthLabel(inc.month, true)}</div>
+              </div>
+            ))}
+          </>
+        )}
         <button className="btn ghost tiny" style={{ marginTop: 12 }} onClick={() => patch((s) => {
           s.incomes = s.incomes || [];
-          s.incomes.push({ id: uid(), name: "Expected income", amount: 0, day: 15, who: "joint", recurring: false, month });
+          s.incomes.push({ id: uid(), name: "Expected income", amount: 0, day: 15, who: "joint", recurring: false, month, date: `${month}-15` });
           return s;
         })}>Add expected income</button>
         <p className="empty" style={{ marginTop: 8 }}>
@@ -2506,8 +2563,13 @@ function PlannerPage({ ctx }) {
     monthlyIncome: m.income,
     expectedEarningsThisMonth: m.expected.map((e) => ({
       name: e.name, amount: e.amount, expectedDay: e.day, whose: m.ownerName(e.who),
-      landed: e.landed, recurring: !!e.recurring,
+      received: e.landed, recurring: !!e.recurring,
     })),
+    ...(m.upcoming.length > 0 && {
+      futureEarnings: m.upcoming.map((e) => ({
+        name: e.name, amount: e.amount, expectedDate: e.date || e.month, whose: m.ownerName(e.who),
+      })),
+    }),
     envelopes: plan.envelopes.map((e) => ({
       name: e.name, group: e.group, planned: e.planned,
       spentSoFar: m.spentBy[e.id] || 0, coveredBy: m.ownerName(e.owner),
