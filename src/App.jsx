@@ -61,8 +61,8 @@ const ordinal = (d) => {
 
 const GROUPS = ["Home", "Daily", "Lifestyle", "Health", "Giving", "Other"];
 const GROUP_COLORS = {
-  Home: "#6366F1", Daily: "#0EA5E9", Lifestyle: "#8B5CF6",
-  Health: "#14B8A6", Giving: "#22C55E", Other: "#94A3B8",
+  Home: "#7086D6", Daily: "#6D9DC9", Lifestyle: "#A488CF",
+  Health: "#55A297", Giving: "#7FAE7A", Other: "#9AA3AE",
 };
 
 const seedEnvelopes = () => [
@@ -237,14 +237,14 @@ const IC = {
 };
 const Icon = ({ k, size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{IC[k]}</svg>
+    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{IC[k]}</svg>
 );
 
 const C = {
-  a: "#3B82F6", b: "#14B8A6", joint: "#F59E0B", warn: "#EF4444",
-  soft: "#6B7076", ink: "#17181C", line: "#E8E6E1",
+  a: "#7086D6", b: "#55A297", joint: "#C0965C", warn: "#D4574E",
+  soft: "#6F6F76", ink: "#18181B", line: "#E7E7E5",
 };
-const PIE = ["#3B82F6", "#14B8A6", "#F59E0B", "#8B5CF6", "#22C55E", "#EF4444", "#0EA5E9", "#F97316"];
+const PIE = ["#7086D6", "#55A297", "#C0965C", "#A488CF", "#7FAE7A", "#D4574E", "#6D9DC9", "#9AA3AE"];
 
 /* ================================================================== */
 /*  styles                                                             */
@@ -253,12 +253,12 @@ const PIE = ["#3B82F6", "#14B8A6", "#F59E0B", "#8B5CF6", "#22C55E", "#EF4444", "
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-body{margin:0;background:#F7F6F3;}
-.tc{--paper:#F7F6F3;--surface:#FFFFFF;--ink:#17181C;--soft:#6B7076;--line:#E8E6E1;
- --a:#3B82F6;--b:#14B8A6;--joint:#F59E0B;--warn:#EF4444;--r:14px;
- --acc:#2563EB;--accsoft:#EAF0FE;
- --goldline:rgba(245,158,11,.4);--goldsoft:rgba(245,158,11,.12);--hair:rgba(23,24,28,.07);
- --shadow:0 1px 2px rgba(16,24,40,.04),0 2px 6px rgba(16,24,40,.05);
+body{margin:0;background:#F6F6F5;}
+.tc{--paper:#F6F6F5;--surface:#FFFFFF;--ink:#18181B;--soft:#6F6F76;--line:#E7E7E5;
+ --a:#7086D6;--b:#55A297;--joint:#C0965C;--warn:#D4574E;--r:12px;
+ --acc:#5B5BD6;--accsoft:#F0F0FA;
+ --goldline:rgba(192,150,92,.4);--goldsoft:rgba(192,150,92,.1);--hair:rgba(0,0,0,.06);
+ --shadow:0 1px 2px rgba(0,0,0,.04);
  background:var(--paper);color:var(--ink);font-family:'Inter',ui-sans-serif,system-ui,sans-serif;
  min-height:100vh;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-size:14px;font-weight:400;}
 .tc *,.tc *::before,.tc *::after{box-sizing:border-box;}
@@ -267,7 +267,7 @@ body{margin:0;background:#F7F6F3;}
 .tc button{font-family:inherit;cursor:pointer;}
 .tc :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:6px;}
 .tc .gem{display:flex;align-items:center;justify-content:center;font-size:0;line-height:0;}
-.tc .gem::before{content:"";height:3px;width:34px;border-radius:2px;background:var(--acc);}
+.tc .gem::before{content:"";height:2px;width:28px;border-radius:2px;background:var(--ink);}
 .tc .gem::after{content:none;}
 
 /* shell — sidebar on desktop, bottom icon bar on mobile */
@@ -275,8 +275,8 @@ body{margin:0;background:#F7F6F3;}
 .tc .side{background:var(--surface);border-right:1px solid var(--line);padding:18px 14px;
  position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:18px;overflow-y:auto;}
 .tc .mark{display:flex;align-items:center;gap:10px;line-height:1.25;}
-.tc .avatar{width:36px;height:36px;border-radius:11px;background:var(--acc);color:#fff;flex:none;
- display:grid;place-items:center;font-weight:700;font-size:16px;}
+.tc .avatar{width:34px;height:34px;border-radius:9px;background:var(--ink);color:#fff;flex:none;
+ display:grid;place-items:center;font-weight:600;font-size:15px;}
 .tc .mark .nm{font-family:'Space Grotesk',Inter,sans-serif;font-weight:600;font-size:15.5px;letter-spacing:-.01em;display:block;}
 .tc .mark .who{font-size:11.5px;color:var(--soft);}
 .tc .navlab{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
@@ -284,11 +284,12 @@ body{margin:0;background:#F7F6F3;}
 .tc nav{display:flex;flex-direction:column;gap:2px;}
 .tc nav button{display:flex;align-items:center;gap:10px;background:none;border:none;border-radius:10px;
  padding:8px 10px;font-size:13.5px;font-weight:500;color:#3F4349;text-align:left;width:100%;}
-.tc nav button:hover{background:#F3F4F2;}
-.tc nav button.on{background:var(--accsoft);color:var(--acc);}
-.tc nav button svg{flex:none;opacity:.85;}
-.tc .badge{margin-left:auto;background:var(--warn);color:#fff;font-size:10.5px;font-weight:600;
- border-radius:999px;padding:1px 7px;line-height:1.5;}
+.tc nav button:hover{background:#F1F1EF;}
+.tc nav button.on{background:#ECECEA;color:var(--ink);}
+.tc nav button svg{flex:none;opacity:.7;}
+.tc nav button.on svg{opacity:1;}
+.tc .badge{margin-left:auto;background:var(--warn);color:#fff;font-size:10px;font-weight:600;
+ border-radius:999px;padding:1px 6px;line-height:1.5;}
 .tc .sidefoot{margin-top:auto;display:flex;flex-direction:column;gap:10px;}
 .tc .sideverse{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px;}
 .tc .sideverse .vt{font-size:12.5px;line-height:1.55;font-style:italic;color:#3F4349;margin:6px 0 8px;
@@ -322,9 +323,9 @@ body{margin:0;background:#F7F6F3;}
 .tc .arrow:hover{border-color:var(--acc);color:var(--acc);}
 
 /* hero + thesis — a bright gradient band */
-.tc .hero{position:relative;border-radius:20px;overflow:hidden;text-align:center;color:var(--ink);
- padding:38px 28px 34px;margin-bottom:24px;border:1px solid rgba(23,24,28,.06);
- background:linear-gradient(120deg,#FFF3DC 0%,#EDFAF3 55%,#F0EDFF 100%);}
+.tc .hero{position:relative;border-radius:16px;overflow:hidden;text-align:center;color:var(--ink);
+ padding:38px 28px 34px;margin-bottom:24px;border:1px solid var(--line);
+ background:linear-gradient(180deg,#FFFFFF,#F1F1EF);}
 .tc .hero .gem{margin-bottom:16px;}
 .tc .thesis{font-family:'Space Grotesk',Inter,sans-serif;font-size:clamp(22px,3vw,34px);line-height:1.25;
  letter-spacing:-.02em;max-width:1080px;margin:0 auto;font-weight:600;}
@@ -348,25 +349,25 @@ body{margin:0;background:#F7F6F3;}
 /* kpi + hero card */
 .tc .kpi{padding:16px;}
 .tc .kpi .lab,.tc .biglab{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--soft);}
-.tc .kpi .val{font-variant-numeric:tabular-nums;font-weight:700;
- font-size:24px;letter-spacing:-.02em;margin-top:8px;line-height:1.1;word-break:break-word;}
+.tc .kpi .val{font-variant-numeric:tabular-nums;font-weight:600;
+ font-size:22px;letter-spacing:-.02em;margin-top:8px;line-height:1.1;word-break:break-word;}
 .tc .kpi .foot{font-size:11.5px;color:var(--soft);margin-top:7px;line-height:1.4;}
 .tc .kpi.click{cursor:pointer;text-align:left;width:100%;font-family:inherit;font-size:inherit;color:inherit;
  transition:border-color .15s ease;}
 .tc .kpi.click:hover{border-color:var(--acc);}
 .tc .kpi.click.on{border-color:var(--acc);background:var(--accsoft);}
 .tc .herocard{padding:22px 24px;margin-bottom:16px;}
-.tc .bignum{font-size:clamp(30px,4vw,42px);font-weight:700;letter-spacing:-.03em;line-height:1.05;
+.tc .bignum{font-size:clamp(28px,3.4vw,38px);font-weight:600;letter-spacing:-.03em;line-height:1.05;
  font-variant-numeric:tabular-nums;margin-top:6px;}
 .tc .ofinc{font-size:14px;color:var(--soft);font-weight:400;letter-spacing:0;}
 .tc .herosub{font-size:13.5px;color:#4A4F55;line-height:1.55;margin:8px 0 16px;max-width:760px;}
 .tc .quickbill{display:grid;grid-template-columns:minmax(150px,1fr) 110px 100px 190px auto;gap:8px;align-items:center;}
 @media(max-width:760px){.tc .quickbill{grid-template-columns:1fr 1fr;}}
-.tc .up{color:#16A34A;}.tc .down{color:var(--warn);}.tc .mid{color:#D97706;}
+.tc .up{color:#54876B;}.tc .down{color:var(--warn);}.tc .mid{color:#A9803F;}
 
 /* rail */
-.tc .rail{display:flex;height:30px;width:100%;gap:2px;}
-.tc .seg{min-width:2px;border-radius:3px;}
+.tc .rail{display:flex;height:12px;width:100%;gap:2px;}
+.tc .seg{min-width:2px;border-radius:2px;}
 .tc .seg.gap{background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(34,29,23,.12) 5px,rgba(34,29,23,.12) 6px);
  border:1px dashed var(--soft);}
 .tc .railkey{display:flex;flex-wrap:wrap;gap:13px;margin-top:10px;font-size:11.5px;color:var(--soft);}
@@ -401,14 +402,14 @@ body{margin:0;background:#F7F6F3;}
  padding:16px 0 4px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;}
 
 /* controls */
-.tc .field{border:1px solid var(--line);background:#FFFFFF;border-radius:10px;padding:9px 11px;
+.tc .field{border:1px solid var(--line);background:#FFFFFF;border-radius:8px;padding:9px 11px;
  font-size:13.5px;color:var(--ink);font-family:inherit;width:100%;}
-.tc .field::placeholder{color:#9AA0A6;}
-.tc .field:focus{border-color:var(--acc);outline:none;box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+.tc .field::placeholder{color:#9CA0A8;}
+.tc .field:focus{border-color:var(--acc);outline:none;box-shadow:0 0 0 3px rgba(91,91,214,.13);}
 .tc select.field option{background:#FFFFFF;color:var(--ink);}
-.tc .btn{border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:10px;
- padding:9px 16px;font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;}
-.tc .btn:hover{background:#1D4ED8;border-color:#1D4ED8;}
+.tc .btn{border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:9px;
+ padding:9px 16px;font-size:13px;font-weight:500;letter-spacing:0;text-transform:none;}
+.tc .btn:hover{background:#2E2E33;border-color:#2E2E33;}
 .tc .btn[disabled]{opacity:.45;cursor:default;}
 .tc .btn.ghost{background:#fff;color:#3F4349;border-color:var(--line);}
 .tc .btn.ghost:hover{background:#F7F7F5;border-color:#C9CDD2;color:var(--ink);}
@@ -448,6 +449,15 @@ body{margin:0;background:#F7F6F3;}
 .tc .chip.on{background:var(--ink);color:#fff;border-color:var(--ink);}
 .tc .askrow{display:flex;gap:7px;}
 .tc .empty{font-size:13px;color:var(--soft);line-height:1.55;padding:8px 0;margin:0;}
+
+/* stewardship guidance — front and center on every view */
+.tc .guide{display:flex;gap:14px;align-items:flex-start;background:#FBFAF7;border:1px solid #ECE7DC;
+ border-left:3px solid var(--joint);border-radius:12px;padding:14px 18px;margin-bottom:16px;}
+.tc .guide .gverse{font-family:'Space Grotesk',Inter,sans-serif;font-size:15px;font-weight:500;
+ line-height:1.5;letter-spacing:-.005em;margin:0 0 6px;color:#26262B;}
+.tc .guide .gref{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:#A07C3F;}
+.tc .guide .gline{font-size:12.5px;color:var(--soft);text-transform:none;letter-spacing:0;font-weight:400;
+ margin-left:8px;}
 
 /* concierge + files */
 .tc .concierge{margin:0 0 16px;}
@@ -933,6 +943,23 @@ const Notes = ({ notes, limit }) => (
   </div>
 );
 
+/*  The stewardship banner: a verse matched to the view's theme (planning
+    on Budget, contentment on Spending, debt on Bills...) plus one line
+    tying it to the household's live numbers. Deterministic per day.     */
+function Guidance({ m, theme, line }) {
+  if (!m.faithOn) return null;
+  const v = theme ? verseForDay(theme) : m.verse;
+  const tie = theme ? line : m.verseLine;
+  return (
+    <div className="guide">
+      <div style={{ minWidth: 0 }}>
+        <p className="gverse">“{v.text}”</p>
+        <span className="gref">{v.ref}{tie && <span className="gline">{tie}</span>}</span>
+      </div>
+    </div>
+  );
+}
+
 /*  One spending entry, editable in place — note, envelope, who, amount.
     Used on the dashboard (detail + group drill-down) and in Spending.   */
 function EntryRow({ t, plan, m, writeMonth }) {
@@ -1229,6 +1256,8 @@ function Dashboard({ ctx }) {
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
 
+      <Guidance m={m} />
+
       <Concierge ctx={ctx} />
 
       <div className="card herocard">
@@ -1241,14 +1270,14 @@ function Dashboard({ ctx }) {
       </div>
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi label="Came in" value={money(m.income)} tone="up"
+        <Kpi label="Came in" value={money(m.income)}
           foot={`${m.pA.name} & ${m.pB.name}, take-home`} />
         <Kpi label="Assigned" value={money(m.allocated)}
           foot={m.income > 0 ? `${Math.round((m.allocated / m.income) * 100)}% of income · ${money(m.goalMonthly)} to goals` : "set incomes in Settings"} />
         <Kpi label="Spent this month" value={money(m.spent)} tone={m.leftToSpend < 0 ? "down" : ""}
           foot={`${money(m.leftToSpend)} left of ${money(m.planned)} — tap to see & edit`}
           onClick={() => setShowSpend(!showSpend)} active={showSpend} />
-        <Kpi label="Bills due next" value={nextBill ? money(nextBill.amount) : "—"} tone="mid"
+        <Kpi label="Bills due next" value={nextBill ? money(nextBill.amount) : "—"}
           foot={nextBill ? `${nextBill.name} · the ${ordinal(nextBill.day)}` : "nothing unpaid"} />
       </div>
 
@@ -1277,7 +1306,7 @@ function Dashboard({ ctx }) {
               <div style={{ height: 235 }}>
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={groupData} dataKey="value" nameKey="name" innerRadius={56} outerRadius={86}
+                    <Pie data={groupData} dataKey="value" nameKey="name" innerRadius={64} outerRadius={84}
                       paddingAngle={2} stroke="none" style={{ cursor: "pointer" }}
                       onClick={(d) => {
                         const n = d && (d.name || (d.payload && d.payload.name));
@@ -1419,6 +1448,11 @@ function Budget({ ctx }) {
       <Head title="Budget" sub="Plan the month before it happens. Tap any number to change it."
         right={<MonthNav month={month} setMonth={setMonth} />} />
 
+      <Guidance m={m} theme="planning"
+        line={m.unallocated > 1 ? `${money(m.unallocated)} still needs a job before the plan is finished.`
+          : m.unallocated < -1 ? `The plan is ${money(-m.unallocated)} past income — something has to come down.`
+            : "Every dollar has a job this month."} />
+
       <div className="grid g4" style={{ marginBottom: 16 }}>
         <Kpi label="Income" value={money(m.income)} />
         <Kpi label="Planned out" value={money(m.planned)} foot={`${Math.round(m.income ? (m.planned / m.income) * 100 : 0)}% of income`} />
@@ -1511,6 +1545,10 @@ function Spending({ ctx }) {
     <>
       <Head title="Spending" sub="Everything logged this month, and who spent it."
         right={<MonthNav month={month} setMonth={setMonth} />} />
+
+      <Guidance m={m} theme="contentment"
+        line={m.leftToSpend >= 0 ? `${money(m.leftToSpend)} left to spend inside what you planned.`
+          : `Spending is ${money(-m.leftToSpend)} past the plan this month.`} />
 
       <Logger envelopes={plan.envelopes} m={m}
         onAdd={(e) => writeMonth((mm) => { mm.entries.unshift(e); return mm; })} />
@@ -1643,6 +1681,9 @@ function BillsView({ ctx }) {
     <>
       <Head title="Bills" sub="The fixed stuff. Mark one paid and it logs itself into the right envelope."
         right={<MonthNav month={month} setMonth={setMonth} />} />
+
+      <Guidance m={m} theme="debt"
+        line={m.billsLeft > 0 ? `${money(m.billsLeft)} in bills still to pay this month.` : "Everything owed this month is paid."} />
 
       <div className="grid g3" style={{ marginBottom: 16 }}>
         <Kpi label="Monthly bills" value={money(m.billsTotal)} foot={`${state.bills.length} recurring`} />
@@ -1956,6 +1997,9 @@ function GoalsView({ ctx }) {
     <>
       <Head title="Goals" sub="Anything you'd rather fund on purpose than pay for by surprise." />
 
+      <Guidance m={m} theme="diligence"
+        line={m.goalMonthly > 0 ? `${money(m.goalMonthly)} a month moves toward what's next, little by little.` : "Nothing is flowing to goals monthly yet."} />
+
       <div className="grid g4" style={{ marginBottom: 16 }}>
         <Kpi label="Saved so far" value={money(totalSaved)} foot={`of ${money(totalTarget)} across ${state.goals.length}`} />
         <Kpi label="Going in monthly" value={money(m.goalMonthly)} />
@@ -2042,6 +2086,9 @@ function NetWorth({ ctx }) {
   return (
     <>
       <Head title="Net worth" sub="What you own, what you owe, and how fast the second one disappears." />
+
+      <Guidance m={m} theme="provision"
+        line={`What you own less what you owe: ${money(m.netWorth)}.`} />
 
       <div className="grid g3" style={{ marginBottom: 16 }}>
         <Kpi label="Net worth" value={money(m.netWorth)} tone={m.netWorth < 0 ? "down" : "up"} />
@@ -2161,6 +2208,9 @@ function Reports({ ctx }) {
     <>
       <Head title="Reports" sub="Patterns you can't see one month at a time."
         right={<MonthNav month={month} setMonth={setMonth} />} />
+
+      <Guidance m={m} theme="together"
+        line={`Shared costs run ${money(m.jointCost)} a month, carried together.`} />
 
       <div className="grid g2" style={{ marginBottom: 16 }}>
         <div className="card">
@@ -2349,6 +2399,9 @@ function PlannerPage({ ctx }) {
   return (
     <>
       <Head title="Planner" sub="It can see your income, envelopes, bills, goals, and accounts." />
+
+      <Guidance m={m} theme="giving"
+        line={m.giving.planned > 0 ? `${money(m.giving.planned)} set aside for giving this month — ask it anything.` : "Ask it anything — it answers with your numbers."} />
       <div className="grid g23">
         <div className="card" style={{ display: "flex", flexDirection: "column", minHeight: 470 }}>
           <div className="chatlog" ref={logRef} style={{ flex: 1, maxHeight: 460 }}>
@@ -2406,6 +2459,9 @@ function SettingsView({ ctx, setState }) {
   return (
     <>
       <Head title="Settings" sub="Who's in the household, what comes in, and how you split it." />
+
+      <Guidance m={m} theme="together"
+        line="The plan works because you both agreed to it." />
       <div className="grid g2">
         <div className="card">
           <div className="chead"><h3>Household</h3></div>
