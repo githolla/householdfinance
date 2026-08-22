@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v38";
+const APP_VERSION = "v39";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -348,6 +348,27 @@ body{margin:0;background:#F5F1EA;}
  .tc .bottom button.on{color:var(--ink);font-weight:600;}
  .tc .bottom .badge{position:absolute;top:0;right:8px;margin:0;padding:0 5px;font-size:9.5px;}
 }
+
+/* modal */
+.tc .modal-back{position:fixed;inset:0;z-index:60;background:rgba(27,36,32,.45);backdrop-filter:blur(2px);
+ display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px 16px;overflow-y:auto;}
+.tc .modal{background:var(--surface);border-radius:18px;box-shadow:0 24px 60px -20px rgba(27,36,32,.5);
+ width:100%;max-width:460px;padding:22px 22px 24px;}
+.tc .modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px;}
+.tc .modal-head h3{font-size:20px;font-weight:800;letter-spacing:-.02em;}
+.tc .modal-sub{font-size:13px;color:var(--soft);margin:4px 0 0;}
+.tc .modal-body{display:flex;flex-direction:column;gap:14px;}
+.tc .mfield{display:flex;flex-direction:column;gap:6px;}
+.tc .mfield-l{font-size:12.5px;font-weight:600;color:var(--ink);}
+.tc .mfield .field{width:100%;}
+.tc .mrow{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.tc .modal .btn{width:100%;justify-content:center;padding:12px;font-size:12px;}
+.tc .addbtn{display:inline-flex;align-items:center;gap:7px;background:var(--a);color:#fff;border:none;
+ border-radius:11px;padding:10px 16px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
+ letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;box-shadow:var(--shadow);}
+.tc .addbtn:hover{background:#0C5A50;}
+.tc .addbtn svg{width:15px;height:15px;}
+.tc .headactions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 
 /* page head */
 .tc .phead{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
@@ -1355,6 +1376,13 @@ const MonthNav = ({ month, setMonth }) => (
   </div>
 );
 
+const AddBtn = ({ label, onClick }) => (
+  <button className="addbtn" onClick={onClick}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+    {label}
+  </button>
+);
+
 /**
  * Amount input that survives typing a decimal point. Controlled inputs that
  * round-trip through num() eat the "." mid-keystroke ("2780." re-renders as
@@ -1376,6 +1404,43 @@ const scrollCard = (id) => {
   const el = document.getElementById(id);
   if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 };
+
+// Today as YYYY-MM-DD, for date pickers that should default to now.
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+// A simple, focused dialog for the primary "add" actions. Backdrop or Esc
+// closes it; the panel itself keeps clicks from closing. Keyboard-friendly.
+function Modal({ title, sub, onClose, children }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+  }, [onClose]);
+  return (
+    <div className="modal-back" onClick={onClose}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <div><h3>{title}</h3>{sub && <p className="modal-sub">{sub}</p>}</div>
+          <button className="kill" onClick={onClose} aria-label="Close">×</button>
+        </div>
+        <div className="modal-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// A labeled field for modal forms — label on top, control below, optional error.
+const Field = ({ label, children, err }) => (
+  <label className="mfield">
+    <span className="mfield-l">{label}</span>
+    {children}
+    {err && <span className="fielderr">{err}</span>}
+  </label>
+);
 
 const Kpi = ({ label, value, foot, tone, onClick, active }) => {
   const inner = (
@@ -2485,11 +2550,40 @@ function Budget({ ctx }) {
     });
     setNi({ kind: "other", name: "", amount: "", timing: "monthly", day: "", date: "" });
   };
+  const [nc, setNc] = useState(null); // new-category draft
 
   return (
     <>
       <Head title="Budget" sub="Plan the month before it happens. Tap any number to change it."
-        right={<MonthNav month={month} setMonth={setMonth} />} />
+        right={<div className="headactions">
+          <AddBtn label="Add category" onClick={() => setNc({ name: "", group: "Daily", planned: "" })} />
+          <MonthNav month={month} setMonth={setMonth} />
+        </div>} />
+
+      {nc && (
+        <Modal title="New budget category" sub="A pot of planned spending for the month — groceries, gas, eating out." onClose={() => setNc(null)}>
+          <Field label="Category name">
+            <input className="field" placeholder="Groceries" value={nc.name} autoFocus
+              onChange={(e) => setNc({ ...nc, name: e.target.value })} aria-label="Category name" />
+          </Field>
+          <div className="mrow">
+            <Field label="Group">
+              <select className="field" value={nc.group} onChange={(e) => setNc({ ...nc, group: e.target.value })} aria-label="Group">
+                {GROUPS.map((x) => <option key={x}>{x}</option>)}
+              </select>
+            </Field>
+            <Field label="Planned each month">
+              <input className="field num" inputMode="decimal" placeholder="$0" value={nc.planned}
+                onChange={(e) => setNc({ ...nc, planned: e.target.value })} aria-label="Planned" />
+            </Field>
+          </div>
+          <button className="btn" onClick={() => {
+            if (!nc.name.trim()) return;
+            writeMonth((mm) => { mm.envelopes.push({ id: uid(), name: nc.name.trim(), group: nc.group, planned: num(nc.planned), owner: "joint" }); return mm; });
+            setNc(null);
+          }}>Add category</button>
+        </Modal>
+      )}
 
       <Guidance m={m} theme="planning"
         line={m.unallocated > 1 ? `${money(m.unallocated)} still needs a job before the plan is finished.`
@@ -2640,10 +2734,7 @@ function Budget({ ctx }) {
           );
         })}
         <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <button className="btn ghost tiny" onClick={() => writeMonth((mm) => {
-            mm.envelopes.push({ id: uid(), name: "New envelope", group: "Other", planned: 0, owner: "joint" });
-            return mm;
-          })}>Add an envelope</button>
+          <button className="btn ghost tiny" onClick={() => setNc({ name: "", group: "Daily", planned: "" })}>+ Add category</button>
           {[["Insurance", "Home"], ["Credit card", "Other"], ["Work", "Other"], ["Giving", "Giving"]]
             .filter(([n]) => !plan.envelopes.some((e) => e.name.toLowerCase() === n.toLowerCase()))
             .map(([n, g]) => (
@@ -2684,6 +2775,7 @@ function Spending({ ctx }) {
   const [env, setEnv] = useState("all");
   const [sort, setSort] = useState("latest");
   const [page, setPage] = useState(1);
+  const [adding, setAdding] = useState(false);
 
   const envName = (id) => { const e = plan.envelopes.find((x) => x.id === id); return e ? e.name : ""; };
   const filtered = plan.entries.filter((t) => {
@@ -2712,7 +2804,18 @@ function Spending({ ctx }) {
   return (
     <>
       <Head title="Spending" sub="Everything logged this month, and who spent it."
-        right={<MonthNav month={month} setMonth={setMonth} />} />
+        right={<div className="headactions">
+          <AddBtn label="Add transaction" onClick={() => setAdding(true)} />
+          <MonthNav month={month} setMonth={setMonth} />
+        </div>} />
+
+      {adding && (
+        <Modal title="Add a transaction" sub="Logs against a budget category for this month." onClose={() => setAdding(false)}>
+          <Logger envelopes={plan.envelopes} m={m}
+            onAdd={(e) => writeMonth((mm) => { mm.entries.unshift(e); return mm; })}
+            onDone={() => setAdding(false)} />
+        </Modal>
+      )}
 
       <Guidance m={m} theme="contentment"
         line={m.leftToSpend >= 0 ? `${money(m.leftToSpend)} left to spend inside what you planned.`
@@ -2723,9 +2826,6 @@ function Spending({ ctx }) {
         "Where can we trim this month?",
         "Find groceries",
       ]} />
-
-      <Logger envelopes={plan.envelopes} m={m}
-        onAdd={(e) => writeMonth((mm) => { mm.entries.unshift(e); return mm; })} />
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
         <Kpi label="Spent this month" value={money(m.spent)} foot={`${plan.entries.length} transactions`}
@@ -2801,45 +2901,56 @@ function Pager({ page, pageCount, setPage }) {
   );
 }
 
-function Logger({ envelopes, m, onAdd }) {
+// The add-a-transaction form, shown inside a modal. Date defaults to today.
+function Logger({ envelopes, m, onAdd, onDone }) {
   const [amount, setAmount] = useState("");
   const [envId, setEnvId] = useState(envelopes[0] ? envelopes[0].id : "");
   const [who, setWho] = useState("joint");
   const [note, setNote] = useState("");
-  const [when, setWhen] = useState("");
-  useEffect(() => {
-    if (!envelopes.some((e) => e.id === envId)) setEnvId(envelopes[0] ? envelopes[0].id : "");
-  }, [envelopes, envId]);
+  const [when, setWhen] = useState(todayISO());
+  const [err, setErr] = useState("");
 
   const submit = () => {
-    const amt = num(amount);
-    if (!amt || !envId) return;
-    const d = when ? new Date(when + "T12:00") : new Date();
+    if (!num(amount)) { setErr("Enter how much it was."); return; }
+    if (!envId) { setErr("Pick a category first — add one on the Budget page."); return; }
+    const d = new Date((when || todayISO()) + "T12:00");
     onAdd({
-      id: uid(), envId, amount: amt, who, note: note.trim(), day: d.getDate(),
+      id: uid(), envId, amount: num(amount), who, note: note.trim(), day: d.getDate(),
       date: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
     });
-    setAmount(""); setNote(""); setWhen("");
+    onDone && onDone();
   };
   const key = (e) => e.key === "Enter" && submit();
 
   return (
-    <div className="logger">
-      <input className="field num" inputMode="decimal" placeholder="$0" value={amount}
-        onChange={(e) => setAmount(e.target.value)} onKeyDown={key} aria-label="Amount" />
-      <select className="field" value={envId} onChange={(e) => setEnvId(e.target.value)} aria-label="Envelope">
-        {envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-      </select>
-      <select className="field" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Who spent it">
-        <option value="joint">Both of us</option>
-        <option value="a">{m.pA.name}</option>
-        <option value="b">{m.pB.name}</option>
-      </select>
-      <input className="field num" type="date" value={when} onChange={(e) => setWhen(e.target.value)}
-        aria-label="When (today if blank)" title="When — today if left blank" />
-      <input className="field wide" placeholder="What was it for?" value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={key} aria-label="Note" />
-      <button className="btn" onClick={submit} disabled={!num(amount)}>Log it</button>
-    </div>
+    <>
+      <Field label="How much">
+        <input className="field num" inputMode="decimal" placeholder="$0" value={amount} autoFocus
+          onChange={(e) => { setAmount(e.target.value); setErr(""); }} onKeyDown={key} aria-label="Amount" />
+      </Field>
+      <Field label="What was it for?">
+        <input className="field" placeholder="e.g. groceries at Weis" value={note}
+          onChange={(e) => setNote(e.target.value)} onKeyDown={key} aria-label="Note" />
+      </Field>
+      <div className="mrow">
+        <Field label="Category">
+          <select className="field" value={envId} onChange={(e) => setEnvId(e.target.value)} aria-label="Category">
+            {envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Who spent it">
+          <select className="field" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Who spent it">
+            <option value="joint">Both of us</option>
+            <option value="a">{m.pA.name}</option>
+            <option value="b">{m.pB.name}</option>
+          </select>
+        </Field>
+      </div>
+      <Field label="When" err={err}>
+        <input className="field num" type="date" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="When" />
+      </Field>
+      <button className="btn" onClick={submit}>Add transaction</button>
+    </>
   );
 }
 
@@ -3032,6 +3143,7 @@ function BillsView({ ctx }) {
   const [sortBy, setSortBy] = useState("day");
   const [billQ, setBillQ] = useState("");
   const [nbErr, setNbErr] = useState("");
+  const [adding, setAdding] = useState(false);
 
   // Typing an amount changes THIS month only; the usual amount stays as
   // the default for future months until "make usual" adopts the new one.
@@ -3086,6 +3198,7 @@ function BillsView({ ctx }) {
       return s;
     });
     setNb({ name: "", company: "", amount: "", day: "", envId: "" });
+    setAdding(false);
   };
   const nbKey = (e) => e.key === "Enter" && addBill();
 
@@ -3124,8 +3237,49 @@ function BillsView({ ctx }) {
 
   return (
     <>
-      <Head title="Bills & files" sub="The fixed stuff — mark one paid and it logs itself into the right envelope. The paper drawer of receipts and documents lives below."
-        right={<MonthNav month={month} setMonth={setMonth} />} />
+      <Head title="Bills & files" sub="The fixed stuff — mark one paid and it logs itself into the right category."
+        right={<div className="headactions">
+          <AddBtn label="Add bill" onClick={() => { setNb({ name: "", company: "", amount: "", day: "", envId: "" }); setNbErr(""); setAdding(true); }} />
+          <MonthNav month={month} setMonth={setMonth} />
+        </div>} />
+
+      {adding && (
+        <Modal title="Add a recurring bill" sub="Repeats every month. Tap a common one to prefill, or type your own." onClose={() => setAdding(false)}>
+          <div className="chips" style={{ marginBottom: 4 }}>
+            {COMMON_BILLS.map((b) => (
+              <button key={b} className={"chip " + (nb.name === b ? "on" : "")}
+                onClick={() => setNb({ ...nb, name: b, envId: guessEnv(b) })}>{b}</button>
+            ))}
+          </div>
+          <Field label="Bill name">
+            <input className="field" placeholder="Electric" value={nb.name} autoFocus
+              onChange={(e) => setNb({ ...nb, name: e.target.value, envId: nb.envId || guessEnv(e.target.value) })} onKeyDown={nbKey} aria-label="Bill name" />
+          </Field>
+          <Field label="Company (optional)">
+            <input className="field" placeholder="Comcast, Loancare…" value={nb.company}
+              onChange={(e) => setNb({ ...nb, company: e.target.value })} onKeyDown={nbKey} aria-label="Company" />
+          </Field>
+          <div className="mrow">
+            <Field label="Amount">
+              <input className="field num" inputMode="decimal" placeholder="$0" value={nb.amount}
+                onChange={(e) => setNb({ ...nb, amount: e.target.value })} onKeyDown={nbKey} aria-label="Amount" />
+            </Field>
+            <Field label="Due date">
+              <input className="field num" type="date"
+                value={nb.day ? `${month}-${String(nb.day).padStart(2, "0")}` : `${month}-01`}
+                onChange={(e) => setNb({ ...nb, day: e.target.value ? Number(e.target.value.slice(8, 10)) : "" })}
+                aria-label="Due date" />
+            </Field>
+          </div>
+          <Field label="Budget category" err={nbErr}>
+            <select className="field" value={nb.envId} onChange={(e) => setNb({ ...nb, envId: e.target.value })} aria-label="Category">
+              <option value="">— none —</option>
+              {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          </Field>
+          <button className="btn" onClick={addBill}>Add bill</button>
+        </Modal>
+      )}
 
       <Guidance m={m} theme="debt"
         line={m.billsLeft > 0 ? `${money(m.billsLeft)} in bills still to pay this month.` : "Everything owed this month is paid."} />
@@ -3138,40 +3292,6 @@ function BillsView({ ctx }) {
           onClick={() => setUnpaidOnly(!unpaidOnly)} active={unpaidOnly} />
         <Kpi label="Share of income" value={m.income ? Math.round((m.billsTotal / m.income) * 100) + "%" : "—"}
           onClick={() => setView("reports")} />
-      </div>
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="chead"><h3>Add a bill</h3><span className="meta">tap one below, or type your own — it picks the envelope for you</span></div>
-        <div className="chips">
-          {COMMON_BILLS.map((b) => (
-            <button key={b} className={"chip " + (nb.name === b ? "on" : "")}
-              onClick={() => setNb({ ...nb, name: b, envId: guessEnv(b) })}>{b}</button>
-          ))}
-        </div>
-        <div className="quickbill">
-          <input className="field" placeholder="Bill name" value={nb.name}
-            onChange={(e) => setNb({ ...nb, name: e.target.value, envId: nb.envId || guessEnv(e.target.value) })}
-            onKeyDown={nbKey} aria-label="Bill name" />
-          <input className="field" placeholder="Company (Comcast…)" value={nb.company}
-            onChange={(e) => setNb({ ...nb, company: e.target.value })} onKeyDown={nbKey} aria-label="Company" />
-          <input className="field num" placeholder="$0" value={nb.amount}
-            onChange={(e) => setNb({ ...nb, amount: e.target.value })} onKeyDown={nbKey} aria-label="Amount" />
-          <input className="field num" type="date"
-            value={nb.day ? `${month}-${String(nb.day).padStart(2, "0")}` : ""}
-            onChange={(e) => setNb({ ...nb, day: e.target.value ? Number(e.target.value.slice(8, 10)) : "" })}
-            aria-label="Due date" />
-          <select className="field" value={nb.envId} onChange={(e) => setNb({ ...nb, envId: e.target.value })} aria-label="Envelope">
-            <option value="">no envelope</option>
-            {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-          </select>
-          <button className="btn" onClick={addBill}>Add</button>
-        </div>
-        {nbErr && <p className="fielderr" style={{ marginTop: 8 }}>{nbErr}</p>}
-        <p className="empty" style={{ marginTop: 10 }}>
-          Link an envelope and marking the bill paid logs the spending into it automatically. Amounts can change
-          month to month — retype the amount when the real bill arrives and only that month changes; tap
-          "history" on any bill to see what it has actually cost.
-        </p>
       </div>
 
       <div className="card" id="billList">
@@ -3509,10 +3629,52 @@ function GoalsView({ ctx }) {
   const totalSaved = state.goals.reduce((n, g) => n + g.saved, 0);
   const [lateOnly, setLateOnly] = useState(false);
   const lateCount = state.goals.filter((g) => m.goalStatus(g).late).length;
+  const [np, setNp] = useState(null); // new-pot draft, or null when closed
+  const addPot = () => {
+    if (!np.name.trim()) { setNp({ ...np, err: "Give the pot a name." }); return; }
+    patch((s) => {
+      s.goals = s.goals || [];
+      s.goals.push({ id: uid(), name: np.name.trim(), target: num(np.target), saved: num(np.saved),
+        monthly: num(np.monthly), due: np.due || "", owner: "joint" });
+      return s;
+    });
+    setNp(null);
+  };
 
   return (
     <>
-      <Head title="Pots" sub="Money set aside on purpose — save into each one, and pull from it when the time comes." />
+      <Head title="Pots" sub="Money set aside on purpose — save into each one, and pull from it when the time comes."
+        right={<AddBtn label="New pot" onClick={() => setNp({ name: "", target: "", saved: "", monthly: "", due: "" })} />} />
+
+      {np && (
+        <Modal title="New pot" sub="A named place to save — a trip, a car, an emergency fund." onClose={() => setNp(null)}>
+          <Field label="What's it for?" err={np.err}>
+            <input className="field" placeholder="Emergency fund" value={np.name} autoFocus
+              onChange={(e) => setNp({ ...np, name: e.target.value, err: "" })} aria-label="Pot name" />
+          </Field>
+          <div className="mrow">
+            <Field label="Goal amount">
+              <input className="field num" inputMode="decimal" placeholder="$0" value={np.target}
+                onChange={(e) => setNp({ ...np, target: e.target.value })} aria-label="Goal amount" />
+            </Field>
+            <Field label="Already saved">
+              <input className="field num" inputMode="decimal" placeholder="$0" value={np.saved}
+                onChange={(e) => setNp({ ...np, saved: e.target.value })} aria-label="Already saved" />
+            </Field>
+          </div>
+          <div className="mrow">
+            <Field label="Save monthly">
+              <input className="field num" inputMode="decimal" placeholder="$0" value={np.monthly}
+                onChange={(e) => setNp({ ...np, monthly: e.target.value })} aria-label="Save monthly" />
+            </Field>
+            <Field label="Want it by (optional)">
+              <input className="field num" type="month" value={np.due}
+                onChange={(e) => setNp({ ...np, due: e.target.value })} aria-label="Want it by" />
+            </Field>
+          </div>
+          <button className="btn" onClick={addPot}>Create pot</button>
+        </Modal>
+      )}
 
       <Guidance m={m} theme="diligence"
         line={m.goalMonthly > 0 ? `${money(m.goalMonthly)} a month moves toward what's next, little by little.` : "Nothing is flowing to your pots monthly yet."} />
@@ -3537,10 +3699,7 @@ function GoalsView({ ctx }) {
       {state.goals.filter((g) => !lateOnly || m.goalStatus(g).late).map((g) => (
         <PotCard key={g.id} g={g} ctx={ctx} />
       ))}
-      <button className="btn ghost tiny" onClick={() => patch((s) => {
-        s.goals.push({ id: uid(), name: "New pot", target: 0, saved: 0, monthly: 0, due: "", owner: "joint" });
-        return s;
-      })}>Add a pot</button>
+      <button className="btn ghost tiny" onClick={() => setNp({ name: "", target: "", saved: "", monthly: "", due: "" })}>+ New pot</button>
     </>
   );
 }
