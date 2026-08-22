@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v29";
+const APP_VERSION = "v30";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -378,10 +378,20 @@ body{margin:0;background:#EAE5D8;}
  font-size:21px;letter-spacing:-.01em;margin-top:8px;line-height:1.1;word-break:break-word;}
 .tc .kpi .foot{font-size:11.5px;color:var(--soft);margin-top:7px;line-height:1.4;}
 .tc .kpi.click{cursor:pointer;text-align:left;width:100%;font-family:inherit;font-size:inherit;color:inherit;
- transition:border-color .15s ease;}
+ transition:border-color .15s ease;position:relative;padding-right:34px;}
+.tc .kpi.click::after{content:"→";position:absolute;top:13px;right:13px;font-family:'IBM Plex Mono',monospace;
+ font-size:12px;font-weight:600;color:var(--soft);opacity:.5;transition:opacity .12s;}
 .tc .kpi.click:hover{border-color:var(--ink);}
+.tc .kpi.click:hover::after{opacity:1;color:var(--ink);}
 .tc .kpi.click.on{border-color:var(--ink);background:var(--accsoft);}
+.tc .kpi.click.on::after{content:"↓";opacity:1;}
 .tc .herocard{padding:22px 24px;margin-bottom:16px;}
+.tc button.herocard{width:100%;text-align:left;font-family:inherit;font-size:inherit;color:inherit;
+ cursor:pointer;position:relative;transition:border-color .15s ease;}
+.tc button.herocard:hover{border-color:var(--ink);}
+.tc .heromore{position:absolute;top:16px;right:18px;font-family:'IBM Plex Mono',monospace;font-size:10px;
+ font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);}
+.tc button.herocard:hover .heromore{color:var(--ink);}
 .tc .bignum{font-family:'IBM Plex Mono',monospace;font-size:clamp(26px,3.2vw,34px);font-weight:600;letter-spacing:-.02em;line-height:1.05;
  font-variant-numeric:tabular-nums;margin-top:6px;}
 .tc .ofinc{font-family:'Instrument Sans',sans-serif;font-size:14px;color:var(--soft);font-weight:400;letter-spacing:0;}
@@ -1088,6 +1098,11 @@ const MonthNav = ({ month, setMonth }) => (
     <button className="arrow" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month">›</button>
   </div>
 );
+
+const scrollCard = (id) => {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+};
 
 const Kpi = ({ label, value, foot, tone, onClick, active }) => {
   const inner = (
@@ -1796,14 +1811,16 @@ function Dashboard({ ctx }) {
         "Find our car insurance",
       ]} />
 
-      <div className="card herocard">
+      <button className="card herocard" onClick={() => setView("budget")}
+        aria-label="Open the budget to work the plan">
+        <span className="heromore">the plan →</span>
         <div className="biglab">Available to spend</div>
         <div className="bignum num" style={{ color: m.available < 0 ? C.warn : C.ink }}>
           {money(m.available)}<span className="ofinc"> of {money(m.income)} coming in{m.incomingLeft > 0 ? ` (${money(m.incomingLeft)} still to come)` : ""}{m.perDay !== null ? ` · ${money(m.perDay)}/day for ${m.daysLeft} more day${m.daysLeft === 1 ? "" : "s"}` : ""}</span>
         </div>
         <p className="herosub">{m.thesis[0]} {m.thesis[1]}</p>
         <Rail m={m} plan={plan} />
-      </div>
+      </button>
 
       {m.faithOn && (
         <div className="card" style={{ marginBottom: 16 }}>
@@ -1813,11 +1830,12 @@ function Dashboard({ ctx }) {
           </div>
           <div className="grid g4">
             <Kpi label="Given this month" value={money(m.giving.given)} tone={m.giving.metTarget ? "up" : ""}
-              foot={`${m.giving.givenPct.toFixed(1)}% of income`} />
+              foot={`${m.giving.givenPct.toFixed(1)}% of income`} onClick={() => setView("txn")} />
             <Kpi label={`The ${m.giving.targetPct}% mark`} value={money(m.giving.target)}
-              foot={m.giving.metTarget ? "met this month" : m.giving.target > 0 ? `${money(Math.max(0, m.giving.target - m.giving.given))} to go` : "set incomes to see it"} />
-            <Kpi label="Given this year" value={money(m.giving.ytd)} foot="every month on record" />
-            <Kpi label="Set aside" value={money(m.giving.planned)} foot="in Giving envelopes" />
+              foot={m.giving.metTarget ? "met this month" : m.giving.target > 0 ? `${money(Math.max(0, m.giving.target - m.giving.given))} to go` : "set incomes to see it"}
+              onClick={() => setView("settings")} />
+            <Kpi label="Given this year" value={money(m.giving.ytd)} foot="every month on record" onClick={() => setView("reports")} />
+            <Kpi label="Set aside" value={money(m.giving.planned)} foot="in Giving envelopes" onClick={() => setView("budget")} />
           </div>
           <div className="givetrack">
             <i style={{ width: Math.min(100, m.giving.target > 0 ? (m.giving.given / m.giving.target) * 100 : 0) + "%" }} />
@@ -1834,14 +1852,17 @@ function Dashboard({ ctx }) {
         <Kpi label="Coming in" value={money(m.income)}
           foot={m.extrasTotal > 0
             ? `${money(m.baseIncome)} take-home + ${money(m.extrasTotal)} posted${m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} yet to arrive` : ""}`
-            : `${m.pA.name} & ${m.pB.name}, take-home`} />
+            : `${m.pA.name} & ${m.pB.name}, take-home`}
+          onClick={() => setView("budget")} />
         <Kpi label="Assigned" value={money(m.allocated)}
-          foot={m.income > 0 ? `${money(m.planned)} to envelopes + ${money(m.goalMonthly)} to goals` : "set incomes in Settings"} />
+          foot={m.income > 0 ? `${money(m.planned)} to envelopes + ${money(m.goalMonthly)} to goals` : "set incomes in Settings"}
+          onClick={() => setView("budget")} />
         <Kpi label="Spent this month" value={money(m.spent)} tone={m.leftToSpend < 0 ? "down" : ""}
           foot={`${money(m.leftToSpend)} left of ${money(m.planned)} — tap to see & edit`}
           onClick={() => setShowSpend(!showSpend)} active={showSpend} />
         <Kpi label="Bills due next" value={nextBill ? money(nextBill.amount) : "—"}
-          foot={nextBill ? `${nextBill.name} · the ${ordinal(nextBill.day)}` : "nothing unpaid"} />
+          foot={nextBill ? `${nextBill.name} · the ${ordinal(nextBill.day)}` : "nothing unpaid"}
+          onClick={() => setView("bills")} />
       </div>
 
       {showSpend && (
@@ -2004,7 +2025,7 @@ function Dashboard({ ctx }) {
 /* ================================================================== */
 
 function Budget({ ctx }) {
-  const { m, plan, writeMonth, month, setMonth, state, patch } = ctx;
+  const { m, plan, writeMonth, month, setMonth, state, patch, setView } = ctx;
   const set = (i, field, val) => writeMonth((mm) => { mm.envelopes[i][field] = val; return mm; });
 
   const setInc = (id, f, v) => patch((s) => {
@@ -2067,7 +2088,7 @@ function Budget({ ctx }) {
         ...(m.faithOn ? ["Are we giving the way we mean to?"] : ["Where can we trim?"]),
       ]} />
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" id="incomeCard" style={{ marginBottom: 16 }}>
         <div className="chead">
           <h3>Money coming in</h3>
           <span className="meta num">{money(m.income)} expected{m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} still to come` : ""}</span>
@@ -2177,15 +2198,18 @@ function Budget({ ctx }) {
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
         <Kpi label="Income" value={money(m.income)}
-          foot={m.extrasTotal > 0 ? `${money(m.baseIncome)} take-home + ${money(m.extrasTotal)} posted` : undefined} />
-        <Kpi label="Planned out" value={money(m.planned)} foot={`${Math.round(m.income ? (m.planned / m.income) * 100 : 0)}% of income`} />
-        <Kpi label="Toward goals" value={money(m.goalMonthly)} />
-        <Kpi label="Unassigned" value={money(m.unallocated)} tone={m.unallocated < -1 ? "down" : m.unallocated > 1 ? "mid" : "up"} />
+          foot={m.extrasTotal > 0 ? `${money(m.baseIncome)} take-home + ${money(m.extrasTotal)} posted` : undefined}
+          onClick={() => scrollCard("incomeCard")} />
+        <Kpi label="Planned out" value={money(m.planned)} foot={`${Math.round(m.income ? (m.planned / m.income) * 100 : 0)}% of income`}
+          onClick={() => scrollCard("planCard")} />
+        <Kpi label="Toward goals" value={money(m.goalMonthly)} onClick={() => setView("goals")} />
+        <Kpi label="Unassigned" value={money(m.unallocated)} tone={m.unallocated < -1 ? "down" : m.unallocated > 1 ? "mid" : "up"}
+          onClick={() => scrollCard("planCard")} />
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}><Rail m={m} plan={plan} /></div>
 
-      <div className="card">
+      <div className="card" id="planCard">
         {GROUPS.filter((g) => m.byGroup[g]).map((g) => {
           const grp = m.byGroup[g];
           return (
@@ -2292,10 +2316,14 @@ function Spending({ ctx }) {
         onAdd={(e) => writeMonth((mm) => { mm.entries.unshift(e); return mm; })} />
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi label="Spent this month" value={money(m.spent)} foot={`${plan.entries.length} transactions`} />
-        <Kpi label={`Paid by ${m.pA.name}`} value={money(m.spentByWho.a || 0)} foot="includes shared purchases they covered" />
-        <Kpi label={`Paid by ${m.pB.name}`} value={money(m.spentByWho.b || 0)} foot="includes shared purchases they covered" />
-        <Kpi label="Marked shared" value={money(m.spentByWho.joint || 0)} />
+        <Kpi label="Spent this month" value={money(m.spent)} foot={`${plan.entries.length} transactions`}
+          onClick={() => setWho("all")} />
+        <Kpi label={`Paid by ${m.pA.name}`} value={money(m.spentByWho.a || 0)} foot="includes shared purchases they covered — tap to filter"
+          onClick={() => setWho(who === "a" ? "all" : "a")} active={who === "a"} />
+        <Kpi label={`Paid by ${m.pB.name}`} value={money(m.spentByWho.b || 0)} foot="includes shared purchases they covered — tap to filter"
+          onClick={() => setWho(who === "b" ? "all" : "b")} active={who === "b"} />
+        <Kpi label="Marked shared" value={money(m.spentByWho.joint || 0)} foot="tap to filter"
+          onClick={() => setWho(who === "joint" ? "all" : "joint")} active={who === "joint"} />
       </div>
 
       <div className="toolbar">
@@ -2470,9 +2498,10 @@ function BillRow({ b, m, state, plan, patch, togglePaid, setBillAmount, makeUsua
 }
 
 function BillsView({ ctx }) {
-  const { m, state, patch, plan, writeMonth, month, setMonth } = ctx;
+  const { m, state, patch, plan, writeMonth, month, setMonth, setView } = ctx;
   const set = (i, f, v) => patch((s) => { s.bills[i][f] = v; return s; });
   const [nb, setNb] = useState({ name: "", amount: "", day: "", envId: "" });
+  const [unpaidOnly, setUnpaidOnly] = useState(false);
 
   // Typing an amount changes THIS month only; the usual amount stays as
   // the default for future months until "make usual" adopts the new one.
@@ -2556,9 +2585,13 @@ function BillsView({ ctx }) {
         line={m.billsLeft > 0 ? `${money(m.billsLeft)} in bills still to pay this month.` : "Everything owed this month is paid."} />
 
       <div className="grid g3" style={{ marginBottom: 16 }}>
-        <Kpi label="Monthly bills" value={money(m.billsTotal)} foot={`${state.bills.length} recurring`} />
-        <Kpi label="Still unpaid" value={money(m.billsLeft)} tone={m.billsLeft > 0 ? "mid" : "up"} />
-        <Kpi label="Share of income" value={m.income ? Math.round((m.billsTotal / m.income) * 100) + "%" : "—"} />
+        <Kpi label="Monthly bills" value={money(m.billsTotal)} foot={`${state.bills.length} recurring`}
+          onClick={() => { setUnpaidOnly(false); scrollCard("billList"); }} />
+        <Kpi label="Still unpaid" value={money(m.billsLeft)} tone={m.billsLeft > 0 ? "mid" : "up"}
+          foot={m.billsLeft > 0 ? "tap to see only what's left" : "all settled"}
+          onClick={() => setUnpaidOnly(!unpaidOnly)} active={unpaidOnly} />
+        <Kpi label="Share of income" value={m.income ? Math.round((m.billsTotal / m.income) * 100) + "%" : "—"}
+          onClick={() => setView("reports")} />
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -2590,9 +2623,11 @@ function BillsView({ ctx }) {
         </p>
       </div>
 
-      <div className="card">
+      <div className="card" id="billList">
         {state.bills.length === 0 && <p className="empty">Add the bills that repeat every month — rent, insurance, the streaming stack you forgot about.</p>}
-        {m.bills.map((b) => (
+        {unpaidOnly && m.bills.every((b) => b.paid) && state.bills.length > 0 &&
+          <p className="empty">Nothing unpaid — every bill this month is settled.</p>}
+        {m.bills.filter((b) => !unpaidOnly || !b.paid).map((b) => (
           <BillRow key={b.id} b={b} m={m} state={state} plan={plan} patch={patch}
             togglePaid={togglePaid} setBillAmount={setBillAmount} makeUsual={makeUsual} />
         ))}
@@ -2836,9 +2871,11 @@ function FilesSection({ ctx }) {
 /* ================================================================== */
 
 function GoalsView({ ctx }) {
-  const { m, state, patch, month } = ctx;
+  const { m, state, patch, month, setView } = ctx;
   const totalTarget = state.goals.reduce((n, g) => n + g.target, 0);
   const totalSaved = state.goals.reduce((n, g) => n + g.saved, 0);
+  const [lateOnly, setLateOnly] = useState(false);
+  const lateCount = state.goals.filter((g) => m.goalStatus(g).late).length;
 
   return (
     <>
@@ -2848,15 +2885,24 @@ function GoalsView({ ctx }) {
         line={m.goalMonthly > 0 ? `${money(m.goalMonthly)} a month moves toward what's next, little by little.` : "Nothing is flowing to goals monthly yet."} />
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi label="Saved so far" value={money(totalSaved)} foot={`of ${money(totalTarget)} across ${state.goals.length}`} />
-        <Kpi label="Going in monthly" value={money(m.goalMonthly)} />
-        <Kpi label="Savings rate" value={Math.round(m.savingsRate) + "%"} tone={m.savingsRate >= 15 ? "up" : "mid"} />
-        <Kpi label="On track" value={`${state.goals.filter((g) => !m.goalStatus(g).late).length} / ${state.goals.length}`} />
+        <Kpi label="Saved so far" value={money(totalSaved)} foot={`of ${money(totalTarget)} across ${state.goals.length}`}
+          onClick={() => setView("worth")} />
+        <Kpi label="Going in monthly" value={money(m.goalMonthly)} foot="funded out of the plan"
+          onClick={() => setView("budget")} />
+        <Kpi label="Savings rate" value={Math.round(m.savingsRate) + "%"} tone={m.savingsRate >= 15 ? "up" : "mid"}
+          onClick={() => setView("reports")} />
+        <Kpi label="On track" value={`${state.goals.length - lateCount} / ${state.goals.length}`}
+          foot={lateCount > 0 ? "tap to see what's behind" : "all where they should be"}
+          onClick={() => setLateOnly(!lateOnly)} active={lateOnly} />
       </div>
 
       {state.goals.length === 0 && <div className="card"><p className="empty">No goals yet. Start with the one you'd both name first if someone asked.</p></div>}
 
-      {state.goals.map((g, i) => {
+      {lateOnly && lateCount === 0 && state.goals.length > 0 &&
+        <div className="card" style={{ marginBottom: 14 }}><p className="empty">Nothing is behind — every goal is on pace for its date.</p></div>}
+
+      {state.goals.filter((g) => !lateOnly || m.goalStatus(g).late).map((g) => {
+        const i = state.goals.findIndex((x) => x.id === g.id);
         const st = m.goalStatus(g);
         const set = (f, v) => patch((s) => { s.goals[i][f] = v; return s; });
         const proj = [];
@@ -2923,7 +2969,7 @@ function GoalsView({ ctx }) {
 /* ================================================================== */
 
 function NetWorth({ ctx }) {
-  const { m, state, patch, month } = ctx;
+  const { m, state, patch, month, setView } = ctx;
   const [extra, setExtra] = useState("");
   const [strategy, setStrategy] = useState("avalanche");
   const set = (i, f, v) => patch((s) => { s.accounts[i][f] = v; return s; });
@@ -2941,13 +2987,16 @@ function NetWorth({ ctx }) {
         line={`What you own less what you owe: ${money(m.netWorth)}.`} />
 
       <div className="grid g3" style={{ marginBottom: 16 }}>
-        <Kpi label="Net worth" value={money(m.netWorth)} tone={m.netWorth < 0 ? "down" : "up"} />
-        <Kpi label="Assets" value={money(m.assetTotal)} foot={`${m.assets.length} accounts`} />
-        <Kpi label="Debt" value={money(m.debtTotal)} foot={`${money(m.debtMin)}/mo in minimums`} tone={m.debtTotal > 0 ? "down" : ""} />
+        <Kpi label="Net worth" value={money(m.netWorth)} tone={m.netWorth < 0 ? "down" : "up"}
+          onClick={() => setView("reports")} />
+        <Kpi label="Assets" value={money(m.assetTotal)} foot={`${m.assets.length} accounts`}
+          onClick={() => scrollCard("accountsCard")} />
+        <Kpi label="Debt" value={money(m.debtTotal)} foot={`${money(m.debtMin)}/mo in minimums`} tone={m.debtTotal > 0 ? "down" : ""}
+          onClick={() => (m.debts.length > 0 ? scrollCard("payoffCard") : scrollCard("accountsCard"))} />
       </div>
 
       <div className="grid g23" style={{ marginBottom: 16 }}>
-        <div className="card">
+        <div className="card" id="accountsCard">
           <div className="chead"><h3>Accounts</h3><span className="meta">balances you update when you check them</span></div>
           {state.accounts.length === 0 && <p className="empty">Add checking, savings, retirement, the car loan — whatever moves the number.</p>}
           {state.accounts.map((a, i) => (
@@ -3013,7 +3062,7 @@ function NetWorth({ ctx }) {
       </div>
 
       {m.debts.length > 0 && (
-        <div className="card">
+        <div className="card" id="payoffCard">
           <div className="chead"><h3>Getting out</h3><span className="meta">simulated month by month at today's balances</span></div>
           <div className="toolbar">
             <div className="chips" style={{ marginBottom: 0 }}>
@@ -3041,7 +3090,7 @@ function NetWorth({ ctx }) {
 /* ================================================================== */
 
 function Reports({ ctx }) {
-  const { m, plan, month, setMonth, state } = ctx;
+  const { m, plan, month, setMonth, state, setView } = ctx;
 
   const byGroup = Object.entries(m.byGroup).map(([k, v]) => ({ name: k, Spent: v.spent, Planned: v.planned }))
     .filter((d) => d.Spent > 0 || d.Planned > 0);
@@ -3144,9 +3193,12 @@ function Reports({ ctx }) {
           <p className="empty">One income means there's nothing to split — it's all shared money, carried together.</p>
         ) : (
           <div className="grid g3">
-            <Kpi label={`${m.pA.name}'s share of shared costs`} value={money(m.jointCost * m.shareA)} foot={`${Math.round(m.shareA * 100)}% of ${money(m.jointCost)}`} />
-            <Kpi label={`${m.pB.name}'s share`} value={money(m.jointCost * (1 - m.shareA))} foot={`${Math.round((1 - m.shareA) * 100)}% of ${money(m.jointCost)}`} />
-            <Kpi label="Outside the shared pot" value={money(personal)} foot="personal envelopes, spending money, and anything unassigned" />
+            <Kpi label={`${m.pA.name}'s share of shared costs`} value={money(m.jointCost * m.shareA)} foot={`${Math.round(m.shareA * 100)}% of ${money(m.jointCost)} — the split rule lives in Settings`}
+              onClick={() => setView("settings")} />
+            <Kpi label={`${m.pB.name}'s share`} value={money(m.jointCost * (1 - m.shareA))} foot={`${Math.round((1 - m.shareA) * 100)}% of ${money(m.jointCost)}`}
+              onClick={() => setView("settings")} />
+            <Kpi label="Outside the shared pot" value={money(personal)} foot="personal envelopes, spending money, and anything unassigned"
+              onClick={() => setView("txn")} />
           </div>
         )}
         {(m.covered.a > 0 || m.covered.b > 0) && (
