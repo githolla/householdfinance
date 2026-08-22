@@ -107,7 +107,7 @@ function demoState() {
     { name: "Giving", group: "Giving", planned: 400, owner: "joint", n: 2 },
     { name: `${A}'s spending`, group: "Other", planned: 250, owner: "a", n: 4 },
     { name: `${B}'s spending`, group: "Other", planned: 250, owner: "b", n: 4 },
-    { name: "Everything else", group: "Other", planned: 240, owner: "joint", n: 3 },
+    { name: "Everything else", group: "Other", planned: 155, owner: "joint", n: 3 },
   ];
 
   const today = new Date();
@@ -207,67 +207,78 @@ const NAV = [
 ];
 
 const C = {
-  a: "#2E6F63", b: "#6B5CA5", joint: "#B9862B", warn: "#A93E2F",
-  soft: "#5C6864", ink: "#16211F", line: "#D2D6CC",
+  a: "#5FA893", b: "#A08FD8", joint: "#C9A227", warn: "#C96A57",
+  soft: "#A2988A", ink: "#EDE6DA", line: "#332C25",
 };
-const PIE = ["#2E6F63", "#6B5CA5", "#B9862B", "#4C8C7E", "#8C7BC0", "#A93E2F", "#3F5C57", "#C9A227"];
+const PIE = ["#C9A227", "#5FA893", "#A08FD8", "#B9862B", "#7FB8A6", "#C96A57", "#8FA5A0", "#D8C08A"];
 
 /* ================================================================== */
 /*  styles                                                             */
 /* ================================================================== */
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-.tc{--paper:#E6E8E1;--surface:#FBFBF8;--ink:#16211F;--soft:#5C6864;--line:#D2D6CC;
- --a:#2E6F63;--b:#6B5CA5;--joint:#B9862B;--warn:#A93E2F;--r:10px;
- background:var(--paper);color:var(--ink);font-family:'Karla',ui-sans-serif,system-ui,sans-serif;
- min-height:100%;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-size:14px;}
+body{margin:0;background:#141110;}
+.tc{--paper:#141110;--surface:#1D1815;--ink:#EDE6DA;--soft:#A2988A;--line:#332C25;
+ --a:#5FA893;--b:#A08FD8;--joint:#C9A227;--warn:#C96A57;--r:12px;
+ --goldline:rgba(201,162,39,.38);--goldsoft:rgba(201,162,39,.14);--hair:rgba(237,230,218,.09);
+ background:var(--paper);color:var(--ink);font-family:'Jost',ui-sans-serif,system-ui,sans-serif;
+ min-height:100vh;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-size:14px;font-weight:300;}
 .tc *,.tc *::before,.tc *::after{box-sizing:border-box;}
 .tc .num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;}
-.tc h1,.tc h2,.tc h3,.tc .serif{font-family:'Fraunces','Iowan Old Style',Georgia,serif;font-weight:400;margin:0;}
+.tc h1,.tc h2,.tc h3,.tc .serif{font-family:'Cormorant Garamond','Iowan Old Style',Georgia,serif;font-weight:500;margin:0;}
 .tc button{font-family:inherit;cursor:pointer;}
-.tc :focus-visible{outline:2px solid var(--a);outline-offset:2px;border-radius:4px;}
+.tc :focus-visible{outline:1px solid var(--joint);outline-offset:2px;border-radius:4px;}
+.tc .gem{display:flex;align-items:center;justify-content:center;gap:12px;color:var(--joint);
+ font-size:10px;line-height:1;}
+.tc .gem::before,.tc .gem::after{content:"";height:1px;width:36px;background:var(--goldline);}
 
-/* shell */
-.tc .shell{display:grid;grid-template-columns:206px minmax(0,1fr);min-height:100vh;}
-.tc .side{border-right:1px solid var(--line);padding:22px 16px;position:sticky;top:0;height:100vh;
- display:flex;flex-direction:column;gap:22px;}
-.tc .mark{line-height:1.15;}
-.tc .mark .nm{font-family:'Fraunces',Georgia,serif;font-size:19px;letter-spacing:-.01em;display:block;}
-.tc .mark .who{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--soft);}
-.tc nav{display:flex;flex-direction:column;gap:1px;}
-.tc nav button{text-align:left;background:none;border:none;padding:7px 9px;border-radius:7px;
- font-size:13.5px;color:var(--soft);letter-spacing:.01em;}
-.tc nav button:hover{background:rgba(255,255,255,.55);color:var(--ink);}
-.tc nav button.on{background:var(--ink);color:var(--paper);}
-.tc .sidefoot{margin-top:auto;font-size:11.5px;color:var(--soft);line-height:1.5;}
-.tc .main{padding:22px 26px 70px;min-width:0;}
-@media(max-width:860px){
- .tc .shell{grid-template-columns:1fr;}
- .tc .side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);
-  flex-direction:row;align-items:center;gap:16px;padding:14px 16px;overflow-x:auto;}
- .tc nav{flex-direction:row;gap:2px;}
- .tc nav button{white-space:nowrap;padding:6px 10px;}
- .tc .sidefoot{display:none;}
+/* shell — top bar with clickable tabs */
+.tc .shell{min-height:100vh;}
+.tc .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:24px;flex-wrap:wrap;
+ padding:14px 28px;background:rgba(20,17,16,.94);backdrop-filter:blur(10px);
+ border-bottom:1px solid var(--line);}
+.tc .mark{line-height:1.2;min-width:150px;}
+.tc .mark .nm{font-family:'Cormorant Garamond',Georgia,serif;font-size:19px;letter-spacing:.08em;display:block;}
+.tc .mark .who{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--soft);}
+.tc nav{display:flex;gap:2px;flex:1;justify-content:center;overflow-x:auto;}
+.tc nav button{background:none;border:none;border-bottom:1px solid transparent;padding:9px 12px;
+ font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--soft);white-space:nowrap;}
+.tc nav button:hover{color:var(--ink);}
+.tc nav button.on{color:var(--joint);border-bottom-color:var(--joint);}
+.tc .topnet{text-align:right;min-width:110px;line-height:1.4;}
+.tc .topnet .who{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--soft);display:block;}
+.tc .main{padding:26px 28px 80px;min-width:0;max-width:1240px;margin:0 auto;}
+@media(max-width:980px){
+ .tc .top{gap:10px;padding:12px 16px;}
+ .tc nav{order:3;flex-basis:100%;justify-content:flex-start;}
+ .tc .mark{flex:1;}
  .tc .main{padding:18px 16px 60px;}
 }
 
 /* page head */
 .tc .phead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;
- border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:22px;}
-.tc .phead h1{font-size:24px;letter-spacing:-.015em;}
-.tc .phead .sub{font-size:12.5px;color:var(--soft);margin-top:3px;}
+ border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:22px;}
+.tc .phead h1{font-size:21px;letter-spacing:.22em;text-transform:uppercase;font-weight:500;}
+.tc .phead .sub{font-size:12.5px;color:var(--soft);margin-top:4px;letter-spacing:.02em;}
 .tc .monthnav{display:flex;align-items:center;gap:5px;}
 .tc .monthnav .m{font-size:13px;min-width:120px;text-align:center;}
 .tc .arrow{background:none;border:1px solid var(--line);border-radius:50%;width:25px;height:25px;
  color:var(--soft);font-size:13px;display:grid;place-items:center;line-height:1;}
-.tc .arrow:hover{border-color:var(--a);color:var(--a);}
+.tc .arrow:hover{border-color:var(--joint);color:var(--joint);}
 
-/* thesis */
-.tc .thesis{font-family:'Fraunces',Georgia,serif;font-size:clamp(21px,2.7vw,31px);line-height:1.26;
- letter-spacing:-.015em;max-width:820px;margin:0 0 26px;}
-.tc .thesis span{color:var(--soft);}
+/* hero + thesis */
+.tc .hero{position:relative;border-radius:14px;overflow:hidden;text-align:center;
+ padding:58px 28px 54px;margin-bottom:24px;border:1px solid var(--goldline);
+ background:linear-gradient(180deg,rgba(20,17,16,.5),rgba(20,17,16,.82)),
+  url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1600&q=60') center/cover,
+  #1D1815;}
+.tc .hero .gem{margin-bottom:18px;}
+.tc .thesis{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(24px,3.4vw,38px);line-height:1.3;
+ letter-spacing:.05em;max-width:860px;margin:0 auto;font-weight:500;}
+.tc .thesis span{display:block;font-size:clamp(14px,1.6vw,17px);color:rgba(237,230,218,.76);
+ letter-spacing:.06em;margin-top:12px;font-style:italic;}
 
 /* grid + cards */
 .tc .grid{display:grid;gap:16px;}
@@ -277,23 +288,23 @@ const CSS = `
 .tc .g23{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);}
 @media(max-width:980px){.tc .g23,.tc .g3,.tc .g4{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:620px){.tc .grid{grid-template-columns:minmax(0,1fr)!important;}}
-.tc .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 17px;}
-.tc .card h3{font-size:15.5px;}
-.tc .chead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:13px;}
-.tc .chead .meta{font-size:11.5px;color:var(--soft);}
+.tc .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:17px 18px;}
+.tc .card h3{font-size:13.5px;letter-spacing:.24em;text-transform:uppercase;font-weight:500;}
+.tc .chead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:14px;}
+.tc .chead .meta{font-size:11.5px;color:var(--soft);letter-spacing:.03em;}
 
 /* kpi */
-.tc .kpi{padding:14px 15px;}
-.tc .kpi .lab{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--soft);}
+.tc .kpi{padding:15px 16px;}
+.tc .kpi .lab{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(201,162,39,.8);}
 .tc .kpi .val{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
- font-size:23px;letter-spacing:-.02em;margin-top:7px;line-height:1.1;word-break:break-word;}
+ font-size:22px;letter-spacing:-.02em;margin-top:8px;line-height:1.1;word-break:break-word;}
 .tc .kpi .foot{font-size:11.5px;color:var(--soft);margin-top:7px;line-height:1.4;}
 .tc .up{color:var(--a);}.tc .down{color:var(--warn);}.tc .mid{color:var(--joint);}
 
 /* rail */
 .tc .rail{display:flex;height:30px;width:100%;gap:2px;}
 .tc .seg{min-width:2px;border-radius:3px;}
-.tc .seg.gap{background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(92,104,100,.2) 5px,rgba(92,104,100,.2) 6px);
+.tc .seg.gap{background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(237,230,218,.14) 5px,rgba(237,230,218,.14) 6px);
  border:1px dashed var(--soft);}
 .tc .railkey{display:flex;flex-wrap:wrap;gap:13px;margin-top:10px;font-size:11.5px;color:var(--soft);}
 .tc .railkey span{display:flex;align-items:center;gap:6px;}
@@ -301,7 +312,7 @@ const CSS = `
 
 /* rows */
 .tc .row{display:grid;grid-template-columns:1fr 92px 92px;gap:10px;align-items:center;padding:8px 0;
- border-bottom:1px solid rgba(210,214,204,.62);}
+ border-bottom:1px solid var(--hair);}
 .tc .row:last-child{border-bottom:none;}
 .tc .row.wide{grid-template-columns:1fr 130px 92px 96px;}
 @media(max-width:700px){.tc .row.wide{grid-template-columns:1fr 96px;}
@@ -309,34 +320,36 @@ const CSS = `
 .tc .rowname{display:flex;align-items:center;gap:8px;min-width:0;}
 .tc .rowname input{border:none;background:none;font-size:14px;color:var(--ink);padding:2px 0;
  width:100%;min-width:0;font-family:inherit;}
-.tc .rowname input:hover{border-bottom:1px dotted var(--line);}
+.tc .rowname input:hover{border-bottom:1px dotted var(--goldline);}
 .tc .amt{text-align:right;font-size:13.5px;}
 .tc .amt input{width:100%;text-align:right;border:none;background:none;font-size:13.5px;color:var(--ink);
  font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;padding:3px 0;}
 .tc .amt input:hover,.tc .amt input:focus{border-bottom:1px solid var(--line);outline:none;}
 .tc .muted{color:var(--soft);}
 .tc .over{color:var(--warn);font-weight:500;}
-.tc .bar{grid-column:1/-1;height:4px;background:rgba(92,104,100,.13);border-radius:3px;overflow:hidden;}
+.tc .bar{grid-column:1/-1;height:4px;background:rgba(237,230,218,.08);border-radius:3px;overflow:hidden;}
 .tc .bar i{display:block;height:100%;border-radius:3px;}
-.tc .kill{background:none;border:none;color:var(--line);font-size:15px;padding:0 2px;line-height:1;}
+.tc .kill{background:none;border:none;color:#4A4038;font-size:15px;padding:0 2px;line-height:1;}
 .tc .kill:hover{color:var(--warn);}
-.tc .tag{border:1px solid var(--line);background:var(--surface);border-radius:20px;font-size:10px;
- letter-spacing:.09em;text-transform:uppercase;padding:2px 8px;color:var(--soft);white-space:nowrap;
+.tc .tag{border:1px solid var(--line);background:none;border-radius:20px;font-size:10px;
+ letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;color:var(--soft);white-space:nowrap;
  font-family:inherit;max-width:120px;}
-.tc .grouphead{font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--soft);
+.tc .grouphead{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(201,162,39,.8);
  padding:16px 0 4px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;}
 
 /* controls */
-.tc .field{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:8px 10px;
+.tc .field{border:1px solid rgba(201,162,39,.28);background:#191412;border-radius:var(--r);padding:9px 11px;
  font-size:13.5px;color:var(--ink);font-family:inherit;width:100%;}
-.tc .field:focus{border-color:var(--a);outline:none;}
-.tc .btn{border:1px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:var(--r);
- padding:8px 14px;font-size:13px;}
-.tc .btn:hover{background:#0d1614;}
-.tc .btn[disabled]{opacity:.42;cursor:default;}
-.tc .btn.ghost{background:none;color:var(--ink);border-color:var(--line);}
-.tc .btn.ghost:hover{background:rgba(255,255,255,.6);border-color:var(--a);color:var(--a);}
-.tc .btn.tiny{padding:5px 10px;font-size:12px;}
+.tc .field::placeholder{color:#6E645A;}
+.tc .field:focus{border-color:var(--joint);outline:none;}
+.tc select.field option{background:#191412;color:var(--ink);}
+.tc .btn{border:1px solid var(--goldline);background:none;color:var(--ink);border-radius:var(--r);
+ padding:10px 16px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;}
+.tc .btn:hover{background:var(--goldsoft);border-color:var(--joint);}
+.tc .btn[disabled]{opacity:.38;cursor:default;}
+.tc .btn.ghost{background:none;color:var(--soft);border-color:var(--line);}
+.tc .btn.ghost:hover{background:var(--goldsoft);border-color:var(--goldline);color:var(--ink);}
+.tc .btn.tiny{padding:5px 10px;font-size:10px;letter-spacing:.16em;}
 .tc .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
 .tc .toolbar .field{width:auto;min-width:120px;}
 .tc .logger{display:grid;grid-template-columns:100px 1fr 140px 1fr auto;gap:8px;background:var(--surface);
@@ -344,7 +357,7 @@ const CSS = `
 @media(max-width:760px){.tc .logger{grid-template-columns:1fr 1fr;}.tc .logger .wide{grid-column:1/-1;}}
 
 /* goals */
-.tc .track{height:7px;background:rgba(92,104,100,.14);border-radius:4px;margin:11px 0 9px;overflow:hidden;}
+.tc .track{height:7px;background:rgba(237,230,218,.1);border-radius:4px;margin:11px 0 9px;overflow:hidden;}
 .tc .track i{display:block;height:100%;background:var(--joint);border-radius:4px;transition:width .4s ease;}
 .tc .flag{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:20px;
  border:1px solid currentColor;white-space:nowrap;}
@@ -354,39 +367,48 @@ const CSS = `
 .tc .fourup{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px;padding-top:12px;
  border-top:1px solid var(--line);}
 @media(max-width:640px){.tc .fourup{grid-template-columns:repeat(2,1fr);}}
-.tc .lbl{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin-bottom:4px;}
+.tc .lbl{display:block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(201,162,39,.8);margin-bottom:5px;}
 
 /* notes + chat */
 .tc .note{display:flex;gap:9px;font-size:13px;line-height:1.45;padding:8px 0;
- border-bottom:1px solid rgba(210,214,204,.7);}
+ border-bottom:1px solid var(--hair);}
 .tc .note:last-child{border-bottom:none;}
 .tc .tick{width:4px;flex:none;border-radius:3px;margin:3px 0;}
 .tc .chatlog{display:flex;flex-direction:column;gap:12px;overflow-y:auto;margin-bottom:12px;}
 .tc .msg{font-size:13.5px;line-height:1.55;white-space:pre-wrap;}
-.tc .msg.me{align-self:flex-end;background:var(--ink);color:var(--paper);padding:8px 12px;
- border-radius:12px 12px 3px 12px;max-width:86%;}
+.tc .msg.me{align-self:flex-end;background:#241E19;border:1px solid var(--goldline);color:var(--ink);
+ padding:8px 12px;border-radius:12px 12px 3px 12px;max-width:86%;}
 .tc .msg.them{border-left:2px solid var(--joint);padding-left:12px;}
 .tc .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px;}
-.tc .chip{border:1px solid var(--line);background:none;border-radius:20px;padding:5px 11px;font-size:12px;color:var(--soft);}
-.tc .chip:hover{border-color:var(--a);color:var(--a);}
-.tc .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+.tc .chip{border:1px solid var(--line);background:none;border-radius:20px;padding:5px 12px;font-size:12px;color:var(--soft);}
+.tc .chip:hover{border-color:var(--joint);color:var(--joint);}
+.tc .chip.on{background:var(--joint);color:#141110;border-color:var(--joint);}
 .tc .askrow{display:flex;gap:7px;}
 .tc .empty{font-size:13px;color:var(--soft);line-height:1.55;padding:8px 0;margin:0;}
 
 /* daily bread */
-.tc .verse{font-size:17.5px;line-height:1.5;letter-spacing:-.01em;margin:2px 0 9px;max-width:660px;}
-.tc .verseref{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);}
-.tc .verseline{font-size:13px;color:var(--soft);line-height:1.5;margin:11px 0 0;padding-top:11px;
- border-top:1px solid rgba(210,214,204,.62);}
+.tc .verse{font-size:19px;line-height:1.5;letter-spacing:.015em;margin:4px 0 10px;max-width:680px;font-style:italic;}
+.tc .verseref{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--joint);}
+.tc .verseline{font-size:13px;color:var(--soft);line-height:1.5;margin:12px 0 0;padding-top:12px;
+ border-top:1px solid var(--hair);}
 
 /* tooltip */
-.tc .tip{background:var(--ink);color:var(--paper);border-radius:7px;padding:7px 10px;font-size:12px;line-height:1.5;}
-.tc .tip .k{opacity:.65;}
+.tc .tip{background:#241E19;border:1px solid var(--goldline);color:var(--ink);border-radius:7px;
+ padding:7px 10px;font-size:12px;line-height:1.5;}
+.tc .tip .k{color:var(--soft);}
 
 /* setup */
-.tc .setup{max-width:560px;margin:0 auto;padding:6vh 18px 40px;}
-.tc .setup h1{font-size:clamp(30px,5vw,44px);line-height:1.1;margin-bottom:12px;letter-spacing:-.02em;}
-.tc .setup .sub{color:var(--soft);font-size:15px;line-height:1.55;margin-bottom:26px;}
+.tc .setup{max-width:920px;margin:0 auto;padding:7vh 18px 60px;}
+.tc .setup .hero{padding:64px 28px;}
+.tc .setup h1{font-size:clamp(30px,4.6vw,46px);line-height:1.15;letter-spacing:.06em;font-weight:500;}
+.tc .setup .sub{color:var(--soft);font-size:14.5px;line-height:1.6;margin:0 0 26px;letter-spacing:.02em;}
+.tc .choice{padding:26px 24px;text-align:center;}
+.tc .choice h3{margin:14px 0 6px;}
+.tc .choice .why{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;color:var(--joint);
+ font-size:15px;margin:0 0 16px;}
+.tc .choice .pair,.tc .choice .lbl{text-align:left;}
+.tc .choice .btn{width:100%;margin-top:8px;}
+.tc .choice .fine{font-size:11px;color:var(--soft);letter-spacing:.06em;margin-top:12px;}
 .tc .pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:13px;}
 @media(prefers-reduced-motion:reduce){.tc *{transition:none!important;animation:none!important;}}
 `;
@@ -453,7 +475,7 @@ export default function App() {
   return (
     <Frame>
       <div className="shell">
-        <aside className="side">
+        <header className="top">
           <div className="mark">
             <span className="nm">{state.household.name}</span>
             <span className="who">{m.pA.name} &amp; {m.pB.name}</span>
@@ -463,21 +485,18 @@ export default function App() {
               <button key={k} className={view === k ? "on" : ""} onClick={() => setView(k)}>{label}</button>
             ))}
           </nav>
-          <div className="sidefoot">
+          <div className="topnet">
+            <span className="num" style={{ fontSize: 14 }}>{money(m.netWorth)}</span>
+            <span className="who">net worth</span>
             {state.demo && (
-              <div style={{ marginBottom: 12 }}>
-                <span className="tag" style={{ borderColor: C.joint, color: C.joint }}>Sample data</span>
-                <button className="btn ghost tiny" style={{ marginTop: 8, display: "block" }}
-                  onClick={async () => {
-                    try { await window.storage.delete(KEY); } catch (e) { /* nothing stored */ }
-                    setState(null);
-                  }}>Start clean</button>
-              </div>
+              <button className="btn ghost tiny" style={{ marginTop: 6 }}
+                onClick={async () => {
+                  try { await window.storage.delete(KEY); } catch (e) { /* nothing stored */ }
+                  setState(null);
+                }}>Sample · start clean</button>
             )}
-            <div className="num" style={{ fontSize: 15, color: C.ink }}>{money(m.netWorth)}</div>
-            net worth today
           </div>
-        </aside>
+        </header>
         <main className="main">
           {view === "dash" && <Dashboard ctx={ctx} />}
           {view === "budget" && <Budget ctx={ctx} />}
@@ -801,12 +820,16 @@ function Dashboard({ ctx }) {
 
   return (
     <>
+      <div className="hero">
+        <div className="gem">◆</div>
+        <h2 className="thesis">{m.thesis[0]} <span>{m.thesis[1]}</span></h2>
+      </div>
+
       <Head
         title="Dashboard"
         sub={`${monthLabel(month)} · ${plan.entries.length} transactions logged`}
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
-      <p className="thesis">{m.thesis[0]} <span>{m.thesis[1]}</span></p>
 
       {m.faithOn && (
         <div className="card" style={{ marginBottom: 16 }}>
@@ -873,8 +896,8 @@ function Dashboard({ ctx }) {
                 <BarChart data={catData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }} barCategoryGap={6}>
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" width={112} {...axis} />
-                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(92,104,100,.07)" }} />
-                  <Bar dataKey="planned" name="Planned" fill="rgba(92,104,100,.16)" radius={3} />
+                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(237,230,218,.05)" }} />
+                  <Bar dataKey="planned" name="Planned" fill="rgba(237,230,218,.14)" radius={3} />
                   <Bar dataKey="spent" name="Spent" fill={C.a} radius={3} />
                 </BarChart>
               </ResponsiveContainer>
@@ -906,7 +929,7 @@ function Dashboard({ ctx }) {
               return (
                 <div key={g.id} style={{ marginBottom: 13 }}>
                   <div className="metaline" style={{ justifyContent: "space-between" }}>
-                    <b style={{ fontFamily: "Fraunces, Georgia, serif", fontSize: 15 }}>{g.name}</b>
+                    <b style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 15 }}>{g.name}</b>
                     <span className="num">{money(g.saved)} / {money(g.target)}</span>
                   </div>
                   <div className="track"><i style={{ width: st.pct + "%", background: st.late ? C.warn : C.joint }} /></div>
@@ -1244,7 +1267,7 @@ function GoalsView({ ctx }) {
         return (
           <div className="card" key={g.id} style={{ marginBottom: 14 }}>
             <div className="chead">
-              <input className="field" style={{ border: "none", background: "none", fontFamily: "Fraunces, Georgia, serif", fontSize: 19, padding: 0 }}
+              <input className="field" style={{ border: "none", background: "none", fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 19, padding: 0 }}
                 value={g.name} onChange={(e) => set("name", e.target.value)} aria-label="Goal name" />
               <button className="kill" onClick={() => patch((s) => { s.goals.splice(i, 1); return s; })} aria-label="Remove">×</button>
             </div>
@@ -1439,8 +1462,8 @@ function Reports({ ctx }) {
                   <CartesianGrid stroke={C.line} vertical={false} />
                   <XAxis dataKey="name" {...axis} />
                   <YAxis {...axis} tickFormatter={compact} width={46} />
-                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(92,104,100,.07)" }} />
-                  <Bar dataKey="Planned" fill="rgba(92,104,100,.2)" radius={3} />
+                  <Tooltip content={<Tip />} cursor={{ fill: "rgba(237,230,218,.05)" }} />
+                  <Bar dataKey="Planned" fill="rgba(237,230,218,.16)" radius={3} />
                   <Bar dataKey="Spent" fill={C.a} radius={3} />
                 </BarChart>
               </ResponsiveContainer>
@@ -1478,7 +1501,7 @@ function Reports({ ctx }) {
                 <CartesianGrid stroke={C.line} vertical={false} />
                 <XAxis dataKey="label" {...axis} />
                 <YAxis {...axis} tickFormatter={compact} width={46} />
-                <Tooltip content={<Tip />} cursor={{ fill: "rgba(92,104,100,.07)" }} />
+                <Tooltip content={<Tip />} cursor={{ fill: "rgba(237,230,218,.05)" }} />
                 <Bar dataKey="Spent" stackId="s" fill={C.a} radius={[0, 0, 3, 3]} />
                 <Bar dataKey="Toward goals" stackId="s" fill={C.joint} radius={[3, 3, 0, 0]} />
                 <ReferenceLine y={m.income} stroke={C.ink} strokeDasharray="4 3" />
@@ -1784,36 +1807,49 @@ function Setup({ onDone }) {
   return (
     <Frame>
       <div className="setup">
-        <h1>Two people,<br />one month at a time.</h1>
-        <p className="sub">
-          Tell it who's in the household and what you each bring home. The budget, the bills, the goals, the net worth,
-          and the read on how you're doing all build from there.
-        </p>
-        <div style={{ marginBottom: 13 }}>
-          <label className="lbl">Household name (optional)</label>
-          <input className="field" placeholder="The Kitchen Table Fund" value={name} onChange={(e) => setName(e.target.value)} />
+        <div className="hero">
+          <div className="gem">◆</div>
+          <h1>How would you like to start?</h1>
+          <p className="thesis"><span>Two people, one month at a time — the budget, the bills, the goals, and the read on how you're doing all build from what you each bring home.</span></p>
         </div>
-        <div className="pair">
-          <div><label className="lbl">First name</label>
-            <input className="field" placeholder="Alex" value={a} onChange={(e) => setA(e.target.value)} /></div>
-          <div><label className="lbl">Monthly take-home</label>
-            <input className="field num" placeholder="4,200" value={ai} onChange={(e) => setAi(e.target.value)} /></div>
+
+        <div className="grid g2">
+          <div className="card choice">
+            <div className="gem">◆</div>
+            <h3>Open the ledger</h3>
+            <p className="why">Set up your own household</p>
+            <label className="lbl">Household name (optional)</label>
+            <input className="field" style={{ marginBottom: 13 }} placeholder="The Kitchen Table Fund"
+              value={name} onChange={(e) => setName(e.target.value)} />
+            <div className="pair">
+              <div><label className="lbl">First name</label>
+                <input className="field" placeholder="Alex" value={a} onChange={(e) => setA(e.target.value)} /></div>
+              <div><label className="lbl">Monthly take-home</label>
+                <input className="field num" placeholder="4,200" value={ai} onChange={(e) => setAi(e.target.value)} /></div>
+            </div>
+            <div className="pair">
+              <div><label className="lbl">Second name</label>
+                <input className="field" placeholder="Sam" value={b} onChange={(e) => setB(e.target.value)} /></div>
+              <div><label className="lbl">Monthly take-home</label>
+                <input className="field num" placeholder="3,800" value={bi} onChange={(e) => setBi(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && start()} /></div>
+            </div>
+            <button className="btn" onClick={start} disabled={!ready}>Open the ledger</button>
+            <p className="fine">Two minutes · your numbers, your plan</p>
+          </div>
+
+          <div className="card choice">
+            <div className="gem">◆</div>
+            <h3>Tour the sample</h3>
+            <p className="why">Click through a household that's already living in it</p>
+            <p className="empty" style={{ textAlign: "left" }}>
+              A two-income household with six months of history, bills, goals, and debt already in it.
+              Every screen is live — the budget, the spending log, the planner, all of it.
+            </p>
+            <button className="btn" onClick={() => onDone(demoState())}>See the sample</button>
+            <p className="fine">Instant · wipe it and start clean anytime</p>
+          </div>
         </div>
-        <div className="pair">
-          <div><label className="lbl">Second name</label>
-            <input className="field" placeholder="Sam" value={b} onChange={(e) => setB(e.target.value)} /></div>
-          <div><label className="lbl">Monthly take-home</label>
-            <input className="field num" placeholder="3,800" value={bi} onChange={(e) => setBi(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && start()} /></div>
-        </div>
-        <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <button className="btn" onClick={start} disabled={!ready}>Open the ledger</button>
-          <button className="btn ghost" onClick={() => onDone(demoState())}>Click through a sample household</button>
-        </div>
-        <p className="empty" style={{ marginTop: 14 }}>
-          The sample is a two-income household with six months of history, bills, goals, and debt already in it —
-          every screen is live, and you can wipe it and start clean whenever you want.
-        </p>
       </div>
     </Frame>
   );

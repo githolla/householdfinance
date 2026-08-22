@@ -52,8 +52,9 @@ Two rules that will bite you:
 - Month keys are `"YYYY-MM"` strings. Use `shiftMonth`, `monthsBetween`, `monthLabel` — never do date math inline.
 - `owner` is `"a" | "b" | "joint"` everywhere (envelopes, entries, bills, accounts). Resolve with `m.ownerName()` / `m.ownerColor()`.
 - All user input goes through `num()`, which strips currency formatting and never returns NaN.
-- Colours live in the `C` object and the CSS variables — pine `#2E6F63` is partner A, iris `#6B5CA5` is partner B, brass `#B9862B` is shared/goals, rust `#A93E2F` is the only alarm colour. Don't introduce new hues.
-- Type: Fraunces (headings, numbers-as-statements), Karla (UI), IBM Plex Mono (all figures, tabular). Loaded via `@import` in the CSS string.
+- Colours live in the `C` object and the CSS variables. The theme is dark luxe: warm near-black ground `#141110`, ivory text `#EDE6DA`, gold `#C9A227` as both the accent and the shared/goals colour. Partner hues keep their families, tinted to read on the dark ground — sea-glass `#5FA893` is partner A, pale iris `#A08FD8` is partner B, rust `#C96A57` is the only alarm colour. Don't introduce new hues — gold hairlines (`--goldline`) carry the luxury, not extra colour.
+- Type: Cormorant Garamond (headings, the hero sentence, the daily verse), Jost (UI), IBM Plex Mono (all figures, tabular). Loaded via `@import` in the CSS string. Display headings are letterspaced uppercase; the `◆` `.gem` divider marks the hero and feature cards.
+- The shell is a sticky top tab bar (no sidebar). The dashboard and setup open with a photo hero — the image is hotlinked from Unsplash with a dark gradient over it, and the gradient plus a solid fallback keep the text readable if the photo doesn't load.
 - No `<form>` elements — click handlers and Enter keydowns only. Carried over from the artifact; harmless to keep.
 
 ## The stewardship layer
