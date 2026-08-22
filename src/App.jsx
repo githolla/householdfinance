@@ -522,6 +522,9 @@ body{margin:0;background:#F6F6F5;}
 .tc .conbar .mic.on{background:var(--accsoft);color:var(--acc);}
 .tc .conbar .btn{white-space:nowrap;flex:none;}
 .tc .concierge .confirm{font-size:12.5px;color:var(--soft);margin:10px 4px 0;}
+.tc .consuggest{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.tc .conreply{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
+ padding:14px 16px;margin-top:10px;}
 .tc .bulkcard{text-align:left;margin-top:16px;color:var(--ink);}
 .tc .bulkrow{display:grid;grid-template-columns:minmax(140px,1fr) 86px 150px 110px 64px 22px;gap:6px;
  align-items:center;padding:4px 0;}
@@ -1365,11 +1368,12 @@ function classifyItem(name) {
     transaction. Tries the AI route first; a local parser catches it
     if the route is down, so logging never depends on the network.
     Pasting a multi-line list opens the bulk setup review instead.     */
-function Concierge({ ctx }) {
-  const { m, plan, writeMonth, patch, month } = ctx;
+function Concierge({ ctx, suggest }) {
+  const { m, plan, writeMonth, patch, month, state, setView } = ctx;
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState(null);
+  const [reply, setReply] = useState(null);
   const [listening, setListening] = useState(false);
   const [bulk, setBulk] = useState(null);
   const recRef = useRef(null);
@@ -1536,10 +1540,55 @@ function Concierge({ ctx }) {
     setLast(null);
   };
 
-  const log = async () => {
-    const raw = text.trim();
+  // Anything that isn't a log/setup/search sentence goes to the planner
+  // brain; the answer shows inline here and joins the Assistant chat.
+  const askAI = async (question) => {
+    setBusy(true); setLast(null); setReply(null);
+    const history = [...(state.chat || []), { role: "user", content: question }];
+    patch((s) => { s.chat = history; return s; });
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6", max_tokens: 1000,
+          system: buildPlannerSystem(m, buildSnapshot(state, m, plan, month)),
+          messages: history.slice(-12).map((x) => ({ role: x.role, content: x.content })),
+        }),
+      });
+      const data = await res.json();
+      const answer = (data.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();
+      if (!answer) throw new Error("empty");
+      patch((s) => { s.chat = [...history, { role: "assistant", content: answer }]; return s; });
+      setReply({ text: answer });
+      setText("");
+    } catch (e) {
+      setLast({ err: "Couldn't reach your assistant just now — try again in a moment." });
+    }
+    setBusy(false);
+  };
+
+  const log = async (textArg) => {
+    const raw = (textArg !== undefined ? textArg : text).trim();
     if (!raw || busy) return;
-    setBusy(true); setLast(null);
+    const sm = raw.match(/^(?:find|search(?: for)?|where(?:'s| is)|look for|locate)\s+(.+)$/i);
+    if (sm) {
+      const needle = sm[1].replace(/^(?:our|my|the)\s+/i, "").replace(/[?.!]\s*$/, "");
+      const res = searchEverything(state, needle);
+      const answer = res.length
+        ? `Here's what I found for “${needle}”:\n\n${res.slice(0, 8).join("\n")}${res.length > 8 ? `\n…and ${res.length - 8} more.` : ""}`
+        : `Nothing matches “${needle}” in the paper drawer, bills, spending, goals, or incomes yet.`;
+      patch((s) => { s.chat = [...(s.chat || []), { role: "user", content: raw }, { role: "assistant", content: answer }]; return s; });
+      setLast(null);
+      setReply({ text: answer });
+      setText("");
+      return;
+    }
+    if (/\?\s*$/.test(raw) || /^(?:who|what|when|why|how|can|could|should|shall|are|is|do|does|did|will|would|help|explain|tell|show)\b/i.test(raw)) {
+      await askAI(raw);
+      return;
+    }
+    if (!/\d/.test(raw)) { await askAI(raw); return; }
+    setBusy(true); setLast(null); setReply(null);
     let parsed = null;
     try {
       const res = await fetch(API_URL, {
@@ -1570,8 +1619,8 @@ function Concierge({ ctx }) {
       || plan.envelopes.find((e) => e.name === "Everything else") || plan.envelopes[0];
     const amount = num(parsed.amount);
     if (!amount || !env) {
-      setLast({ err: "Couldn't find an amount in that — try something like “14.50 coffee”." });
       setBusy(false);
+      await askAI(raw);
       return;
     }
     const entry = {
@@ -1591,7 +1640,7 @@ function Concierge({ ctx }) {
       <div className="conbar">
         <input placeholder={month !== monthKey(new Date())
           ? `Logging into ${monthLabel(month)} — flip back to this month for today's spending`
-          : `Try “$42 groceries”, “Mortgage $2,700 on the first”, “bonus $900 the 10th” — or paste a whole list`}
+          : `Log it (“$42 groceries”), set it up (“Mortgage $2,700 on the first”), “find car insurance” — or just ask`}
           value={text} onPaste={onPaste}
           onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && log()}
           aria-label="Log spending in one sentence" />
@@ -1603,8 +1652,24 @@ function Concierge({ ctx }) {
             </svg>
           </button>
         )}
-        <button className="btn" onClick={log} disabled={busy || !text.trim()}>{busy ? "…" : "Log it"}</button>
+        <button className="btn" onClick={() => log()} disabled={busy || !text.trim()}>{busy ? "…" : "Go"}</button>
       </div>
+      {suggest && suggest.length > 0 && (
+        <div className="consuggest">
+          {suggest.map((s) => (
+            <button key={s} className="chip" onClick={() => log(s)} disabled={busy}>{s}</button>
+          ))}
+        </div>
+      )}
+      {reply && (
+        <div className="conreply">
+          <div className="msg them" style={{ whiteSpace: "pre-wrap" }}>{reply.text}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button className="btn ghost tiny" onClick={() => setView("planner")}>Continue in Assistant</button>
+            <button className="btn ghost tiny" onClick={() => setReply(null)}>Dismiss</button>
+          </div>
+        </div>
+      )}
       {bulk && (
         <div className="card bulkcard">
           <div className="chead">
@@ -1701,7 +1766,11 @@ function Dashboard({ ctx }) {
         );
       })}
 
-      <Concierge ctx={ctx} />
+      <Concierge ctx={ctx} suggest={[
+        m.unallocated > 1 ? `Where should the unassigned ${money(m.unallocated)} go?` : "Are we on track this month?",
+        "What's coming due next?",
+        "Find our car insurance",
+      ]} />
 
       <div className="card herocard">
         <div className="biglab">Available to spend</div>
@@ -1968,6 +2037,12 @@ function Budget({ ctx }) {
           : m.unallocated < -1 ? `The plan is ${money(-m.unallocated)} past income — something has to come down.`
             : "Every dollar has a job this month."} />
 
+      <Concierge ctx={ctx} suggest={[
+        m.unallocated > 1 ? `Where should the unassigned ${money(m.unallocated)} go?` : "Is this plan realistic?",
+        "What changed from last month?",
+        ...(m.faithOn ? ["Are we giving the way we mean to?"] : ["Where can we trim?"]),
+      ]} />
+
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="chead">
           <h3>Money coming in</h3>
@@ -2182,6 +2257,12 @@ function Spending({ ctx }) {
       <Guidance m={m} theme="contentment"
         line={m.leftToSpend >= 0 ? `${money(m.leftToSpend)} left to spend inside what you planned.`
           : `Spending is ${money(-m.leftToSpend)} past the plan this month.`} />
+
+      <Concierge ctx={ctx} suggest={[
+        "What did we spend the most on?",
+        "Where can we trim this month?",
+        "Find groceries",
+      ]} />
 
       <Logger envelopes={plan.envelopes} m={m}
         onAdd={(e) => writeMonth((mm) => { mm.entries.unshift(e); return mm; })} />
@@ -3059,6 +3140,105 @@ function Reports({ ctx }) {
 /*  8. planner                                                         */
 /* ================================================================== */
 
+/*  The assistant's shared brain: the snapshot every AI call sees, the
+    planner voice, and the instant local search across everything.     */
+function buildSnapshot(state, m, plan, month) {
+  return {
+    month: monthLabel(month),
+    partners: [m.pA, m.pB].map((p) => ({ name: p.name, monthlyTakeHome: p.income })),
+    splitRule: state.household.splitRule,
+    monthlyIncome: m.income,
+    expectedEarningsThisMonth: m.expected.map((e) => ({
+      name: e.name, amount: e.amount, expectedDay: e.day, whose: m.ownerName(e.who),
+      received: e.landed, recurring: !!e.recurring,
+    })),
+    ...(m.upcoming.length > 0 && {
+      futureEarnings: m.upcoming.map((e) => ({
+        name: e.name, amount: e.amount, expectedDate: e.date || e.month, whose: m.ownerName(e.who),
+      })),
+    }),
+    ...(m.paychecks.length > 0 && {
+      paychecksThisMonth: m.paychecks.map((p) => ({
+        name: p.name, amount: Math.round(p.amount), expectedDay: p.day, received: p.landed,
+      })),
+    }),
+    envelopes: plan.envelopes.map((e) => ({
+      name: e.name, group: e.group, planned: e.planned,
+      spentSoFar: m.spentBy[e.id] || 0, coveredBy: m.ownerName(e.owner),
+    })),
+    recurringBills: m.bills.map((b) => ({ name: b.name, amount: b.amount, dueDay: b.day, paidThisMonth: b.paid })),
+    goals: state.goals.map((g) => {
+      const st = m.goalStatus(g);
+      return {
+        name: g.name, target: g.target, saved: g.saved, monthly: g.monthly,
+        wantItBy: g.due || null, projectedFinish: st.eta ? monthLabel(st.eta) : null, behindSchedule: st.late,
+      };
+    }),
+    accounts: state.accounts.map((a) => ({
+      name: a.name, type: a.type, balance: a.balance, apr: a.apr || null, minPayment: a.minPayment || null,
+    })),
+    netWorth: m.netWorth,
+    totalDebt: m.debtTotal,
+    unassignedEachMonth: m.unallocated,
+    availableToSpendRestOfMonth: m.available,
+    savingsRatePct: Math.round(m.savingsRate),
+    lastSixMonths: m.history.map((h) => ({ month: h.label, spent: h.spent })),
+    ...(m.faithOn && {
+      stewardship: {
+        todaysVerse: `${m.verse.ref} — ${m.verse.text}`,
+        givingSetAsideThisMonth: m.giving.planned,
+        givenSoFarThisMonth: m.giving.given,
+        givenThisYear: m.giving.ytd,
+        givingTargetPctOfIncome: m.giving.targetPct,
+        givingTargetMetThisMonth: m.giving.metTarget,
+        milestonesMarked: (state.milestoneLog || []).map((x) => ({ what: x.text, when: x.when })),
+      },
+    }),
+  };
+}
+
+function buildPlannerSystem(m, snapshot) {
+  return (
+    `You are the household financial planner for ${m.pA.name} and ${m.pB.name}, a couple who share money. ` +
+    `Speak plainly and warmly, like a planner who knows them. Be specific: use their real numbers and their own category names. ` +
+    `Lead with one clear recommendation rather than a menu of options, then the reasoning. Keep it under 180 words unless asked for more. ` +
+    `Never invent numbers that aren't in the snapshot — if something is missing, name what they should fill in. ` +
+    `Stay neutral between the two of them; never take a side in a disagreement about money. ` +
+    `You are not a licensed advisor: for tax, legal, insurance, or investment-product decisions, say so in one line and point them to a professional.\n` +
+    (m.faithOn
+      ? `They keep a daily scripture practice around money in this app; today's verse and their giving numbers are in the snapshot. When it fits the question, you may frame advice in stewardship terms — giving, contentment, staying out of debt — but never preach, never guilt, and never use scripture to settle a disagreement between them.\n\n`
+      : `\n`) +
+    `Snapshot (monthly amounts unless noted):\n${JSON.stringify(snapshot, null, 2)}`
+  );
+}
+
+function searchEverything(state, needle) {
+  const q = needle.toLowerCase();
+  const out = [];
+  (state.docs || []).forEach((d) => {
+    const i = d.text.toLowerCase().indexOf(q);
+    if (d.name.toLowerCase().includes(q) || i >= 0) {
+      const snip = (i >= 0 ? d.text.slice(Math.max(0, i - 40), i + 90) : d.text.slice(0, 90)).replace(/\s+/g, " ").trim();
+      out.push(`Paper drawer — ${d.name} (${d.folder}): “…${snip}…”`);
+    }
+  });
+  state.bills.forEach((b) => {
+    if (b.name.toLowerCase().includes(q)) out.push(`Bill — ${b.name}, ${money(b.amount)} due the ${ordinal(b.day)}.`);
+  });
+  Object.keys(state.months).sort().reverse().forEach((k) => {
+    (state.months[k].entries || []).forEach((t) => {
+      if ((t.note || "").toLowerCase().includes(q)) out.push(`Spending — ${t.note}, ${money(t.amount)} (${monthLabel(k, true)}).`);
+    });
+  });
+  state.goals.forEach((g) => {
+    if (g.name.toLowerCase().includes(q)) out.push(`Goal — ${g.name}: ${money(g.saved)} of ${money(g.target)}.`);
+  });
+  (state.incomes || []).forEach((inc) => {
+    if (inc.name.toLowerCase().includes(q)) out.push(`Income — ${inc.name}, ${money(inc.amount)}${inc.recurring ? " every month" : ""}.`);
+  });
+  return out;
+}
+
 function PlannerPage({ ctx }) {
   const { m, state, patch, plan, month } = ctx;
   const [q, setQ] = useState("");
@@ -3098,32 +3278,7 @@ function PlannerPage({ ctx }) {
   };
 
   // "find car insurance" → instant local search across everything saved.
-  const localSearch = (qRaw) => {
-    const needle = qRaw.toLowerCase();
-    const out = [];
-    (state.docs || []).forEach((d) => {
-      const i = d.text.toLowerCase().indexOf(needle);
-      if (d.name.toLowerCase().includes(needle) || i >= 0) {
-        const snip = (i >= 0 ? d.text.slice(Math.max(0, i - 40), i + 90) : d.text.slice(0, 90)).replace(/\s+/g, " ").trim();
-        out.push(`Paper drawer — ${d.name} (${d.folder}): “…${snip}…”`);
-      }
-    });
-    state.bills.forEach((b) => {
-      if (b.name.toLowerCase().includes(needle)) out.push(`Bill — ${b.name}, ${money(b.amount)} due the ${ordinal(b.day)}.`);
-    });
-    Object.keys(state.months).sort().reverse().forEach((k) => {
-      (state.months[k].entries || []).forEach((t) => {
-        if ((t.note || "").toLowerCase().includes(needle)) out.push(`Spending — ${t.note}, ${money(t.amount)} (${monthLabel(k, true)}).`);
-      });
-    });
-    state.goals.forEach((g) => {
-      if (g.name.toLowerCase().includes(needle)) out.push(`Goal — ${g.name}: ${money(g.saved)} of ${money(g.target)}.`);
-    });
-    (state.incomes || []).forEach((inc) => {
-      if (inc.name.toLowerCase().includes(needle)) out.push(`Income — ${inc.name}, ${money(inc.amount)}${inc.recurring ? " every month" : ""}.`);
-    });
-    return out;
-  };
+  const localSearch = (needle) => searchEverything(state, needle);
 
   // Files dropped into the chat: extracted, filed in the paper drawer,
   // and read by the assistant right here in the conversation.
@@ -3177,58 +3332,7 @@ function PlannerPage({ ctx }) {
 
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [chat, busy]);
 
-  const snapshot = {
-    month: monthLabel(month),
-    partners: [m.pA, m.pB].map((p) => ({ name: p.name, monthlyTakeHome: p.income })),
-    splitRule: state.household.splitRule,
-    monthlyIncome: m.income,
-    expectedEarningsThisMonth: m.expected.map((e) => ({
-      name: e.name, amount: e.amount, expectedDay: e.day, whose: m.ownerName(e.who),
-      received: e.landed, recurring: !!e.recurring,
-    })),
-    ...(m.upcoming.length > 0 && {
-      futureEarnings: m.upcoming.map((e) => ({
-        name: e.name, amount: e.amount, expectedDate: e.date || e.month, whose: m.ownerName(e.who),
-      })),
-    }),
-    ...(m.paychecks.length > 0 && {
-      paychecksThisMonth: m.paychecks.map((p) => ({
-        name: p.name, amount: Math.round(p.amount), expectedDay: p.day, received: p.landed,
-      })),
-    }),
-    envelopes: plan.envelopes.map((e) => ({
-      name: e.name, group: e.group, planned: e.planned,
-      spentSoFar: m.spentBy[e.id] || 0, coveredBy: m.ownerName(e.owner),
-    })),
-    recurringBills: m.bills.map((b) => ({ name: b.name, amount: b.amount, dueDay: b.day, paidThisMonth: b.paid })),
-    goals: state.goals.map((g) => {
-      const st = m.goalStatus(g);
-      return {
-        name: g.name, target: g.target, saved: g.saved, monthly: g.monthly,
-        wantItBy: g.due || null, projectedFinish: st.eta ? monthLabel(st.eta) : null, behindSchedule: st.late,
-      };
-    }),
-    accounts: state.accounts.map((a) => ({
-      name: a.name, type: a.type, balance: a.balance, apr: a.apr || null, minPayment: a.minPayment || null,
-    })),
-    netWorth: m.netWorth,
-    totalDebt: m.debtTotal,
-    unassignedEachMonth: m.unallocated,
-    availableToSpendRestOfMonth: m.available,
-    savingsRatePct: Math.round(m.savingsRate),
-    lastSixMonths: m.history.map((h) => ({ month: h.label, spent: h.spent })),
-    ...(m.faithOn && {
-      stewardship: {
-        todaysVerse: `${m.verse.ref} — ${m.verse.text}`,
-        givingSetAsideThisMonth: m.giving.planned,
-        givenSoFarThisMonth: m.giving.given,
-        givenThisYear: m.giving.ytd,
-        givingTargetPctOfIncome: m.giving.targetPct,
-        givingTargetMetThisMonth: m.giving.metTarget,
-        milestonesMarked: (state.milestoneLog || []).map((x) => ({ what: x.text, when: x.when })),
-      },
-    }),
-  };
+  const snapshot = buildSnapshot(state, m, plan, month);
 
   const ask = async (text) => {
     const question = (text === undefined ? q : text).trim();
@@ -3255,17 +3359,7 @@ function PlannerPage({ ctx }) {
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 1000,
-          system:
-            `You are the household financial planner for ${m.pA.name} and ${m.pB.name}, a couple who share money. ` +
-            `Speak plainly and warmly, like a planner who knows them. Be specific: use their real numbers and their own category names. ` +
-            `Lead with one clear recommendation rather than a menu of options, then the reasoning. Keep it under 180 words unless asked for more. ` +
-            `Never invent numbers that aren't in the snapshot — if something is missing, name what they should fill in. ` +
-            `Stay neutral between the two of them; never take a side in a disagreement about money. ` +
-            `You are not a licensed advisor: for tax, legal, insurance, or investment-product decisions, say so in one line and point them to a professional.\n` +
-            (m.faithOn
-              ? `They keep a daily scripture practice around money in this app; today's verse and their giving numbers are in the snapshot. When it fits the question, you may frame advice in stewardship terms — giving, contentment, staying out of debt — but never preach, never guilt, and never use scripture to settle a disagreement between them.\n\n`
-              : `\n`) +
-            `Snapshot (monthly amounts unless noted):\n${JSON.stringify(snapshot, null, 2)}`,
+          system: buildPlannerSystem(m, snapshot),
           messages: next.map((x) => ({ role: x.role, content: x.content })),
         }),
       });
