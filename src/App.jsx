@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v32";
+const APP_VERSION = "v33";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -449,6 +449,44 @@ body{margin:0;background:#EAE5D8;}
  max-width:130px;}
 .tc .grouphead{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--soft);
  padding:16px 0 4px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;}
+
+/* bill rows — a ledger line: due badge · name+meta · amount+status · action */
+.tc .billrow{display:grid;grid-template-columns:50px minmax(0,1fr) auto 132px;gap:16px;align-items:center;
+ padding:11px 10px;border-bottom:1px solid var(--hair);cursor:pointer;border-radius:9px;transition:background .12s;}
+.tc .billrow:last-child{border-bottom:none;}
+.tc .billrow:hover{background:var(--accsoft);}
+.tc .billrow.isPaid{opacity:.72;}
+.tc .billrow.isPaid:hover{opacity:1;}
+.tc .due{border:1.5px solid var(--line);border-radius:8px;background:var(--paper);text-align:center;
+ padding:3px 0 4px;line-height:1;flex:none;}
+.tc .due.od{border-color:var(--warn);background:rgba(185,51,24,.06);}
+.tc .due.dn{border-color:var(--a);}
+.tc .due .d-l{font-family:'IBM Plex Mono',monospace;font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);display:block;margin-bottom:1px;}
+.tc .due.od .d-l{color:var(--warn);}
+.tc .due .d-n{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;color:var(--ink);}
+.tc .due.od .d-n{color:var(--warn);}
+.tc .bill-main{min-width:0;}
+.tc .bill-name{font-size:14.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tc .bill-name .co{color:var(--soft);font-weight:400;}
+.tc .bill-meta{display:flex;align-items:center;gap:7px;margin-top:3px;flex-wrap:wrap;}
+.tc .bill-meta .mtag{font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.08em;
+ text-transform:uppercase;color:var(--soft);}
+.tc .bill-meta .mtag.env::before{content:"";width:7px;height:7px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle;background:var(--dotc,var(--joint));}
+.tc .bill-meta .sep{color:var(--line);}
+.tc .bill-amt{text-align:right;flex:none;}
+.tc .bill-amt .a-n{font-family:'IBM Plex Mono',monospace;font-size:15.5px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);}
+.tc .bill-amt .a-s{font-size:10.5px;color:var(--soft);margin-top:3px;white-space:nowrap;}
+.tc .bill-amt .a-s.od{color:var(--warn);font-weight:500;}
+.tc .bill-amt .a-s.gd{color:var(--good);}
+.tc .bill-act{display:flex;justify-content:flex-end;align-items:center;gap:6px;flex:none;}
+.tc .paylink{border:1.5px solid var(--a);color:var(--a);border-radius:7px;padding:6px 7px;display:grid;place-items:center;
+ background:none;line-height:0;flex:none;}
+.tc .paylink:hover{background:var(--a);color:var(--paper);}
+@media(max-width:640px){
+ .tc .billrow{grid-template-columns:44px minmax(0,1fr) auto;gap:11px;}
+ .tc .bill-act{grid-column:2/-1;justify-content:flex-start;margin-top:2px;}
+ .tc .bill-amt .a-s{white-space:normal;}
+}
 
 /* controls */
 .tc .field{border:1.5px solid var(--line);background:#FCFAF4;border-radius:8px;padding:8px 11px;
@@ -2485,34 +2523,50 @@ function BillRow({ b, m, state, plan, patch, month, togglePaid, setBillAmount, m
   const paidBtn = (
     <button className={"btn tiny " + (b.paid ? "" : "ghost")}
       onClick={(e) => { e.stopPropagation(); togglePaid(b); }}>
-      {b.paid ? "Paid" : b.overdue ? "Overdue — mark paid" : "Mark paid"}
+      {b.paid ? "Paid" : "Mark paid"}
     </button>
   );
+  const daysOut = b.day - todayDay();
+  const dotc = env ? (GROUP_COLORS[env.group] || C.joint) : C.joint;
 
   if (!open) return (
-    <div className="row wide click" role="button" tabIndex={0} onClick={() => setOpen(true)}
+    <div className={"billrow" + (b.paid ? " isPaid" : "")} role="button" tabIndex={0} onClick={() => setOpen(true)}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(true)}
       aria-label={`Edit ${b.name}`}>
-      <div className="rowname">
-        <span style={{ width: 4, height: 16, borderRadius: 3, flex: "none", background: b.paid ? C.a : b.overdue ? C.warn : C.joint }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {b.name}{b.company ? <span className="muted"> — {b.company}</span> : ""}
-        </span>
-        <span className="muted" style={{ fontSize: 12 }}>
-          due the {ordinal(b.day)}{env ? ` · ${env.name}` : ""}
-          {b.paid && paidLabel ? ` · paid ${paidLabel}` : ""}{b.paid && b.conf ? ` · #${b.conf}` : ""}
-        </span>
-        {b.payMethod && <span className="tag hideS">{METHODS[b.payMethod] || b.payMethod}</span>}
-        {b.overridden && <span className="tag hideS">usually {money(b.usual)}</span>}
+      <div className={"due" + (b.overdue ? " od" : b.dueSoon ? " dn" : "")}>
+        <span className="d-l">{b.overdue ? "Late" : "Due"}</span>
+        <span className="d-n">{b.day}</span>
       </div>
-      <div className="amt hideS">
-        {payHref && !b.paid
-          ? <a className="tag" href={payHref} target="_blank" rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()} style={{ textDecoration: "none", color: CT.a, borderColor: C.a }}>pay ↗</a>
-          : <span className="editHint">edit</span>}
+
+      <div className="bill-main">
+        <div className="bill-name">{b.name}{b.company ? <span className="co"> — {b.company}</span> : ""}</div>
+        <div className="bill-meta">
+          {env && <span className="mtag env" style={{ "--dotc": dotc }}>{env.name}</span>}
+          {b.payMethod && <><span className="sep">·</span><span className="mtag">{METHODS[b.payMethod] || b.payMethod}</span></>}
+          {b.overridden && <><span className="sep">·</span><span className="mtag">usually {money(b.usual)}</span></>}
+        </div>
       </div>
-      <div className="amt num">{money(b.amount)}</div>
-      <div className="amt">{paidBtn}</div>
+
+      <div className="bill-amt">
+        <div className="a-n">{money(b.amount)}</div>
+        {b.paid
+          ? <div className="a-s gd">{paidLabel ? `Paid ${paidLabel}` : "Paid"}{b.conf ? ` · #${b.conf}` : ""}</div>
+          : b.overdue
+            ? <div className="a-s od">Overdue</div>
+            : b.dueSoon
+              ? <div className="a-s">{daysOut <= 0 ? "Due today" : `In ${daysOut} day${daysOut === 1 ? "" : "s"}`}</div>
+              : <div className="a-s">Due the {ordinal(b.day)}</div>}
+      </div>
+
+      <div className="bill-act">
+        {payHref && !b.paid && (
+          <a className="paylink" href={payHref} target="_blank" rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()} title="Open payment page" aria-label={`Pay ${b.name} online`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+          </a>
+        )}
+        {paidBtn}
+      </div>
     </div>
   );
 
