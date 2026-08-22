@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import * as XLSX from "xlsx";
 import mammoth from "mammoth/mammoth.browser";
-import { verseForDay } from "./scripture.js";
+import { verseForDay, VERSES } from "./scripture.js";
 
 /* ================================================================== */
 /*  data + helpers                                                     */
@@ -203,7 +203,7 @@ function demoState() {
       { id: uid(), name: `${A}'s 401(k)`, type: "invest", balance: 41200, owner: "a", apr: 0, minPayment: 0 },
       { id: uid(), name: `${B}'s Roth IRA`, type: "invest", balance: 18400, owner: "b", apr: 0, minPayment: 0 },
       { id: uid(), name: "Car loan", type: "debt", balance: 12400, owner: "joint", apr: 5.9, minPayment: 385 },
-      { id: uid(), name: "Credit card", type: "debt", balance: 3850, owner: "joint", apr: 22.9, minPayment: 120 },
+      { id: uid(), name: "Credit card", type: "debt", balance: 0, owner: "joint", apr: 22.9, minPayment: 120 },
     ],
     bills,
     incomes: [
@@ -482,6 +482,18 @@ body{margin:0;background:#F6F6F5;}
 .tc .editor .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 12px;}
 .tc .editor .efoot{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap;}
 .tc .editor .snip{margin-top:10px;}
+
+/* celebrations + giving */
+.tc .celebrate{background:linear-gradient(120deg,#F2F8EC,#FBF6E7);border:1px solid #DCE4CB;
+ border-left:3px solid #7FAE7A;border-radius:12px;padding:16px 18px;margin-bottom:16px;
+ display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;}
+.tc .celebrate .ctitle{font-family:'Space Grotesk',Inter,sans-serif;font-size:18px;font-weight:600;letter-spacing:-.01em;}
+.tc .celebrate .cline{font-size:13px;color:#4A4F55;margin:6px 0 8px;max-width:680px;line-height:1.5;}
+.tc .celebrate .cverse{font-size:12.5px;font-style:italic;color:#59684F;margin:0;}
+.tc .celebrate .cverse b{font-style:normal;font-weight:600;color:#5E8355;margin-left:6px;}
+.tc .givetrack{height:8px;background:rgba(23,24,28,.07);border-radius:4px;overflow:hidden;margin-top:14px;}
+.tc .givetrack i{display:block;height:100%;background:#7FAE7A;border-radius:4px;transition:width .4s ease;}
+.tc .mstone{font-size:12px;color:var(--soft);margin-top:10px;}
 
 /* demo banner + stewardship guidance */
 .tc .demobar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
@@ -913,12 +925,58 @@ function model(state, plan, month) {
 
   const faithOn = state.faith ? state.faith.enabled !== false : true;
   const givingGroup = byGroup["Giving"] || { planned: 0, spent: 0 };
+  const givingSpentIn = (mm) => {
+    const gIds = new Set((mm.envelopes || []).filter((e) => e.group === "Giving").map((e) => e.id));
+    return (mm.entries || []).reduce((n, t) => n + (gIds.has(t.envId) ? t.amount : 0), 0);
+  };
+  const givingTargetPct = (state.faith && state.faith.givingTarget) || 10;
+  let givingYtd = givingGroup.spent;
+  Object.entries(state.months).forEach(([k, mm]) => {
+    if (k.slice(0, 4) === month.slice(0, 4) && k < month) givingYtd += givingSpentIn(mm);
+  });
+  const prevMonthData = state.months[shiftMonth(month, -1)];
+  const givingLastMonth = prevMonthData ? givingSpentIn(prevMonthData) : 0;
   const giving = {
     planned: givingGroup.planned,
     given: givingGroup.spent,
     plannedPct: income > 0 ? (givingGroup.planned / income) * 100 : 0,
     givenPct: income > 0 ? (givingGroup.spent / income) * 100 : 0,
+    targetPct: givingTargetPct,
+    target: (income * givingTargetPct) / 100,
+    ytd: givingYtd,
+    lastMonth: givingLastMonth,
+    metTarget: income > 0 && givingGroup.spent >= (income * givingTargetPct) / 100,
   };
+
+  // Milestones worth marking: a debt reaching zero, the giving target
+  // met, giving growing month over month. Shown until the couple marks
+  // the moment (state.milestones); celebrated plainly, never gamified.
+  const marked = state.milestones || [];
+  const celebrations = [];
+  debts.forEach((d) => {
+    if (d.balance === 0 && !marked.includes(`debt:${d.id}`))
+      celebrations.push({
+        id: `debt:${d.id}`, kind: "debt",
+        title: `${d.name} is paid off.`,
+        line: d.minPayment > 0
+          ? `${money(d.minPayment)} a month just came back to you — ready to give, to save, or to send at the next debt.`
+          : "One less thing owed. That money answers to you two now.",
+      });
+  });
+  if (faithOn && liveM && giving.target > 0) {
+    if (giving.metTarget && !marked.includes(`tithe:${month}`))
+      celebrations.push({
+        id: `tithe:${month}`, kind: "giving",
+        title: `You've given ${money(giving.given)} this month — the full ${givingTargetPct}%.`,
+        line: "The first fruits went out first. That's the whole practice, working.",
+      });
+    else if (!giving.metTarget && giving.given > giving.lastMonth && giving.lastMonth > 0 && !marked.includes(`givemore:${month}`))
+      celebrations.push({
+        id: `givemore:${month}`, kind: "giving",
+        title: `You've already given more than all of last month — ${money(giving.given)} and counting.`,
+        line: `Last month closed at ${money(giving.lastMonth)}. The direction is the point.`,
+      });
+  }
 
   // Prefer naming a joint envelope when something is over plan — the
   // banner and thesis must never read as scripture-adjacent finger-
@@ -966,6 +1024,8 @@ function model(state, plan, month) {
 
   if (faithOn && giving.planned > 0 && giving.given === 0 && month === monthKey(new Date()) && todayDay() > 20)
     notes.push(["joint", `The ${money(giving.planned)} set aside for giving hasn't gone out yet this month.`]);
+  if (faithOn && giving.metTarget)
+    notes.push(["a", `Giving reached the ${giving.targetPct}% mark this month — ${money(giving.given)} gone out first.`]);
   if (!notes.length) notes.push(["a", "Nothing needs your attention. Log spending as it happens."]);
 
   let thesis;
@@ -984,7 +1044,7 @@ function model(state, plan, month) {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
     goalStatus, history, bills, billsTotal, billsLeft, billHistory, payoff, notes, thesis, shareA, jointCost,
-    faithOn, giving, verse, verseLine, available, daysLeft, perDay,
+    faithOn, giving, celebrations, verse, verseLine, available, daysLeft, perDay,
     baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
     payCounts: { a: paysFor(pA.id, month).length, b: paysFor(pB.id, month).length },
     eff: { a: effA, b: effB },
@@ -1595,7 +1655,7 @@ function Concierge({ ctx }) {
 /* ================================================================== */
 
 function Dashboard({ ctx }) {
-  const { m, plan, month, setMonth, state, setView, writeMonth } = ctx;
+  const { m, plan, month, setMonth, state, setView, writeMonth, patch } = ctx;
   const [showSpend, setShowSpend] = useState(false);
   const [selGroup, setSelGroup] = useState(null);
 
@@ -1620,6 +1680,26 @@ function Dashboard({ ctx }) {
 
       <Guidance m={m} line={null} />
 
+      {m.celebrations.map((c) => {
+        const v = c.kind === "debt"
+          ? (VERSES.find((x) => x.ref === "Romans 13:8") || verseForDay("debt"))
+          : verseForDay("giving");
+        return (
+          <div className="celebrate" key={c.id}>
+            <div style={{ minWidth: 0 }}>
+              <div className="ctitle">{c.title}</div>
+              <p className="cline">{c.line}</p>
+              {m.faithOn && <p className="cverse">“{v.text}”<b>{v.ref}</b></p>}
+            </div>
+            <button className="btn tiny" onClick={() => patch((s) => {
+              s.milestones = [...(s.milestones || []), c.id];
+              s.milestoneLog = [...(s.milestoneLog || []), { id: c.id, text: c.title, when: month }];
+              return s;
+            })}>Mark the moment</button>
+          </div>
+        );
+      })}
+
       <Concierge ctx={ctx} />
 
       <div className="card herocard">
@@ -1630,6 +1710,31 @@ function Dashboard({ ctx }) {
         <p className="herosub">{m.thesis[0]} {m.thesis[1]}</p>
         <Rail m={m} plan={plan} />
       </div>
+
+      {m.faithOn && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="chead">
+            <h3>Giving</h3>
+            <span className="meta">the first fruits, not the leftovers</span>
+          </div>
+          <div className="grid g4">
+            <Kpi label="Given this month" value={money(m.giving.given)} tone={m.giving.metTarget ? "up" : ""}
+              foot={`${m.giving.givenPct.toFixed(1)}% of income`} />
+            <Kpi label={`The ${m.giving.targetPct}% mark`} value={money(m.giving.target)}
+              foot={m.giving.metTarget ? "met this month" : m.giving.target > 0 ? `${money(Math.max(0, m.giving.target - m.giving.given))} to go` : "set incomes to see it"} />
+            <Kpi label="Given this year" value={money(m.giving.ytd)} foot="every month on record" />
+            <Kpi label="Set aside" value={money(m.giving.planned)} foot="in Giving envelopes" />
+          </div>
+          <div className="givetrack">
+            <i style={{ width: Math.min(100, m.giving.target > 0 ? (m.giving.given / m.giving.target) * 100 : 0) + "%" }} />
+          </div>
+          {(state.milestoneLog || []).length > 0 && (
+            <p className="mstone">
+              Moments marked: {(state.milestoneLog || []).slice(-3).map((x) => `${x.text.replace(/\.$/, "")} (${monthLabel(x.when, true)})`).join(" · ")}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
         <Kpi label="Coming in" value={money(m.income)}
@@ -3008,7 +3113,10 @@ function PlannerPage({ ctx }) {
         todaysVerse: `${m.verse.ref} — ${m.verse.text}`,
         givingSetAsideThisMonth: m.giving.planned,
         givenSoFarThisMonth: m.giving.given,
-        givingShareOfIncomePct: Math.round(m.giving.plannedPct),
+        givenThisYear: m.giving.ytd,
+        givingTargetPctOfIncome: m.giving.targetPct,
+        givingTargetMetThisMonth: m.giving.metTarget,
+        milestonesMarked: (state.milestoneLog || []).map((x) => ({ what: x.text, when: x.when })),
       },
     }),
   };
@@ -3190,9 +3298,22 @@ function SettingsView({ ctx, setState }) {
           </div>
           <p className="empty">
             {m.faithOn
-              ? "A verse on money and stewardship, new each morning, on the dashboard — and the planner can see it, along with what you've set aside to give."
-              : "The dashboard and planner leave scripture out."}
+              ? "A verse on money and stewardship, new each morning, on every page — and the planner can see it, along with what you've set aside to give."
+              : "The pages and planner leave scripture out."}
           </p>
+          {m.faithOn && (
+            <>
+              <label className="lbl" style={{ marginTop: 8 }}>Giving target — % of income</label>
+              <input className="field num" style={{ width: 90 }} value={m.giving.targetPct}
+                onChange={(e) => patch((s) => {
+                  s.faith = { ...(s.faith || {}), givingTarget: Math.max(0, Math.min(100, num(e.target.value))) };
+                  return s;
+                })} aria-label="Giving target percent of income" />
+              <p className="empty">
+                The Overview's Giving card measures each month against this — {money(m.giving.target)} at today's income.
+              </p>
+            </>
+          )}
         </div>
 
         <div className="card">

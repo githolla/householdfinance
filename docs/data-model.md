@@ -68,7 +68,10 @@ One JSON object, persisted whole under `twocolumn:v2`.
       "analysis": "..." }                                    // optional stored AI read of the doc
   ],
 
-  "faith": { "enabled": true }        // daily-scripture layer; absent means enabled
+  "faith": { "enabled": true, "givingTarget": 10 },  // scripture layer (absent = on) + giving % target (default 10)
+
+  "milestones": ["debt:a1", "tithe:2026-08"],        // celebration ids already marked
+  "milestoneLog": [{ "id": "debt:a1", "text": "Car loan is paid off.", "when": "2026-08" }]
 }
 ```
 
