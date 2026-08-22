@@ -472,6 +472,17 @@ body{margin:0;background:#F6F6F5;}
 .tc .askrow{display:flex;gap:7px;}
 .tc .empty{font-size:13px;color:var(--soft);line-height:1.55;padding:8px 0;margin:0;}
 
+/* read-first rows: a clean line you click to open a labeled editor */
+.tc .row.click{cursor:pointer;}
+.tc .row.click:hover{background:#FAFAF8;}
+.tc .editHint{font-size:11.5px;color:var(--acc);opacity:0;transition:opacity .12s;}
+.tc .row.click:hover .editHint,.tc .row.click:focus-visible .editHint{opacity:1;}
+.tc .editor{background:var(--paper);border:1px solid var(--line);border-radius:10px;
+ padding:14px;margin:8px 0 12px;}
+.tc .editor .fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 12px;}
+.tc .editor .efoot{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap;}
+.tc .editor .snip{margin-top:10px;}
+
 /* demo banner + stewardship guidance */
 .tc .demobar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
  background:var(--goldsoft);border:1px solid var(--goldline);border-radius:10px;
@@ -1082,34 +1093,64 @@ function Guidance({ m, theme, line }) {
 /*  One spending entry, editable in place — note, envelope, who, amount.
     Used on the dashboard (detail + group drill-down) and in Spending.   */
 function EntryRow({ t, plan, m, writeMonth }) {
+  const [open, setOpen] = useState(false);
   const env = plan.envelopes.find((e) => e.id === t.envId);
   const set = (f, v) => writeMonth((mm) => {
     const x = mm.entries.find((y) => y.id === t.id);
     if (x) x[f] = v;
     return mm;
   });
-  return (
-    <div className="row wide">
+  const remove = () => writeMonth((mm) => { mm.entries = mm.entries.filter((y) => y.id !== t.id); return mm; });
+
+  if (!open) return (
+    <div className="row wide click" role="button" tabIndex={0} onClick={() => setOpen(true)}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(true)}
+      aria-label={`Edit ${t.note || (env ? env.name : "entry")}`}>
       <div className="rowname">
-        <button className="tag" style={{ color: m.ownerText(t.who), borderColor: m.ownerColor(t.who) }}
-          onClick={() => {
-            const order = ["joint", "a", "b"];
-            set("who", order[(order.indexOf(t.who) + 1) % 3]);
-          }} title="Who paid — tap to change">{m.ownerName(t.who)}</button>
-        <input value={t.note || ""} placeholder={env ? env.name : "Spending"}
-          onChange={(e) => set("note", e.target.value)} aria-label="Note" />
-        <select className="tag" value={t.envId} onChange={(e) => set("envId", e.target.value)} aria-label="Envelope">
-          {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-        </select>
+        <span className="tag" style={{ color: m.ownerText(t.who), borderColor: m.ownerColor(t.who) }}>{m.ownerName(t.who)}</span>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {t.note || (env ? env.name : "Spending")}
+        </span>
+        <span className="muted" style={{ fontSize: 12 }}>{env ? env.name : "unfiled"}</span>
       </div>
       <div className="amt muted hideS">{t.date}</div>
-      <div className="amt">
-        <input className="num" value={t.amount || ""} placeholder="0"
-          onChange={(e) => set("amount", num(e.target.value))} aria-label="Amount" />
+      <div className="amt num">{money(t.amount, true)}</div>
+      <div className="amt"><span className="editHint">edit</span></div>
+    </div>
+  );
+
+  return (
+    <div className="editor">
+      <div className="fields">
+        <div>
+          <label className="lbl">What</label>
+          <input className="field" value={t.note || ""} placeholder={env ? env.name : "Spending"}
+            onChange={(e) => set("note", e.target.value)} aria-label="Note" />
+        </div>
+        <div>
+          <label className="lbl">Envelope</label>
+          <select className="field" value={t.envId} onChange={(e) => set("envId", e.target.value)} aria-label="Envelope">
+            {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="lbl">Who paid</label>
+          <select className="field" value={t.who} onChange={(e) => set("who", e.target.value)} aria-label="Who paid">
+            <option value="joint">Both</option>
+            <option value="a">{m.pA.name}</option>
+            <option value="b">{m.pB.name}</option>
+          </select>
+        </div>
+        <div>
+          <label className="lbl">Amount</label>
+          <input className="field num" value={t.amount || ""} placeholder="0"
+            onChange={(e) => set("amount", num(e.target.value))} aria-label="Amount" />
+        </div>
       </div>
-      <div className="amt">
-        <button className="kill" onClick={() => writeMonth((mm) => { mm.entries = mm.entries.filter((y) => y.id !== t.id); return mm; })}
-          aria-label="Remove entry">×</button>
+      <div className="efoot">
+        <button className="btn tiny" onClick={() => setOpen(false)}>Done</button>
+        <span className="muted" style={{ fontSize: 12 }}>{t.date}</span>
+        <button className="btn ghost tiny" style={{ marginLeft: "auto", color: C.warn }} onClick={remove}>Remove</button>
       </div>
     </div>
   );
@@ -1118,50 +1159,88 @@ function EntryRow({ t, plan, m, writeMonth }) {
 /*  One income item — paycheck or expected — editable in place: name,
     amount, every-month day or a real date, received tracking.         */
 function IncomeRow({ inc, m, month, patch, setInc, setIncDate, toggleLanded }) {
-  return (
-    <div className="row wide">
+  const [open, setOpen] = useState(false);
+  const whenText = inc.recurring
+    ? `every month on the ${ordinal(inc.day)}`
+    : `on ${new Date((inc.date || `${month}-${String(inc.day || 15).padStart(2, "0")}`) + "T00:00")
+        .toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+
+  if (!open) return (
+    <div className="row wide click" role="button" tabIndex={0} onClick={() => setOpen(true)}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(true)}
+      aria-label={`Edit ${inc.name}`}>
       <div className="rowname" style={inc.pay ? { paddingLeft: 12 } : undefined}>
-        <button className="tag" style={{ color: m.ownerText(inc.who), borderColor: m.ownerColor(inc.who) }}
-          disabled={!!inc.pay}
-          onClick={() => {
-            const order = ["joint", "a", "b"];
-            setInc(inc.id, "who", order[(order.indexOf(inc.who) + 1) % 3]);
-          }} title={inc.pay ? undefined : "Whose money — tap to change"}>{m.ownerName(inc.who)}</button>
-        <input value={inc.name} onChange={(e) => setInc(inc.id, "name", e.target.value)} aria-label="Income name" />
+        <span className="tag" style={{ color: m.ownerText(inc.who), borderColor: m.ownerColor(inc.who) }}>{m.ownerName(inc.who)}</span>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inc.name}</span>
+        <span className="muted" style={{ fontSize: 12 }}>{whenText}</span>
         {inc.late && <span className="tag" style={{ color: C.warn, borderColor: C.warn }}>running late</span>}
-        <button className="tag hideS" onClick={() => patch((s) => {
-          const x = (s.incomes || []).find((y) => y.id === inc.id);
-          if (x) {
-            x.recurring = !x.recurring;
-            if (x.recurring) { x.month = ""; x.date = ""; }
-            else { x.month = month; x.date = `${month}-${String(x.day || 15).padStart(2, "0")}`; }
-          }
-          return s;
-        })} title="One-time or every month">{inc.recurring ? "every month" : "one time"}</button>
-        <button className="kill" onClick={() => patch((s) => { s.incomes = (s.incomes || []).filter((y) => y.id !== inc.id); return s; })}
-          aria-label={`Remove ${inc.name}`}>×</button>
       </div>
-      <div className="amt hideS" style={{ textAlign: "left" }}>
-        {inc.recurring ? (
-          <>
-            <span className="muted">on the </span>
-            <input className="num" style={{ width: 36, textAlign: "left" }} value={inc.day}
-              onChange={(e) => setInc(inc.id, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Day of month" />
-          </>
-        ) : (
-          <input className="field num" type="date" style={{ width: 155, padding: "4px 8px", fontSize: 12.5 }}
-            value={inc.date || `${month}-${String(inc.day || 15).padStart(2, "0")}`}
-            onChange={(e) => setIncDate(inc.id, e.target.value)} aria-label="Expected date" />
-        )}
-      </div>
+      <div className="amt hideS"><span className="editHint">edit</span></div>
+      <div className="amt num">{money(inc.amount)}</div>
       <div className="amt">
-        <input className="num" value={inc.amount || ""} placeholder="0"
-          onChange={(e) => setInc(inc.id, "amount", num(e.target.value))} aria-label="Amount" />
-      </div>
-      <div className="amt">
-        <button className={"btn tiny " + (inc.landed ? "" : "ghost")} onClick={() => toggleLanded(inc)}
+        <button className={"btn tiny " + (inc.landed ? "" : "ghost")}
+          onClick={(e) => { e.stopPropagation(); toggleLanded(inc); }}
           title={inc.landed ? "Tap if it hasn't actually arrived" : "Tap when the money arrives"}>
           {inc.landed ? "Received" : "Mark received"}
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="editor">
+      <div className="fields">
+        <div>
+          <label className="lbl">Name</label>
+          <input className="field" value={inc.name} onChange={(e) => setInc(inc.id, "name", e.target.value)} aria-label="Income name" />
+        </div>
+        <div>
+          <label className="lbl">How often</label>
+          <select className="field" value={inc.recurring ? "monthly" : "once"} onChange={(e) => patch((s) => {
+            const x = (s.incomes || []).find((y) => y.id === inc.id);
+            if (x) {
+              x.recurring = e.target.value === "monthly";
+              if (x.recurring) { x.month = ""; x.date = ""; }
+              else { x.month = month; x.date = `${month}-${String(x.day || 15).padStart(2, "0")}`; }
+            }
+            return s;
+          })} aria-label="How often">
+            <option value="monthly">Every month</option>
+            <option value="once">One time</option>
+          </select>
+        </div>
+        <div>
+          <label className="lbl">{inc.recurring ? "Day of the month" : "Date it arrives"}</label>
+          {inc.recurring ? (
+            <input className="field num" value={inc.day}
+              onChange={(e) => setInc(inc.id, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Day of month" />
+          ) : (
+            <input className="field num" type="date"
+              value={inc.date || `${month}-${String(inc.day || 15).padStart(2, "0")}`}
+              onChange={(e) => setIncDate(inc.id, e.target.value)} aria-label="Expected date" />
+          )}
+        </div>
+        <div>
+          <label className="lbl">Amount</label>
+          <input className="field num" value={inc.amount || ""} placeholder="0"
+            onChange={(e) => setInc(inc.id, "amount", num(e.target.value))} aria-label="Amount" />
+        </div>
+        {!inc.pay && (
+          <div>
+            <label className="lbl">Whose</label>
+            <select className="field" value={inc.who} onChange={(e) => setInc(inc.id, "who", e.target.value)} aria-label="Whose money">
+              <option value="joint">Both</option>
+              <option value="a">{m.pA.name}</option>
+              <option value="b">{m.pB.name}</option>
+            </select>
+          </div>
+        )}
+      </div>
+      <div className="efoot">
+        <button className="btn tiny" onClick={() => setOpen(false)}>Done</button>
+        <button className="btn ghost tiny" style={{ marginLeft: "auto", color: C.warn }}
+          onClick={() => patch((s) => { s.incomes = (s.incomes || []).filter((y) => y.id !== inc.id); return s; })}>
+          Remove
         </button>
       </div>
     </div>
@@ -2074,11 +2153,115 @@ function Logger({ envelopes, m, onAdd }) {
 
 const COMMON_BILLS = ["Rent", "Mortgage", "Electric", "Water", "Gas", "Internet", "Phone plan", "Car payment", "Car insurance", "Streaming", "Gym"];
 
+/*  One bill: a clean read line (name · due day · envelope · amount ·
+    paid button); clicking opens the labeled editor with this month's
+    amount, the usual, and the cost history.                          */
+function BillRow({ b, m, state, plan, patch, togglePaid, setBillAmount, makeUsual }) {
+  const [open, setOpen] = useState(false);
+  const i = state.bills.findIndex((x) => x.id === b.id);
+  const set = (f, v) => patch((s) => { s.bills[i][f] = v; return s; });
+  const env = plan.envelopes.find((e) => e.id === b.envId);
+  const paidBtn = (
+    <button className={"btn tiny " + (b.paid ? "" : "ghost")}
+      onClick={(e) => { e.stopPropagation(); togglePaid(b); }}>
+      {b.paid ? "Paid" : b.overdue ? "Overdue — mark paid" : "Mark paid"}
+    </button>
+  );
+
+  if (!open) return (
+    <div className="row wide click" role="button" tabIndex={0} onClick={() => setOpen(true)}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(true)}
+      aria-label={`Edit ${b.name}`}>
+      <div className="rowname">
+        <span style={{ width: 4, height: 16, borderRadius: 3, flex: "none", background: b.paid ? C.a : b.overdue ? C.warn : C.joint }} />
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
+        <span className="muted" style={{ fontSize: 12 }}>
+          due the {ordinal(b.day)}{env ? ` · ${env.name}` : ""}
+        </span>
+        {b.overridden && <span className="tag hideS">usually {money(b.usual)}</span>}
+      </div>
+      <div className="amt hideS"><span className="editHint">edit</span></div>
+      <div className="amt num">{money(b.amount)}</div>
+      <div className="amt">{paidBtn}</div>
+    </div>
+  );
+
+  return (
+    <div className="editor">
+      <div className="fields">
+        <div>
+          <label className="lbl">Bill</label>
+          <input className="field" value={b.name} onChange={(e) => set("name", e.target.value)} aria-label="Bill name" />
+        </div>
+        <div>
+          <label className="lbl">Amount this month</label>
+          <input className="field num" value={b.amount || ""} placeholder="0"
+            onChange={(e) => setBillAmount(b, num(e.target.value))} aria-label={`${b.name} amount this month`} />
+        </div>
+        <div>
+          <label className="lbl">Due day</label>
+          <input className="field num" value={b.day}
+            onChange={(e) => set("day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Due day" />
+        </div>
+        <div>
+          <label className="lbl">Envelope</label>
+          <select className="field" value={b.envId || ""} onChange={(e) => set("envId", e.target.value)} aria-label="Envelope">
+            <option value="">no envelope</option>
+            {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="lbl">Whose</label>
+          <select className="field" value={b.owner} onChange={(e) => set("owner", e.target.value)} aria-label="Whose bill">
+            <option value="joint">Both</option>
+            <option value="a">{m.pA.name}</option>
+            <option value="b">{m.pB.name}</option>
+          </select>
+        </div>
+      </div>
+      <div className="snip">
+        {(() => {
+          const h = m.billHistory(b.id);
+          if (!h.length) return "No history yet — it starts the first month this bill is paid or given its own amount.";
+          const avg = h.reduce((n, x) => n + x.amount, 0) / h.length;
+          return (
+            <>
+              {h.map((x) => (
+                <span key={x.month} style={{ marginRight: 16 }}>
+                  {monthLabel(x.month, true)} <b className="num" style={{ color: "#3F4349" }}>{money(x.amount)}</b>
+                  {x.paid ? "" : <span className="muted"> planned</span>}
+                </span>
+              ))}
+              <span className="muted">averages {money(avg)} · usually {money(b.usual)}</span>
+            </>
+          );
+        })()}
+      </div>
+      <div className="efoot">
+        <button className="btn tiny" onClick={() => setOpen(false)}>Done</button>
+        {b.overridden && (
+          <button className="btn ghost tiny" onClick={() => makeUsual(b)}
+            title="Adopt this month's amount as the usual going forward">
+            Make {money(b.amount)} the usual
+          </button>
+        )}
+        {paidBtn}
+        <button className="btn ghost tiny" style={{ marginLeft: "auto", color: C.warn }}
+          onClick={() => {
+            if (!window.confirm(`Remove ${b.name}?`)) return;
+            patch((s) => { s.bills.splice(i, 1); return s; });
+          }}>
+          Remove
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function BillsView({ ctx }) {
   const { m, state, patch, plan, writeMonth, month, setMonth } = ctx;
   const set = (i, f, v) => patch((s) => { s.bills[i][f] = v; return s; });
   const [nb, setNb] = useState({ name: "", amount: "", day: "", envId: "" });
-  const [histId, setHistId] = useState(null);
 
   // Typing an amount changes THIS month only; the usual amount stays as
   // the default for future months until "make usual" adopts the new one.
@@ -2198,71 +2381,10 @@ function BillsView({ ctx }) {
 
       <div className="card">
         {state.bills.length === 0 && <p className="empty">Add the bills that repeat every month — rent, insurance, the streaming stack you forgot about.</p>}
-        {m.bills.map((b) => {
-          const i = state.bills.findIndex((x) => x.id === b.id);
-          return (
-            <div key={b.id}>
-            <div className="row wide">
-              <div className="rowname">
-                <span style={{ width: 4, height: 16, borderRadius: 3, flex: "none", background: b.paid ? C.a : b.overdue ? C.warn : C.joint }} />
-                <input value={b.name} onChange={(e) => set(i, "name", e.target.value)} aria-label="Bill name" />
-                <select className="tag" value={b.envId || ""} onChange={(e) => set(i, "envId", e.target.value)} aria-label="Envelope">
-                  <option value="">no envelope</option>
-                  {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-                </select>
-                <button className="tag" onClick={() => {
-                  const order = ["joint", "a", "b"];
-                  set(i, "owner", order[(order.indexOf(b.owner) + 1) % 3]);
-                }}>{m.ownerName(b.owner)}</button>
-                {b.overridden && (
-                  <button className="tag hideS" onClick={() => makeUsual(b)}
-                    title="This month's amount differs — tap to make it the usual going forward">
-                    usually {money(b.usual)}
-                  </button>
-                )}
-                <button className="tag hideS" onClick={() => setHistId(histId === b.id ? null : b.id)}
-                  title="What this bill has cost, month by month">
-                  {histId === b.id ? "hide history" : "history"}
-                </button>
-                <button className="kill" onClick={() => patch((s) => { s.bills.splice(i, 1); return s; })} aria-label="Remove">×</button>
-              </div>
-              <div className="amt hideS" style={{ textAlign: "left" }}>
-                <span className="muted">due </span>
-                <input className="num" style={{ width: 36, textAlign: "left" }} value={b.day}
-                  onChange={(e) => set(i, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Due day" />
-              </div>
-              <div className="amt"><input className="num" value={b.amount || ""} placeholder="0"
-                onChange={(e) => setBillAmount(b, num(e.target.value))} aria-label={`${b.name} amount this month`}
-                title="Changes this month only — the usual amount stays for future months" /></div>
-              <div className="amt">
-                <button className={"btn tiny " + (b.paid ? "" : "ghost")} onClick={() => togglePaid(b)}>
-                  {b.paid ? "Paid" : b.overdue ? "Overdue — mark paid" : "Mark paid"}
-                </button>
-              </div>
-            </div>
-            {histId === b.id && (
-              <div className="snip" style={{ padding: "4px 0 10px 14px", borderBottom: "1px solid var(--hair)" }}>
-                {(() => {
-                  const h = m.billHistory(b.id);
-                  if (!h.length) return "No history yet — it starts the first month this bill is paid or given its own amount.";
-                  const avg = h.reduce((n, x) => n + x.amount, 0) / h.length;
-                  return (
-                    <>
-                      {h.map((x) => (
-                        <span key={x.month} style={{ marginRight: 16 }}>
-                          {monthLabel(x.month, true)} <b className="num" style={{ color: "#3F4349" }}>{money(x.amount)}</b>
-                          {x.paid ? "" : <span className="muted"> planned</span>}
-                        </span>
-                      ))}
-                      <span className="muted">averages {money(avg)} · usually {money(b.usual)}</span>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-            </div>
-          );
-        })}
+        {m.bills.map((b) => (
+          <BillRow key={b.id} b={b} m={m} state={state} plan={plan} patch={patch}
+            togglePaid={togglePaid} setBillAmount={setBillAmount} makeUsual={makeUsual} />
+        ))}
       </div>
 
       <div style={{ marginTop: 28, marginBottom: 12 }}>
