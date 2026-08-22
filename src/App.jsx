@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v36";
+const APP_VERSION = "v37";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -239,7 +239,7 @@ const NAV_SECTIONS = [
     ["budget", "Budget"],
     ["txn", "Spending"],
     ["bills", "Bills & files"],
-    ["goals", "Goals"],
+    ["goals", "Pots"],
   ]],
   ["Longer view", [
     ["plan", "Plan ahead"],
@@ -515,8 +515,20 @@ body{margin:0;background:#F5F1EA;}
 .tc .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line);}
 .tc .btn.ghost:hover{background:var(--accsoft);border-color:var(--ink);opacity:1;}
 .tc .btn.tiny{padding:5px 10px;font-size:10px;letter-spacing:.08em;}
-.tc .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.tc .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
 .tc .toolbar .field{width:auto;min-width:120px;}
+.tc .srt{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--soft);}
+.tc .srt span{white-space:nowrap;}
+.tc .srt .field{min-width:110px;}
+.tc .pager{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);flex-wrap:wrap;}
+.tc .pgnums{display:flex;gap:5px;flex-wrap:wrap;}
+.tc .pgbtn{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:7px 13px;font-size:12.5px;font-weight:500;color:var(--ink);}
+.tc .pgbtn:hover:not([disabled]){border-color:var(--a);color:var(--a);}
+.tc .pgbtn[disabled]{opacity:.4;cursor:default;}
+.tc .pgnum{width:34px;height:34px;border:1px solid var(--line);background:var(--surface);border-radius:9px;font-size:13px;font-weight:500;color:var(--ink);font-family:'IBM Plex Mono',monospace;}
+.tc .pgnum:hover{border-color:var(--a);color:var(--a);}
+.tc .pgnum.on{background:var(--a);border-color:var(--a);color:#fff;}
+.tc .pgdots{width:20px;text-align:center;color:var(--soft);align-self:center;}
 .tc .logger{display:grid;grid-template-columns:100px 1fr 130px 145px 1.3fr auto;gap:8px;background:var(--surface);
  border:1px solid var(--line);border-radius:var(--r);padding:10px;margin-bottom:16px;}
 @media(max-width:760px){.tc .logger{grid-template-columns:1fr 1fr;}.tc .logger .wide{grid-column:1/-1;}}
@@ -533,6 +545,20 @@ body{margin:0;background:#F5F1EA;}
  border-top:1px solid var(--line);}
 @media(max-width:640px){.tc .fourup{grid-template-columns:repeat(2,1fr);}}
 .tc .lbl{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--soft);margin-bottom:5px;}
+.tc .potnum{margin:2px 0 4px;}
+.tc .potnum b{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:-.02em;}
+.tc .potmove{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;}
+.tc .potmove .field{width:130px;}
+.tc .fielderr{font-size:12px;color:var(--warn);font-weight:500;}
+.tc .disc{background:none;border:none;color:var(--soft);padding:4px;margin:-4px 0 -4px -4px;display:grid;place-items:center;border-radius:6px;flex:none;transition:transform .15s;}
+.tc .disc:hover{color:var(--a);background:var(--accsoft);}
+.tc .disc.open{transform:rotate(90deg);color:var(--a);}
+.tc .envrecent{padding:2px 0 12px 30px;display:flex;flex-direction:column;gap:2px;}
+.tc .er{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;padding:5px 0;font-size:13px;}
+.tc .er-dot{width:7px;height:7px;border-radius:99px;}
+.tc .er-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc .er-dt{font-size:11.5px;}
+.tc .er-am{font-size:13px;}
 
 /* notes + chat */
 .tc .note{display:flex;gap:9px;font-size:13px;line-height:1.45;padding:8px 0;
@@ -574,6 +600,36 @@ body{margin:0;background:#F5F1EA;}
 .tc .givetrack{height:8px;background:var(--track);border-radius:99px;overflow:hidden;margin-top:14px;}
 .tc .givetrack i{display:block;height:100%;background:var(--good);border-radius:99px;transition:width .4s ease;}
 .tc .mstone{font-size:12px;color:var(--soft);margin-top:10px;}
+
+/* overview at-a-glance cards */
+.tc .donutwrap{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:center;}
+@media(max-width:560px){.tc .donutwrap{grid-template-columns:1fr;}}
+.tc .donutchart{position:relative;height:200px;}
+.tc .donutctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;line-height:1.1;}
+.tc .donutctr b{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;letter-spacing:-.02em;}
+.tc .donutctr span{font-size:11px;color:var(--soft);text-transform:capitalize;margin-top:2px;}
+.tc .donutlegend{display:flex;flex-direction:column;gap:2px;}
+.tc .leg{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:none;border:none;
+ border-radius:9px;padding:8px 10px;font-size:13.5px;color:var(--ink);text-align:left;width:100%;}
+.tc .leg:hover{background:var(--accsoft);}
+.tc .leg.on{background:var(--accsoft);box-shadow:inset 0 0 0 1px var(--line);}
+.tc .leg-dot{width:10px;height:10px;border-radius:3px;}
+.tc .leg-am{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--soft);}
+.tc .txrow{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--hair);}
+.tc .txrow:last-child{border-bottom:none;}
+.tc .tx-av{width:34px;height:34px;border-radius:99px;flex:none;display:grid;place-items:center;color:#fff;font-weight:600;font-size:13px;}
+.tc .tx-main{min-width:0;display:flex;flex-direction:column;}
+.tc .tx-nm{font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc .tx-sub{font-size:11.5px;}
+.tc .tx-am{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;}
+.tc .potmini{padding:11px 0;border-bottom:1px solid var(--hair);}
+.tc .potmini:last-child{border-bottom:none;}
+.tc .potmini b{font-family:'Bricolage Grotesque',sans-serif;font-size:14.5px;}
+.tc .billstat{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:480px){.tc .billstat{grid-template-columns:1fr;}}
+.tc .bs{border-left:4px solid var(--line);background:var(--paper);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;}
+.tc .bs-l{font-size:11.5px;color:var(--soft);}
+.tc .bs-v{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;}
 
 /* financial health — the planner's read */
 .tc .health{margin-bottom:16px;padding:22px 24px;}
@@ -2071,7 +2127,8 @@ function Dashboard({ ctx }) {
   const groupEntries = plan.entries.filter((t) => groupEnvIds.includes(t.envId));
   const selStats = selGroup ? (m.byGroup[selGroup] || { spent: 0, planned: 0 }) : null;
 
-  const nextBill = m.bills.find((b) => !b.paid);
+  const recentTx = plan.entries.slice().sort((a, b) => (b.day || 0) - (a.day || 0)).slice(0, 5);
+  const overdueTotal = m.bills.filter((b) => b.overdue).reduce((n, b) => n + b.amount, 0);
 
   return (
     <>
@@ -2103,94 +2160,41 @@ function Dashboard({ ctx }) {
         );
       })}
 
+      <div className="grid g4" style={{ marginBottom: 16 }}>
+        <Kpi dark label="Current balance" value={money(m.cashTotal)} foot={`across ${m.assets.length} cash account${m.assets.length === 1 ? "" : "s"}`}
+          onClick={() => setView("worth")} />
+        <Kpi label="Income this month" value={money(m.income)} tone="up"
+          foot={m.incomingLeft > 0 ? `${money(m.incomingLeft)} still to arrive` : "all in"}
+          onClick={() => setView("budget")} />
+        <Kpi label="Spent this month" value={money(m.spent)} tone={m.leftToSpend < 0 ? "down" : ""}
+          foot={`${money(Math.abs(m.leftToSpend))} ${m.leftToSpend < 0 ? "over" : "left"} of ${money(m.planned)}`}
+          onClick={() => setView("txn")} />
+        <Kpi label="Available to spend" value={money(m.available)} tone={m.available < 0 ? "down" : ""}
+          foot={m.perDay !== null ? `${money(m.perDay)}/day for ${m.daysLeft} more days` : "the plan's headroom"}
+          onClick={() => setView("budget")} />
+      </div>
+
       <Concierge ctx={ctx} suggest={[
         m.unallocated > 1 ? `Where should the unassigned ${money(m.unallocated)} go?` : "Are we on track this month?",
         "What's coming due next?",
-        "Find our car insurance",
+        "How's our financial health?",
       ]} />
 
       <HealthCard m={m} setView={setView} />
 
-      <button className="card herocard" onClick={() => setView("budget")}
-        aria-label="Open the budget to work the plan">
-        <span className="heromore">the plan →</span>
-        <div className="biglab">Available to spend</div>
-        <div className="bignum num" style={{ color: m.available < 0 ? C.warn : C.ink }}>
-          {money(m.available)}<span className="ofinc"> of {money(m.income)} coming in{m.incomingLeft > 0 ? ` (${money(m.incomingLeft)} still to come)` : ""}{m.perDay !== null ? ` · ${money(m.perDay)}/day for ${m.daysLeft} more day${m.daysLeft === 1 ? "" : "s"}` : ""}</span>
-        </div>
-        <p className="herosub">{m.thesis[0]} {m.thesis[1]}</p>
-        <Rail m={m} plan={plan} />
-      </button>
-
-      {m.faithOn && (
-        <div className="card" style={{ marginBottom: 16 }}>
+      <div className="grid g23" style={{ marginBottom: 16 }}>
+        {/* Where it went — interactive donut */}
+        <div className="card">
           <div className="chead">
-            <h3>Giving</h3>
-            <span className="meta">the first fruits, not the leftovers</span>
+            <h3>Where it went</h3>
+            <span className="meta">{selGroup ? `${selGroup} — tap the slice again to close` : "tap a slice to open it"}</span>
           </div>
-          <div className="grid g4">
-            <Kpi label="Given this month" value={money(m.giving.given)} tone={m.giving.metTarget ? "up" : ""}
-              foot={`${m.giving.givenPct.toFixed(1)}% of income`} onClick={() => setView("txn")} />
-            <Kpi label={`The ${m.giving.targetPct}% mark`} value={money(m.giving.target)}
-              foot={m.giving.metTarget ? "met this month" : m.giving.target > 0 ? `${money(Math.max(0, m.giving.target - m.giving.given))} to go` : "set incomes to see it"}
-              onClick={() => setView("settings")} />
-            <Kpi label="Given this year" value={money(m.giving.ytd)} foot="every month on record" onClick={() => setView("reports")} />
-            <Kpi label="Set aside" value={money(m.giving.planned)} foot="in Giving envelopes" onClick={() => setView("budget")} />
-          </div>
-          <div className="givetrack">
-            <i style={{ width: Math.min(100, m.giving.target > 0 ? (m.giving.given / m.giving.target) * 100 : 0) + "%" }} />
-          </div>
-          {(state.milestoneLog || []).length > 0 && (
-            <p className="mstone">
-              Moments marked: {(state.milestoneLog || []).slice(-3).map((x) => `${x.text.replace(/\.$/, "")} (${monthLabel(x.when, true)})`).join(" · ")}
-            </p>
-          )}
-        </div>
-      )}
-
-      <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi label="Coming in" value={money(m.income)}
-          foot={m.extrasTotal > 0
-            ? `${money(m.baseIncome)} take-home + ${money(m.extrasTotal)} posted${m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} yet to arrive` : ""}`
-            : `${m.pA.name} & ${m.pB.name}, take-home`}
-          onClick={() => setView("budget")} />
-        <Kpi label="Assigned" value={money(m.allocated)}
-          foot={m.income > 0 ? `${money(m.planned)} to envelopes + ${money(m.goalMonthly)} to goals` : "set incomes in Settings"}
-          onClick={() => setView("budget")} />
-        <Kpi label="Spent this month" value={money(m.spent)} tone={m.leftToSpend < 0 ? "down" : ""}
-          foot={`${money(m.leftToSpend)} left of ${money(m.planned)} — tap to see & edit`}
-          onClick={() => setShowSpend(!showSpend)} active={showSpend} />
-        <Kpi label="Bills due next" value={nextBill ? money(nextBill.amount) : "—"}
-          foot={nextBill ? `${nextBill.name} · the ${ordinal(nextBill.day)}` : "nothing unpaid"}
-          onClick={() => setView("bills")} />
-      </div>
-
-      {showSpend && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <div className="chead">
-            <h3>This month, in detail</h3>
-            <span className="meta num">{money(m.spent)} across {plan.entries.length} entries — everything here is editable</span>
-          </div>
-          <div style={{ maxHeight: 340, overflowY: "auto" }}>
-            {plan.entries.length === 0
-              ? <p className="empty">Nothing logged yet this month. Tell the concierge above what you spent.</p>
-              : plan.entries.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} month={month} writeMonth={writeMonth} />)}
-          </div>
-        </div>
-      )}
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="chead">
-          <h3>Where it went</h3>
-          <span className="meta">{selGroup ? `${selGroup} — tap the slice again to close it` : "tap a slice or a chip to open it"}</span>
-        </div>
-        {groupData.length === 0 ? <p className="empty">Nothing planned or spent yet this month.</p> : (
-          <div className="grid g2">
-            <div>
-              <div style={{ height: 235 }}>
+          {groupData.length === 0 ? <p className="empty">Nothing planned or spent yet this month.</p> : (
+            <div className="donutwrap">
+              <div className="donutchart">
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={groupData} dataKey="value" nameKey="name" innerRadius={64} outerRadius={84}
+                    <Pie data={groupData} dataKey="value" nameKey="name" innerRadius={66} outerRadius={88}
                       paddingAngle={2} stroke="none" style={{ cursor: "pointer" }}
                       onClick={(d) => {
                         const n = d && (d.name || (d.payload && d.payload.name));
@@ -2204,50 +2208,141 @@ function Dashboard({ ctx }) {
                     <Tooltip content={<Tip />} />
                   </PieChart>
                 </ResponsiveContainer>
+                <div className="donutctr">
+                  <b className="num">{money(selGroup ? selStats.spent : m.spent)}</b>
+                  <span>{selGroup || "spent"}</span>
+                </div>
               </div>
-              <div className="chips" style={{ justifyContent: "center", marginBottom: 0 }}>
+              <div className="donutlegend">
                 {groupData.map((d) => (
-                  <button key={d.name} className={"chip " + (selGroup === d.name ? "on" : "")}
+                  <button key={d.name} className={"leg" + (selGroup === d.name ? " on" : "")}
                     onClick={() => setSelGroup(selGroup === d.name ? null : d.name)}>
-                    <i className="dot" style={{ background: GROUP_COLORS[d.name] || C.soft, marginRight: 6 }} />
-                    {d.name} · {money(d.value)}
+                    <span className="leg-dot" style={{ background: GROUP_COLORS[d.name] || C.soft }} />
+                    <span className="leg-nm">{d.name}</span>
+                    <span className="leg-am num">{money(d.value)}</span>
                   </button>
                 ))}
               </div>
             </div>
-            <div>
-              {!selGroup ? (
-                <p className="empty">
-                  The house, daily life, the fun, giving — each slice opens into every entry inside it,
-                  and anything can be changed right here.
-                </p>
-              ) : (
-                <>
-                  <div className="metaline" style={{ justifyContent: "space-between", marginBottom: 6 }}>
-                    <b style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17 }}>{selGroup}</b>
-                    <span className="num">{money(selStats.spent)} of {money(selStats.planned)} planned</span>
+          )}
+        </div>
+
+        {/* Recent transactions */}
+        <div className="card">
+          <div className="chead"><h3>Recent transactions</h3>
+            <button className="seelink" onClick={() => setView("txn")}>View all →</button></div>
+          {recentTx.length === 0 ? <p className="empty">Nothing logged yet. Use the bar above to log a spend.</p> :
+            recentTx.map((t) => {
+              const e = plan.envelopes.find((x) => x.id === t.envId);
+              return (
+                <div className="txrow" key={t.id}>
+                  <span className="tx-av" style={{ background: m.ownerColor(t.who) }}>{m.ownerName(t.who).charAt(0)}</span>
+                  <span className="tx-main">
+                    <span className="tx-nm">{t.note || (e ? e.name : "Spending")}</span>
+                    <span className="tx-sub muted">{e ? e.name : "unfiled"} · {t.date}</span>
+                  </span>
+                  <span className="tx-am num">−{money(t.amount).replace(/^-/, "")}</span>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
+      <div className="grid g2" style={{ marginBottom: 16 }}>
+        {/* Pots */}
+        <div className="card">
+          <div className="chead"><h3>Pots</h3>
+            <button className="seelink" onClick={() => setView("goals")}>See all →</button></div>
+          {state.goals.length === 0 ? <p className="empty">No pots yet — the part of the plan that's actually fun.</p> :
+            state.goals.slice(0, 4).map((g) => {
+              const st = m.goalStatus(g);
+              return (
+                <div key={g.id} className="potmini">
+                  <div className="metaline" style={{ justifyContent: "space-between" }}>
+                    <b>{g.name}</b>
+                    <span className="num">{money(g.saved)} <span className="muted">/ {money(g.target)}</span></span>
                   </div>
-                  <div className="track">
-                    <i style={{
-                      width: Math.min(100, selStats.planned > 0 ? (selStats.spent / selStats.planned) * 100 : (selStats.spent > 0 ? 100 : 0)) + "%",
-                      background: selStats.planned > 0 && selStats.spent > selStats.planned ? C.warn : GROUP_COLORS[selGroup],
-                    }} />
-                  </div>
-                  <div style={{ maxHeight: 250, overflowY: "auto" }}>
-                    {groupEntries.length === 0
-                      ? <p className="empty">Nothing logged in {selGroup} yet this month.</p>
-                      : groupEntries.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} month={month} writeMonth={writeMonth} />)}
-                  </div>
-                </>
-              )}
+                  <div className="track" style={{ margin: "8px 0 0" }}><i style={{ width: st.pct + "%", background: st.late ? C.warn : C.a }} /></div>
+                </div>
+              );
+            })}
+        </div>
+
+        {/* Recurring bills status */}
+        <div className="card">
+          <div className="chead"><h3>Recurring bills</h3>
+            <button className="seelink" onClick={() => setView("bills")}>See all →</button></div>
+          <div className="billstat">
+            <div className="bs" style={{ borderColor: C.good }}>
+              <span className="bs-l">Paid this month</span>
+              <span className="bs-v num">{money(m.billsTotal - m.billsLeft)}</span>
             </div>
+            <div className="bs" style={{ borderColor: C.b }}>
+              <span className="bs-l">Still upcoming</span>
+              <span className="bs-v num">{money(m.billsLeft)}</span>
+            </div>
+            <div className="bs" style={{ borderColor: overdueTotal > 0 ? C.warn : C.line }}>
+              <span className="bs-l">Overdue</span>
+              <span className="bs-v num" style={{ color: overdueTotal > 0 ? C.warn : undefined }}>{money(overdueTotal)}</span>
+            </div>
+          </div>
+          {m.bills.slice(0, 4).map((b) => (
+            <div className="note" key={b.id} style={{ justifyContent: "space-between" }}>
+              <span style={{ display: "flex", gap: 9, alignItems: "center" }}>
+                <span className="tick" style={{ background: b.paid ? C.good : b.overdue ? C.warn : C.b, minHeight: 15 }} />
+                <span>{b.name}<span className="muted"> · {ordinal(b.day)}</span></span>
+              </span>
+              <span className={"num " + (b.paid ? "muted" : "")}>{money(b.amount)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid g2" style={{ marginBottom: 16 }}>
+        {/* Coming up — plan-ahead scenarios */}
+        <div className="card">
+          <div className="chead"><h3>Coming up</h3>
+            <button className="seelink" onClick={() => setView("plan")}>Plan ahead →</button></div>
+          {(state.scenarios || []).length === 0 ? (
+            <p className="empty">Nothing big on the horizon. <button className="btn ghost tiny" onClick={() => setView("plan")}>Plan something</button></p>
+          ) : (state.scenarios || []).map((sc) => {
+            const target = (sc.date || month).slice(0, 7);
+            const mu = Math.max(1, monthsBetween(month, target));
+            return (
+              <div className="note" key={sc.id} style={{ justifyContent: "space-between" }}>
+                <span style={{ display: "flex", gap: 9, alignItems: "center", minWidth: 0 }}>
+                  <span className="tick" style={{ background: C.joint, minHeight: 15 }} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {sc.name}<span className="muted"> · {monthLabel(target, true)}</span>
+                  </span>
+                </span>
+                <span className="num">{money(num(sc.amount))}{sc.fund === "save" ? <span className="muted"> · {money(num(sc.amount) / mu)}/mo</span> : ""}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Giving — compact, keeps the stewardship layer */}
+        {m.faithOn ? (
+          <div className="card">
+            <div className="chead"><h3>Giving</h3>
+              <span className="meta">{m.giving.metTarget ? "target met" : `${money(Math.max(0, m.giving.target - m.giving.given))} to the ${m.giving.targetPct}% mark`}</span></div>
+            <div className="potnum"><b className="num">{money(m.giving.given)}</b><span className="muted"> given · {money(m.giving.ytd)} this year</span></div>
+            <div className="givetrack"><i style={{ width: Math.min(100, m.giving.target > 0 ? (m.giving.given / m.giving.target) * 100 : 0) + "%" }} /></div>
+            <p className="mstone" style={{ marginTop: 12 }}>The first fruits, not the leftovers.{(state.milestoneLog || []).length > 0 ? ` ${(state.milestoneLog || []).length} moment${(state.milestoneLog || []).length === 1 ? "" : "s"} marked.` : ""}</p>
+          </div>
+        ) : (
+          <div className="card">
+            <div className="chead"><h3>The month's plan</h3>
+              <button className="seelink" onClick={() => setView("budget")}>Edit →</button></div>
+            <Rail m={m} plan={plan} />
           </div>
         )}
       </div>
 
-      <div className="grid g23" style={{ marginBottom: 16 }}>
+      <div className="grid g23">
         <div className="card">
-          <div className="chead"><h3>Six months of cash flow</h3><span className="meta">income vs. what you actually spent</span></div>
+          <div className="chead"><h3>Six months of cash flow</h3><span className="meta">income vs. what you spent</span></div>
           <div style={{ height: 210 }}>
             <ResponsiveContainer>
               <AreaChart data={m.history} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
@@ -2268,52 +2363,8 @@ function Dashboard({ ctx }) {
           </div>
         </div>
         <div className="card">
-          <div className="chead"><h3>Planner notes</h3><button className="btn ghost tiny" onClick={() => setView("planner")}>Ask why</button></div>
+          <div className="chead"><h3>Planner notes</h3><button className="seelink" onClick={() => setView("planner")}>Ask why →</button></div>
           <Notes notes={m.notes} limit={6} />
-        </div>
-      </div>
-
-      <div className="grid g2">
-        <div className="card">
-          <div className="chead"><h3>Goals</h3><button className="btn ghost tiny" onClick={() => setView("goals")}>Manage</button></div>
-          {state.goals.length === 0 ? <p className="empty">No goals yet — the part of the plan that's actually fun.</p> :
-            state.goals.slice(0, 4).map((g) => {
-              const st = m.goalStatus(g);
-              return (
-                <div key={g.id} style={{ marginBottom: 13 }}>
-                  <div className="metaline" style={{ justifyContent: "space-between" }}>
-                    <b style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15 }}>{g.name}</b>
-                    <span className="num">{money(g.saved)} / {money(g.target)}</span>
-                  </div>
-                  <div className="track"><i style={{ width: st.pct + "%", background: st.late ? C.warn : C.joint }} /></div>
-                  <div className="metaline">
-                    {st.done ? <span className="flag ok">Funded</span> : st.eta ? <span>lands <b>{monthLabel(st.eta)}</b></span> : <span>set a monthly amount</span>}
-                    {st.late && <span className="flag late">needs {money(st.needed)}/mo</span>}
-                  </div>
-                </div>
-              );
-            })}
-        </div>
-        <div className="card">
-          <div className="chead">
-            <h3>Coming due</h3>
-            <span style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <span className="meta num">{money(m.billsLeft)} left</span>
-              <button className="btn ghost tiny" onClick={() => setView("bills")}>Manage</button>
-            </span>
-          </div>
-          {m.bills.length === 0 ? (
-            <p className="empty">No recurring bills yet. <button className="btn ghost tiny" onClick={() => setView("bills")}>Add some</button></p>
-          ) : m.bills.slice(0, 7).map((b) => (
-            <div className="note" key={b.id} style={{ justifyContent: "space-between" }}>
-              <span style={{ display: "flex", gap: 9, alignItems: "center" }}>
-                <span className="tick" style={{ background: b.paid ? C.a : b.overdue ? C.warn : C.joint, minHeight: 15 }} />
-                <span>{b.name}<span className="muted"> · {ordinal(b.day)}</span>
-                  {b.overdue && <span className="over" style={{ fontWeight: 600 }}> · overdue</span>}</span>
-              </span>
-              <span className={"num " + (b.paid ? "muted" : "")}>{money(b.amount)}</span>
-            </div>
-          ))}
         </div>
       </div>
     </>
@@ -2323,6 +2374,66 @@ function Dashboard({ ctx }) {
 /* ================================================================== */
 /*  2. budget                                                          */
 /* ================================================================== */
+
+// One budget envelope: the editable row, plus a tap to reveal the latest
+// three transactions that landed in this category.
+function EnvRow({ e, m, plan, set, writeMonth }) {
+  const [open, setOpen] = useState(false);
+  const i = plan.envelopes.findIndex((x) => x.id === e.id);
+  const s = m.spentBy[e.id] || 0;
+  const over = e.planned > 0 && s > e.planned;
+  const pct = e.planned > 0 ? Math.min(100, (s / e.planned) * 100) : s > 0 ? 100 : 0;
+  const recent = plan.entries.filter((t) => t.envId === e.id).slice().sort((a, b) => (b.day || 0) - (a.day || 0)).slice(0, 3);
+  return (
+    <>
+      <div className="row">
+        <div className="rowname">
+          <button className={"disc" + (open ? " open" : "")} onClick={() => setOpen(!open)}
+            aria-label={`${open ? "Hide" : "Show"} recent transactions for ${e.name}`} aria-expanded={open}
+            title="Recent transactions">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+          <input value={e.name} onChange={(ev) => set(i, "name", ev.target.value)} aria-label="Envelope name" />
+          <select className="tag hideS" value={e.group || "Other"} onChange={(ev) => set(i, "group", ev.target.value)} aria-label="Group">
+            {GROUPS.map((x) => <option key={x}>{x}</option>)}
+          </select>
+          <button className="tag" onClick={() => {
+            const order = ["joint", "a", "b"];
+            set(i, "owner", order[(order.indexOf(e.owner) + 1) % 3]);
+          }} title="Who covers this">{m.ownerName(e.owner)}</button>
+          <button className="kill" onClick={() => writeMonth((mm) => {
+            const orphans = mm.entries.filter((t) => t.envId === e.id).length;
+            if (orphans && !window.confirm(`Remove ${e.name}? Its ${orphans} logged entr${orphans === 1 ? "y" : "ies"} will move to Everything else.`)) return mm;
+            const idx = mm.envelopes.findIndex((x) => x.id === e.id);
+            if (idx > -1) mm.envelopes.splice(idx, 1);
+            const fallback = mm.envelopes.find((x) => x.name === "Everything else") || mm.envelopes[0];
+            if (fallback) mm.entries.forEach((t) => { if (t.envId === e.id) t.envId = fallback.id; });
+            return mm;
+          })} aria-label={`Remove ${e.name}`}>×</button>
+        </div>
+        <div className="amt">
+          <input className="num" value={e.planned || ""} placeholder="0"
+            onChange={(ev) => set(i, "planned", num(ev.target.value))} aria-label={`${e.name} planned`} />
+        </div>
+        <div className={"amt num " + (over ? "over" : "muted")}>{money(s)}</div>
+        <div className="bar"><i style={{ width: pct + "%", background: over ? C.warn : m.ownerColor(e.owner) }} /></div>
+      </div>
+      {open && (
+        <div className="envrecent">
+          {recent.length === 0 ? <p className="empty" style={{ padding: "6px 0" }}>Nothing logged here yet this month.</p>
+            : recent.map((t) => (
+              <div className="er" key={t.id}>
+                <span className="er-dot" style={{ background: m.ownerColor(t.who) }} />
+                <span className="er-nm">{t.note || e.name}</span>
+                <span className="er-dt muted">{t.date}</span>
+                <span className="er-am num">{money(t.amount)}</span>
+              </div>
+            ))}
+        </div>
+      )}
+    </>
+  );
+}
 
 function Budget({ ctx }) {
   const { m, plan, writeMonth, month, setMonth, state, patch, setView } = ctx;
@@ -2518,40 +2629,9 @@ function Budget({ ctx }) {
                 <span>{g}</span>
                 <span className="num">{money(grp.spent)} of {money(grp.planned)}</span>
               </div>
-              {grp.items.map((e) => {
-                const i = plan.envelopes.findIndex((x) => x.id === e.id);
-                const s = m.spentBy[e.id] || 0;
-                const over = e.planned > 0 && s > e.planned;
-                const pct = e.planned > 0 ? Math.min(100, (s / e.planned) * 100) : s > 0 ? 100 : 0;
-                return (
-                  <div className="row" key={e.id}>
-                    <div className="rowname">
-                      <input value={e.name} onChange={(ev) => set(i, "name", ev.target.value)} aria-label="Envelope name" />
-                      <select className="tag hideS" value={e.group || "Other"} onChange={(ev) => set(i, "group", ev.target.value)} aria-label="Group">
-                        {GROUPS.map((x) => <option key={x}>{x}</option>)}
-                      </select>
-                      <button className="tag" onClick={() => {
-                        const order = ["joint", "a", "b"];
-                        set(i, "owner", order[(order.indexOf(e.owner) + 1) % 3]);
-                      }} title="Who covers this">{m.ownerName(e.owner)}</button>
-                      <button className="kill" onClick={() => writeMonth((mm) => {
-                        const orphans = mm.entries.filter((t) => t.envId === e.id).length;
-                        if (orphans && !window.confirm(`Remove ${e.name}? Its ${orphans} logged entr${orphans === 1 ? "y" : "ies"} will move to Everything else.`)) return mm;
-                        mm.envelopes.splice(i, 1);
-                        const fallback = mm.envelopes.find((x) => x.name === "Everything else") || mm.envelopes[0];
-                        if (fallback) mm.entries.forEach((t) => { if (t.envId === e.id) t.envId = fallback.id; });
-                        return mm;
-                      })} aria-label={`Remove ${e.name}`}>×</button>
-                    </div>
-                    <div className="amt">
-                      <input className="num" value={e.planned || ""} placeholder="0"
-                        onChange={(ev) => set(i, "planned", num(ev.target.value))} aria-label={`${e.name} planned`} />
-                    </div>
-                    <div className={"amt num " + (over ? "over" : "muted")}>{money(s)}</div>
-                    <div className="bar"><i style={{ width: pct + "%", background: over ? C.warn : m.ownerColor(e.owner) }} /></div>
-                  </div>
-                );
-              })}
+              {grp.items.map((e) => (
+                <EnvRow key={e.id} e={e} m={m} plan={plan} set={set} writeMonth={writeMonth} />
+              ))}
             </div>
           );
         })}
@@ -2591,19 +2671,39 @@ function Budget({ ctx }) {
 /*  3. spending                                                        */
 /* ================================================================== */
 
+const PER_PAGE = 10;
+
 function Spending({ ctx }) {
   const { m, plan, writeMonth, month, setMonth } = ctx;
   const [q, setQ] = useState("");
   const [who, setWho] = useState("all");
   const [env, setEnv] = useState("all");
+  const [sort, setSort] = useState("latest");
+  const [page, setPage] = useState(1);
 
-  const rows = plan.entries.filter((t) => {
+  const envName = (id) => { const e = plan.envelopes.find((x) => x.id === id); return e ? e.name : ""; };
+  const filtered = plan.entries.filter((t) => {
     if (who !== "all" && t.who !== who) return false;
     if (env !== "all" && t.envId !== env) return false;
-    if (q && !(t.note || "").toLowerCase().includes(q.toLowerCase())) return false;
+    if (q) {
+      const hay = ((t.note || "") + " " + envName(t.envId)).toLowerCase();
+      if (!hay.includes(q.toLowerCase())) return false;
+    }
     return true;
   });
-  const total = rows.reduce((n, t) => n + t.amount, 0);
+  const rows = filtered.slice().sort((a, b) =>
+    sort === "high" ? b.amount - a.amount
+    : sort === "low" ? a.amount - b.amount
+    : sort === "az" ? (a.note || envName(a.envId)).localeCompare(b.note || envName(b.envId))
+    : sort === "oldest" ? (a.day || 0) - (b.day || 0)
+    : (b.day || 0) - (a.day || 0)); // latest
+  const total = filtered.reduce((n, t) => n + t.amount, 0);
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / PER_PAGE));
+  const curPage = Math.min(page, pageCount);
+  const shown = rows.slice((curPage - 1) * PER_PAGE, curPage * PER_PAGE);
+  // Reset to page 1 whenever the result set changes shape.
+  useEffect(() => { setPage(1); }, [q, who, env, sort]);
 
   return (
     <>
@@ -2635,25 +2735,65 @@ function Spending({ ctx }) {
       </div>
 
       <div className="toolbar">
-        <input className="field" placeholder="Search notes" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 170 }} aria-label="Search notes" />
-        <select className="field" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Filter by person">
-          <option value="all">Anyone</option>
-          <option value="a">{m.pA.name}</option>
-          <option value="b">{m.pB.name}</option>
-          <option value="joint">Shared</option>
-        </select>
-        <select className="field" value={env} onChange={(e) => setEnv(e.target.value)} aria-label="Filter by envelope">
-          <option value="all">All envelopes</option>
-          {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-        </select>
-        <span className="muted num" style={{ marginLeft: "auto" }}>{rows.length} shown · {money(total)}</span>
+        <input className="field" placeholder="Search transactions" value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 200, flex: 1 }} aria-label="Search transactions" />
+        <label className="srt"><span>Sort</span>
+          <select className="field" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort transactions">
+            <option value="latest">Latest</option>
+            <option value="oldest">Oldest</option>
+            <option value="az">A to Z</option>
+            <option value="high">Highest</option>
+            <option value="low">Lowest</option>
+          </select>
+        </label>
+        <label className="srt"><span>Who</span>
+          <select className="field" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Filter by person">
+            <option value="all">Anyone</option>
+            <option value="a">{m.pA.name}</option>
+            <option value="b">{m.pB.name}</option>
+            <option value="joint">Shared</option>
+          </select>
+        </label>
+        <label className="srt"><span>Category</span>
+          <select className="field" value={env} onChange={(e) => setEnv(e.target.value)} aria-label="Filter by envelope">
+            <option value="all">All</option>
+            {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+        </label>
       </div>
 
       <div className="card">
+        <div className="chead">
+          <h3>Transactions</h3>
+          <span className="meta num">{rows.length} shown · {money(total)}</span>
+        </div>
         {rows.length === 0 ? <p className="empty">Nothing matches. Clear the filters, or log something above.</p> :
-          rows.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} month={month} writeMonth={writeMonth} />)}
+          shown.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} month={month} writeMonth={writeMonth} />)}
+        {pageCount > 1 && (
+          <Pager page={curPage} pageCount={pageCount} setPage={setPage} />
+        )}
       </div>
     </>
+  );
+}
+
+// Keyboard-navigable pager: prev/next plus numbered pages.
+function Pager({ page, pageCount, setPage }) {
+  const nums = [];
+  for (let i = 1; i <= pageCount; i++) {
+    if (i === 1 || i === pageCount || Math.abs(i - page) <= 1) nums.push(i);
+    else if (nums[nums.length - 1] !== "…") nums.push("…");
+  }
+  return (
+    <div className="pager">
+      <button className="pgbtn" onClick={() => setPage(page - 1)} disabled={page <= 1} aria-label="Previous page">‹ Prev</button>
+      <div className="pgnums">
+        {nums.map((n, i) => n === "…"
+          ? <span key={"e" + i} className="pgdots">…</span>
+          : <button key={n} className={"pgnum" + (n === page ? " on" : "")} onClick={() => setPage(n)}
+              aria-label={`Page ${n}`} aria-current={n === page ? "page" : undefined}>{n}</button>)}
+      </div>
+      <button className="pgbtn" onClick={() => setPage(page + 1)} disabled={page >= pageCount} aria-label="Next page">Next ›</button>
+    </div>
   );
 }
 
@@ -2886,6 +3026,7 @@ function BillsView({ ctx }) {
   const [nb, setNb] = useState({ name: "", company: "", amount: "", day: "", envId: "" });
   const [unpaidOnly, setUnpaidOnly] = useState(false);
   const [sortBy, setSortBy] = useState("day");
+  const [billQ, setBillQ] = useState("");
 
   // Typing an amount changes THIS month only; the usual amount stays as
   // the default for future months until "make usual" adopts the new one.
@@ -3026,22 +3167,27 @@ function BillsView({ ctx }) {
       </div>
 
       <div className="card" id="billList">
-        <div className="chead">
-          <h3>The bills</h3>
-          <select className="field" value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-            style={{ width: "auto", padding: "5px 9px", fontSize: 12 }} aria-label="Sort bills">
-            <option value="day">By due date</option>
-            <option value="amount">Biggest first</option>
-            <option value="name">By name</option>
-            <option value="unpaid">Unpaid first</option>
-            <option value="method">By how it's paid</option>
-          </select>
+        <div className="chead" style={{ gap: 10, flexWrap: "wrap" }}>
+          <h3 style={{ marginRight: "auto" }}>The bills</h3>
+          <input className="field" placeholder="Search bills" value={billQ} onChange={(e) => setBillQ(e.target.value)}
+            style={{ width: "auto", minWidth: 150, padding: "6px 10px", fontSize: 13 }} aria-label="Search bills" />
+          <label className="srt"><span>Sort</span>
+            <select className="field" value={sortBy} onChange={(e) => setSortBy(e.target.value)}
+              style={{ minWidth: 130 }} aria-label="Sort bills">
+              <option value="day">By due date</option>
+              <option value="amount">Biggest first</option>
+              <option value="name">By name</option>
+              <option value="unpaid">Unpaid first</option>
+              <option value="method">By how it's paid</option>
+            </select>
+          </label>
         </div>
         {state.bills.length === 0 && <p className="empty">Add the bills that repeat every month — rent, insurance, the streaming stack you forgot about.</p>}
         {unpaidOnly && m.bills.every((b) => b.paid) && state.bills.length > 0 &&
           <p className="empty">Nothing unpaid — every bill this month is settled.</p>}
         {m.bills
           .filter((b) => !unpaidOnly || !b.paid)
+          .filter((b) => !billQ || (b.name + " " + (b.company || "")).toLowerCase().includes(billQ.toLowerCase()))
           .slice()
           .sort((x, y) =>
             sortBy === "amount" ? y.amount - x.amount
@@ -3358,13 +3504,13 @@ function GoalsView({ ctx }) {
 
   return (
     <>
-      <Head title="Goals" sub="Anything you'd rather fund on purpose than pay for by surprise." />
+      <Head title="Pots" sub="Money set aside on purpose — save into each one, and pull from it when the time comes." />
 
       <Guidance m={m} theme="diligence"
-        line={m.goalMonthly > 0 ? `${money(m.goalMonthly)} a month moves toward what's next, little by little.` : "Nothing is flowing to goals monthly yet."} />
+        line={m.goalMonthly > 0 ? `${money(m.goalMonthly)} a month moves toward what's next, little by little.` : "Nothing is flowing to your pots monthly yet."} />
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi label="Saved so far" value={money(totalSaved)} foot={`of ${money(totalTarget)} across ${state.goals.length}`}
+        <Kpi label="Total saved" value={money(totalSaved)} foot={`of ${money(totalTarget)} across ${state.goals.length} pot${state.goals.length === 1 ? "" : "s"}`}
           onClick={() => setView("worth")} />
         <Kpi label="Going in monthly" value={money(m.goalMonthly)} foot="funded out of the plan"
           onClick={() => setView("budget")} />
@@ -3375,71 +3521,94 @@ function GoalsView({ ctx }) {
           onClick={() => setLateOnly(!lateOnly)} active={lateOnly} />
       </div>
 
-      {state.goals.length === 0 && <div className="card"><p className="empty">No goals yet. Start with the one you'd both name first if someone asked.</p></div>}
+      {state.goals.length === 0 && <div className="card"><p className="empty">No pots yet. Start with the one you'd both name first if someone asked.</p></div>}
 
       {lateOnly && lateCount === 0 && state.goals.length > 0 &&
-        <div className="card" style={{ marginBottom: 14 }}><p className="empty">Nothing is behind — every goal is on pace for its date.</p></div>}
+        <div className="card" style={{ marginBottom: 14 }}><p className="empty">Nothing is behind — every pot is on pace for its date.</p></div>}
 
-      {state.goals.filter((g) => !lateOnly || m.goalStatus(g).late).map((g) => {
-        const i = state.goals.findIndex((x) => x.id === g.id);
-        const st = m.goalStatus(g);
-        const set = (f, v) => patch((s) => { s.goals[i][f] = v; return s; });
-        const proj = [];
-        if (g.monthly > 0 && st.remaining > 0) {
-          const steps = Math.min(st.monthsNeeded, 24);
-          for (let k = 0; k <= steps; k++)
-            proj.push({ label: monthLabel(shiftMonth(month, k), true), Projected: Math.min(g.target, g.saved + g.monthly * k) });
-        }
-        return (
-          <div className="card" key={g.id} style={{ marginBottom: 14 }}>
-            <div className="chead">
-              <input className="field" style={{ border: "none", background: "none", fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 19, padding: 0 }}
-                value={g.name} onChange={(e) => set("name", e.target.value)} aria-label="Goal name" />
-              <button className="kill" onClick={() => {
-                if (!window.confirm(`Remove ${g.name}? It has ${money(g.saved)} recorded toward it.`)) return;
-                patch((s) => { s.goals.splice(i, 1); return s; });
-              }} aria-label={`Remove ${g.name}`}>×</button>
-            </div>
-            <div className="track"><i style={{ width: st.pct + "%", background: st.late ? C.warn : C.joint }} /></div>
-            <div className="metaline">
-              <span className="num"><b>{money(g.saved)}</b> of {money(g.target)} · {Math.round(st.pct)}%</span>
-              {st.done ? <span className="flag ok">Funded</span>
-                : st.eta ? <span>lands <b>{monthLabel(st.eta)}</b>{g.due ? ` · wanted by ${monthLabel(g.due)}` : ""}</span>
-                  : <span>add a monthly amount to see when it lands</span>}
-              {st.late && <span className="flag late">needs {money(st.needed)}/mo</span>}
-              {!st.late && g.due && !st.done && <span className="flag ok">on pace</span>}
-              <button className="btn ghost tiny" onClick={() => set("saved", g.saved + g.monthly)}>
-                Add this month's {money(g.monthly)}
-              </button>
-            </div>
-            {proj.length > 2 && (
-              <div style={{ height: 120, marginTop: 14 }}>
-                <ResponsiveContainer>
-                  <LineChart data={proj} margin={{ top: 6, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid stroke={C.line} vertical={false} />
-                    <XAxis dataKey="label" {...axis} interval="preserveStartEnd" />
-                    <YAxis {...axis} tickFormatter={compact} width={46} />
-                    <Tooltip content={<Tip />} />
-                    <ReferenceLine y={g.target} stroke={C.joint} strokeDasharray="4 3" />
-                    <Line type="monotone" dataKey="Projected" stroke={C.a} strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-            <div className="fourup">
-              <div><label className="lbl">Target</label><MoneyInput value={g.target} placeholder="0" onCommit={(v) => set("target", v)} aria-label="Target" /></div>
-              <div><label className="lbl">Saved</label><MoneyInput value={g.saved} placeholder="0" onCommit={(v) => set("saved", v)} aria-label="Saved" /></div>
-              <div><label className="lbl">Monthly</label><MoneyInput value={g.monthly} placeholder="0" onCommit={(v) => set("monthly", v)} aria-label="Monthly" /></div>
-              <div><label className="lbl">Want it by</label><input className="field num" type="month" value={g.due || ""} onChange={(e) => set("due", e.target.value)} /></div>
-            </div>
-          </div>
-        );
-      })}
+      {state.goals.filter((g) => !lateOnly || m.goalStatus(g).late).map((g) => (
+        <PotCard key={g.id} g={g} ctx={ctx} />
+      ))}
       <button className="btn ghost tiny" onClick={() => patch((s) => {
-        s.goals.push({ id: uid(), name: "New goal", target: 0, saved: 0, monthly: 0, due: "", owner: "joint" });
+        s.goals.push({ id: uid(), name: "New pot", target: 0, saved: 0, monthly: 0, due: "", owner: "joint" });
         return s;
-      })}>Add a goal</button>
+      })}>Add a pot</button>
     </>
+  );
+}
+
+// One savings pot: progress, projection, the fields, and a keyboard-
+// friendly add/withdraw control that moves money in and out of `saved`.
+function PotCard({ g, ctx }) {
+  const { m, state, patch, month } = ctx;
+  const i = state.goals.findIndex((x) => x.id === g.id);
+  const st = m.goalStatus(g);
+  const set = (f, v) => patch((s) => { const x = s.goals.find((y) => y.id === g.id); if (x) x[f] = v; return s; });
+  const [move, setMove] = useState("");
+  const [err, setErr] = useState("");
+  const moveMoney = (dir) => {
+    const amt = num(move);
+    if (!amt) { setErr("Enter an amount first."); return; }
+    if (dir < 0 && amt > g.saved) { setErr(`Only ${money(g.saved)} is in this pot.`); return; }
+    setErr(""); setMove("");
+    set("saved", Math.max(0, g.saved + dir * amt));
+  };
+  const proj = [];
+  if (g.monthly > 0 && st.remaining > 0) {
+    const steps = Math.min(st.monthsNeeded, 24);
+    for (let k = 0; k <= steps; k++)
+      proj.push({ label: monthLabel(shiftMonth(month, k), true), Projected: Math.min(g.target, g.saved + g.monthly * k) });
+  }
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <div className="chead">
+        <input className="field" style={{ border: "none", background: "none", fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 19, fontWeight: 800, padding: 0 }}
+          value={g.name} onChange={(e) => set("name", e.target.value)} aria-label="Pot name" />
+        <button className="kill" onClick={() => {
+          if (!window.confirm(`Remove ${g.name}? It has ${money(g.saved)} recorded toward it.`)) return;
+          patch((s) => { s.goals = s.goals.filter((y) => y.id !== g.id); return s; });
+        }} aria-label={`Remove ${g.name}`}>×</button>
+      </div>
+      <div className="potnum"><b className="num">{money(g.saved)}</b><span className="muted"> of {money(g.target)} · {Math.round(st.pct)}%</span></div>
+      <div className="track"><i style={{ width: st.pct + "%", background: st.late ? C.warn : C.a }} /></div>
+      <div className="metaline" style={{ marginTop: 10 }}>
+        {st.done ? <span className="flag ok">Funded</span>
+          : st.eta ? <span>lands <b>{monthLabel(st.eta)}</b>{g.due ? ` · wanted by ${monthLabel(g.due)}` : ""}</span>
+            : <span>add a monthly amount to see when it lands</span>}
+        {st.late && <span className="flag late">needs {money(st.needed)}/mo</span>}
+        {!st.late && g.due && !st.done && <span className="flag ok">on pace</span>}
+      </div>
+
+      <div className="potmove">
+        <MoneyInput value={move} placeholder="Amount" onCommit={() => {}} onChange={(e) => { setMove(e.target.value); setErr(""); }}
+          aria-label={`Move money for ${g.name}`} />
+        <button className="btn tiny" onClick={() => moveMoney(1)}>Add money</button>
+        <button className="btn ghost tiny" onClick={() => moveMoney(-1)}>Withdraw</button>
+        {g.monthly > 0 && <button className="btn ghost tiny" onClick={() => set("saved", g.saved + g.monthly)}>+ this month's {money(g.monthly)}</button>}
+        {err && <span className="fielderr">{err}</span>}
+      </div>
+
+      {proj.length > 2 && (
+        <div style={{ height: 120, marginTop: 14 }}>
+          <ResponsiveContainer>
+            <LineChart data={proj} margin={{ top: 6, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid stroke={C.line} vertical={false} />
+              <XAxis dataKey="label" {...axis} interval="preserveStartEnd" />
+              <YAxis {...axis} tickFormatter={compact} width={46} />
+              <Tooltip content={<Tip />} />
+              <ReferenceLine y={g.target} stroke={C.joint} strokeDasharray="4 3" />
+              <Line type="monotone" dataKey="Projected" stroke={C.a} strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      <div className="fourup">
+        <div><label className="lbl">Target</label><MoneyInput value={g.target} placeholder="0" onCommit={(v) => set("target", v)} aria-label="Target" /></div>
+        <div><label className="lbl">Saved</label><MoneyInput value={g.saved} placeholder="0" onCommit={(v) => set("saved", v)} aria-label="Saved" /></div>
+        <div><label className="lbl">Monthly</label><MoneyInput value={g.monthly} placeholder="0" onCommit={(v) => set("monthly", v)} aria-label="Monthly" /></div>
+        <div><label className="lbl">Want it by</label><input className="field num" type="month" value={g.due || ""} onChange={(e) => set("due", e.target.value)} /></div>
+      </div>
+    </div>
   );
 }
 
