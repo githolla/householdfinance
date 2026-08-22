@@ -174,13 +174,15 @@ function demoState() {
   const billEnv = { "Rent": "Rent", "Internet": "Utilities", "Electric": "Utilities", "Car loan": "Debt payments", "Phone plan": "Utilities", "Streaming bundle": "Subscriptions" };
   bills.forEach((b) => { b.envId = envIdFor(billEnv[b.name]); });
   months[cur].paid = bills.filter((b) => b.day < dayNow - 1).map((b) => b.id);
+  if (dayNow > 1) months[cur].received.push("pay:a:0");
+  if (dayNow > 15) months[cur].received.push("pay:a:1", "pay:b:0");
 
   return {
     demo: true,
     household: {
       name: "The Kitchen Table Fund",
       splitRule: "proportional",
-      partners: [{ id: "a", name: A, income: 4200 }, { id: "b", name: B, income: 3800 }],
+      partners: [{ id: "a", name: A, income: 4200, paydays: [1, 15] }, { id: "b", name: B, income: 3800, paydays: [15] }],
     },
     months,
     goals: [
@@ -710,7 +712,26 @@ function model(state, plan, month) {
     }))
     .sort((x, y) => x.day - y.day);
   const extrasTotal = extras.reduce((n, i) => n + i.amount, 0);
-  const incomingLeft = expected.filter((e) => !e.landed).reduce((n, e) => n + e.amount, 0);
+  // Take-home split into dated paychecks when a partner sets paydays —
+  // same received-per-month tracking as expected income, without ever
+  // double-counting (chunks are the base income, not additions to it).
+  const paychecks = [];
+  [pA, pB].forEach((p) => {
+    const days = (p.paydays || []).filter((d) => d >= 1 && d <= 31);
+    if (!days.length || p.income <= 0) return;
+    const per = p.income / days.length;
+    [...days].sort((x, y) => x - y).forEach((d, idx) => {
+      const pid = `pay:${p.id}:${idx}`;
+      paychecks.push({
+        id: pid, who: p.id, name: `${p.name}'s paycheck`, amount: per, day: d,
+        landed: received.includes(pid),
+        late: !received.includes(pid) && liveM && d < todayDay(),
+      });
+    });
+  });
+  paychecks.sort((x, y) => x.day - y.day);
+  const incomingLeft = expected.filter((e) => !e.landed).reduce((n, e) => n + e.amount, 0)
+    + paychecks.filter((p) => !p.landed).reduce((n, p) => n + p.amount, 0);
   const income = baseIncome + extrasTotal;
   // One-time incomes dated to a later month: visible now, counted then.
   const upcoming = (state.incomes || [])
@@ -828,7 +849,7 @@ function model(state, plan, month) {
   });
   bills.filter((b) => b.overdue).forEach((b) => notes.push(["warn", `${b.name} was due the ${ordinal(b.day)} and isn't marked paid.`]));
   bills.filter((b) => b.dueSoon).forEach((b) => notes.push(["joint", `${b.name} (${money(b.amount)}) is due the ${ordinal(b.day)}.`]));
-  expected.filter((e) => e.late).forEach((e) => notes.push(["joint", `${e.name} (${money(e.amount)}) was expected the ${ordinal(e.day)} and hasn't been marked received.`]));
+  [...expected, ...paychecks].filter((e) => e.late).forEach((e) => notes.push(["joint", `${e.name} (${money(e.amount)}) was expected the ${ordinal(e.day)} and hasn't been marked received.`]));
   state.goals.forEach((g) => {
     const st = goalStatus(g);
     if (st.late) notes.push(["warn", `${g.name} misses ${monthLabel(g.due)} at ${money(g.monthly)}/mo — it needs ${money(st.needed)}.`]);
@@ -930,7 +951,7 @@ function model(state, plan, month) {
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
     goalStatus, history, bills, billsTotal, billsLeft, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, verse, verseLine, available, daysLeft, perDay,
-    baseIncome, extrasTotal, expected, incomingLeft, upcoming, singleIncome, covered,
+    baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),
     ownerText: (o) => (o === "a" ? CT.a : o === "b" ? CT.b : CT.joint),
     ownerName: (o) => (o === "a" ? pA.name : o === "b" ? pB.name : "Both"),
@@ -1560,19 +1581,52 @@ function Budget({ ctx }) {
           <h3>Money coming in</h3>
           <span className="meta num">{money(m.income)} expected{m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} still to come` : ""}</span>
         </div>
-        {[0, 1].map((i) => (
-          <div className="row" key={i}>
-            <div className="rowname">
-              <span className="tag" style={{ color: m.ownerText(state.household.partners[i].id), borderColor: m.ownerColor(state.household.partners[i].id) }}>
-                {state.household.partners[i].name}
-              </span>
-              <span>take-home, every month</span>
+        {[0, 1].map((i) => {
+          const p = state.household.partners[i];
+          return (
+            <div className="row wide" key={p.id}>
+              <div className="rowname">
+                <span className="tag" style={{ color: m.ownerText(p.id), borderColor: m.ownerColor(p.id) }}>{p.name}</span>
+                <span>take-home, every month</span>
+              </div>
+              <div className="amt hideS" style={{ textAlign: "left" }}>
+                <span className="muted">paydays </span>
+                <input key={`pd-${p.id}-${(p.paydays || []).join("-")}`} className="num"
+                  style={{ width: 74, textAlign: "left" }} placeholder="e.g. 1, 15"
+                  defaultValue={(p.paydays || []).join(", ")}
+                  onBlur={(e) => patch((s) => {
+                    s.household.partners[i].paydays = e.target.value
+                      .split(/[^0-9]+/).map((x) => parseInt(x, 10))
+                      .filter((d) => d >= 1 && d <= 31).slice(0, 4);
+                    return s;
+                  })}
+                  onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
+                  aria-label={`${p.name} paydays (days of the month)`}
+                  title="Days of the month the pay arrives — e.g. 1, 15" />
+              </div>
+              <div className="amt">
+                <input className="num" value={p.income || ""} placeholder="0"
+                  onChange={(e) => patch((s) => { s.household.partners[i].income = num(e.target.value); return s; })}
+                  aria-label={`${p.name} take-home`} />
+              </div>
+              <div className="amt muted" style={{ fontSize: 11.5 }}>per month</div>
             </div>
-            <div className="amt muted">monthly</div>
+          );
+        })}
+        {m.paychecks.map((p) => (
+          <div className="row wide" key={p.id}>
+            <div className="rowname" style={{ paddingLeft: 12 }}>
+              <span className="tag" style={{ color: m.ownerText(p.who), borderColor: m.ownerColor(p.who) }}>{m.ownerName(p.who)}</span>
+              <span className="muted">{p.name} · the {ordinal(p.day)}</span>
+              {p.late && <span className="tag" style={{ color: C.warn, borderColor: C.warn }}>running late</span>}
+            </div>
+            <div className="amt hideS" />
+            <div className="amt num muted">{money(p.amount)}</div>
             <div className="amt">
-              <input className="num" value={state.household.partners[i].income || ""} placeholder="0"
-                onChange={(e) => patch((s) => { s.household.partners[i].income = num(e.target.value); return s; })}
-                aria-label={`${state.household.partners[i].name} take-home`} />
+              <button className={"btn tiny " + (p.landed ? "" : "ghost")} onClick={() => toggleLanded(p)}
+                title={p.landed ? "Tap if it hasn't actually arrived" : "Tap when it hits the account"}>
+                {p.landed ? "Received" : "Mark received"}
+              </button>
             </div>
           </div>
         ))}
@@ -2568,6 +2622,11 @@ function PlannerPage({ ctx }) {
     ...(m.upcoming.length > 0 && {
       futureEarnings: m.upcoming.map((e) => ({
         name: e.name, amount: e.amount, expectedDate: e.date || e.month, whose: m.ownerName(e.who),
+      })),
+    }),
+    ...(m.paychecks.length > 0 && {
+      paychecksThisMonth: m.paychecks.map((p) => ({
+        name: p.name, amount: Math.round(p.amount), expectedDay: p.day, received: p.landed,
       })),
     }),
     envelopes: plan.envelopes.map((e) => ({

@@ -9,8 +9,10 @@ One JSON object, persisted whole under `twocolumn:v2`.
     "name": "The Kitchen Table Fund",
     "splitRule": "proportional",      // "proportional" | "even"
     "partners": [
-      { "id": "a", "name": "Alex", "income": 4200 },   // monthly take-home
-      { "id": "b", "name": "Sam",  "income": 3800 }
+      { "id": "a", "name": "Alex", "income": 4200, "paydays": [1, 15] },  // monthly take-home; optional paydays
+      { "id": "b", "name": "Sam",  "income": 3800, "paydays": [15] }
+      // paydays split the take-home into dated paycheck chunks in model()
+      // (ids "pay:<partner>:<n>", received per month via months[].received)
     ]
   },
 
