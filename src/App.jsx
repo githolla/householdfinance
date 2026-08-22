@@ -16,6 +16,9 @@ const API_URL = import.meta.env.VITE_ANTHROPIC_URL || "/api/anthropic/v1/message
 const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
+// Bump on every push — shown in the sidebar so a stale build is obvious.
+const APP_VERSION = "v27";
+
 const money = (n, cents) => {
   const v = Number(n) || 0;
   const s = Math.abs(v).toLocaleString(undefined, {
@@ -662,6 +665,7 @@ export default function App() {
               <span className="muted" style={{ fontSize: 12 }}>available to spend</span>
               <b className="num" style={{ color: m.available < 0 ? C.warn : C.ink }}>{money(m.available)}</b>
             </div>
+            <div className="muted" style={{ fontSize: 10.5 }}>build {APP_VERSION}</div>
             {state.demo && (
               <button className="btn ghost tiny" style={{ width: "100%" }} onClick={startClean}>
                 {armClean ? "Tap again to erase the sample" : "Sample · start clean"}
