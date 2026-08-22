@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v33";
+const APP_VERSION = "v34";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -560,6 +560,33 @@ body{margin:0;background:#EAE5D8;}
 .tc .givetrack{height:8px;background:var(--track);border-radius:99px;overflow:hidden;margin-top:14px;}
 .tc .givetrack i{display:block;height:100%;background:var(--good);border-radius:99px;transition:width .4s ease;}
 .tc .mstone{font-size:12px;color:var(--soft);margin-top:10px;}
+
+/* financial health — the planner's read */
+.tc .health{margin-bottom:16px;padding:22px 24px;}
+.tc .health-top{display:flex;gap:24px;align-items:center;flex-wrap:wrap;}
+.tc .gauge{position:relative;width:118px;height:118px;flex:none;}
+.tc .gauge .g-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;}
+.tc .gauge .g-num b{font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:600;letter-spacing:-.02em;}
+.tc .gauge .g-num span{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);margin-top:3px;}
+.tc .health-head{min-width:220px;flex:1;}
+.tc .health-head .hl{display:inline-block;font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.02em;}
+.tc .health-head .chip-status{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;
+ text-transform:uppercase;padding:3px 9px;border-radius:7px;margin-left:10px;vertical-align:middle;border:1.5px solid currentColor;}
+.tc .health-head .hr{font-size:13.5px;color:#3A453F;line-height:1.5;margin:9px 0 0;max-width:640px;}
+.tc .vitals{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:20px;padding-top:20px;border-top:1px solid var(--line);}
+.tc .vital{border:1.5px solid var(--line);border-radius:10px;padding:12px 13px;background:var(--paper);}
+.tc .vital .v-h{display:flex;align-items:center;gap:7px;}
+.tc .vital .v-dot{width:8px;height:8px;border-radius:99px;flex:none;}
+.tc .vital .v-l{font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);}
+.tc .vital .v-v{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;margin:7px 0 4px;letter-spacing:-.01em;}
+.tc .vital .v-n{font-size:11.5px;color:var(--soft);line-height:1.45;}
+.tc .v-good{color:var(--good);} .tc .v-watch{color:var(--b);} .tc .v-serious{color:var(--warn);}
+.tc .health-do{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);}
+.tc .health-do .dh{font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--soft);margin-bottom:8px;}
+.tc .health-do ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;}
+.tc .health-do li{display:flex;gap:9px;font-size:13px;line-height:1.45;align-items:flex-start;}
+.tc .health-do li::before{content:"";width:5px;height:5px;border-radius:99px;background:var(--b);flex:none;margin-top:7px;}
+@media(max-width:560px){.tc .gauge{width:96px;height:96px;}.tc .gauge .g-num b{font-size:25px;}}
 
 /* demo banner + stewardship guidance */
 .tc .demobar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
@@ -1132,9 +1159,101 @@ function model(state, plan, month) {
     else thesis = ["Every dollar has a job this month.", `${money(leftToSpend)} left to spend, ${money(goalMonthly)} heading toward what's next.`];
   }
 
+  /* ---- the financial-health read: a planner's vitals + score ----
+     Each vital scores 0–100 on the yardstick a planner actually uses;
+     the headline score is their weighted average over the vitals that
+     apply. Everything keys off income + bills + goals + accounts, so it
+     comes alive the moment those are entered and needs no extra input. */
+  const clamp = (n) => Math.max(0, Math.min(100, n));
+  const cashTotal = assets.filter((a) => a.type === "cash").reduce((n, a) => n + a.balance, 0);
+  // What a month costs to run (for the emergency runway): the budget if
+  // there is one, else bills plus whatever's been spent. Goals are saving,
+  // not a cost you need a cushion for, so they stay out of it.
+  const monthlyCost = planned > 0 ? planned : billsTotal + spent;
+  const runwayMonths = monthlyCost > 0 ? cashTotal / monthlyCost : 0;
+  const fixedRatio = income > 0 ? billsTotal / income : 0;
+  const debtRatio = income > 0 ? debtMin / income : 0;
+
+  // Net monthly flow: income, less everything with a claim on it — the
+  // plan (envelopes + goals) and any bills not already inside an envelope.
+  const billsOutsidePlan = bills.reduce((n, b) => {
+    const env = plan.envelopes.find((e) => e.id === b.envId);
+    return n + (env ? 0 : b.amount); // bills tied to an envelope are already in `planned`
+  }, 0);
+  const monthlyNet = income - allocated - billsOutsidePlan;
+
+  const vitalDefs = [];
+  if (income > 0) {
+    vitalDefs.push({
+      key: "cashflow", label: "Monthly cash flow",
+      value: (monthlyNet >= 0 ? "+" : "−") + money(Math.abs(monthlyNet)).replace(/^-/, ""),
+      score: clamp(60 + (monthlyNet / income) * 200),
+      status: monthlyNet >= income * 0.02 ? "good" : monthlyNet >= -1 ? "watch" : "serious",
+      note: monthlyNet >= 1 ? `${money(monthlyNet)} a month is free after the plan and bills.`
+        : monthlyNet >= -1 ? "The plan and bills use up just about every dollar."
+        : `The plan and bills run ${money(-monthlyNet)} past what comes in.`,
+    });
+    vitalDefs.push({
+      key: "fixed", label: "Fixed bills", value: Math.round(fixedRatio * 100) + "% of income",
+      score: clamp(100 - Math.max(0, fixedRatio - 0.3) * 250),
+      status: fixedRatio <= 0.5 ? "good" : fixedRatio <= 0.65 ? "watch" : "serious",
+      note: billsTotal === 0 ? "No recurring bills entered yet."
+        : `${money(billsTotal)} a month in bills — ${Math.round(fixedRatio * 100)}% of income. Room to breathe sits under about 50%.`,
+    });
+    vitalDefs.push({
+      key: "savings", label: "Savings rate", value: Math.round(savingsRate) + "% of income",
+      score: clamp((savingsRate / 20) * 100),
+      status: savingsRate >= 15 ? "good" : savingsRate >= 5 ? "watch" : "serious",
+      note: goalMonthly === 0 ? "Nothing is flowing to goals yet — even a small amount starts the habit."
+        : savingsRate >= 15 ? `${money(goalMonthly)} a month to goals — right in the healthy 15–20% range.`
+        : `${money(goalMonthly)} a month heads to goals. Nudging toward 15% would strengthen the month.`,
+    });
+    vitalDefs.push({
+      key: "debt", label: "Debt load",
+      value: debtTotal === 0 ? "Debt-free" : Math.round(debtRatio * 100) + "% of income",
+      score: debtTotal === 0 ? 100 : clamp(100 - Math.max(0, debtRatio - 0.1) * 300),
+      status: debtTotal === 0 ? "good" : debtRatio <= 0.2 ? "good" : debtRatio <= 0.36 ? "watch" : "serious",
+      note: debtTotal === 0 ? "Nothing owed — that's a strong place to build from."
+        : debtRatio <= 0.2 ? `${money(debtTotal)} owed, ${money(debtMin)} a month at minimums — a manageable ${Math.round(debtRatio * 100)}% of income.`
+        : `${money(debtTotal)} owed, ${money(debtMin)} a month at minimums. Past ~36% of income, everything else gets squeezed.`,
+    });
+  }
+  if (assets.length > 0) {
+    vitalDefs.push({
+      key: "runway", label: "Emergency runway",
+      value: runwayMonths >= 0.05 ? runwayMonths.toFixed(1) + " months" : "—",
+      score: clamp((runwayMonths / 6) * 100),
+      status: runwayMonths >= 3 ? "good" : runwayMonths >= 1 ? "watch" : "serious",
+      note: `${money(cashTotal)} in cash covers ${runwayMonths.toFixed(1)} month${runwayMonths === 1 ? "" : "s"} of costs. Three to six months is the usual cushion.`,
+    });
+  }
+
+  const W = { cashflow: 0.28, runway: 0.22, savings: 0.2, fixed: 0.18, debt: 0.12 };
+  const wsum = vitalDefs.reduce((n, v) => n + (W[v.key] || 0.1), 0);
+  const score = vitalDefs.length ? Math.round(vitalDefs.reduce((n, v) => n + v.score * (W[v.key] || 0.1), 0) / wsum) : 0;
+  const healthLabel = income === 0 ? "Getting started"
+    : score >= 80 ? "Thriving" : score >= 65 ? "Steady" : score >= 45 ? "Watchful" : "Strained";
+  const worst = vitalDefs.slice().sort((a, b) => a.score - b.score);
+  const strong = worst[worst.length - 1];
+  const healthRead = income === 0
+    ? "Add what you each take home and your bills, and this becomes a live read on the whole picture."
+    : score >= 80 ? `The month is in good shape${strong ? ` — ${strong.label.toLowerCase()} especially` : ""}. Keep it steady.`
+    : score >= 65 ? "Mostly steady. One or two things below would move the needle."
+    : score >= 45 ? "Holding, but a couple of vitals need attention this month."
+    : "The month is strained — the items below are where to start.";
+
+  // The planner's next moves: the weakest vitals, turned into one concrete
+  // step each, plus the timely bill/goal flags. Ranked worst-first.
+  const health = {
+    score, label: healthLabel, read: healthRead,
+    vitals: vitalDefs,
+    actions: worst.filter((v) => v.status !== "good").slice(0, 3).map((v) => v.note),
+  };
+
   return {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
+    cashTotal, runwayMonths, monthlyNet, health,
     goalStatus, history, bills, billsTotal, billsLeft, billHistory, billPaidByMonth, billMethodMix, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, celebrations, verse, verseLine, available, daysLeft, perDay,
     baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
@@ -1861,6 +1980,68 @@ function Concierge({ ctx, suggest }) {
 /*  1. dashboard                                                       */
 /* ================================================================== */
 
+const STATUS_C = { good: C.good, watch: C.b, serious: C.warn };
+
+// The financial-health read: a score gauge, the planner's one-liner, the
+// vitals a planner actually watches, and the next moves. All from model().
+function HealthCard({ m, setView }) {
+  const h = m.health;
+  const band = h.score >= 65 ? "good" : h.score >= 45 ? "watch" : "serious";
+  const ring = STATUS_C[band];
+  const r = 52, CIRC = 2 * Math.PI * r;
+  const dest = { cashflow: "budget", fixed: "bills", savings: "goals", debt: "worth", runway: "worth" };
+
+  return (
+    <div className="card health">
+      <div className="health-top">
+        {m.income > 0 && (
+          <div className="gauge" role="img" aria-label={`Financial health ${h.score} out of 100`}>
+            <svg width="118" height="118" viewBox="0 0 118 118">
+              <circle cx="59" cy="59" r={r} fill="none" stroke={C.line} strokeWidth="9" />
+              <circle cx="59" cy="59" r={r} fill="none" stroke={ring} strokeWidth="9" strokeLinecap="round"
+                strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - h.score / 100)}
+                transform="rotate(-90 59 59)" style={{ transition: "stroke-dashoffset .6s ease" }} />
+            </svg>
+            <div className="g-num"><b style={{ color: ring }}>{h.score}</b><span>out of 100</span></div>
+          </div>
+        )}
+        <div className="health-head">
+          <div className="biglab">Financial health · {monthLabelForHealth(m)}</div>
+          <div style={{ marginTop: 6 }}>
+            <span className="hl">{h.label}</span>
+            {m.income > 0 && <span className={"chip-status v-" + band}>{band === "good" ? "On track" : band === "watch" ? "Worth attention" : "Needs work"}</span>}
+          </div>
+          <p className="hr">{h.read}</p>
+        </div>
+      </div>
+
+      {h.vitals.length > 0 && (
+        <div className="vitals">
+          {h.vitals.map((v) => (
+            <button key={v.key} className="vital" onClick={() => dest[v.key] && setView(dest[v.key])}
+              style={{ textAlign: "left", cursor: dest[v.key] ? "pointer" : "default", font: "inherit", color: "inherit" }}>
+              <div className="v-h">
+                <span className="v-dot" style={{ background: STATUS_C[v.status] }} />
+                <span className="v-l">{v.label}</span>
+              </div>
+              <div className={"v-v v-" + v.status}>{v.value}</div>
+              <div className="v-n">{v.note}</div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {h.actions.length > 0 && (
+        <div className="health-do">
+          <div className="dh">Where a planner would start</div>
+          <ul>{h.actions.map((a, i) => <li key={i}>{a}</li>)}</ul>
+        </div>
+      )}
+    </div>
+  );
+}
+const monthLabelForHealth = (m) => (m.income > 0 ? "this month" : "not enough entered yet");
+
 function Dashboard({ ctx }) {
   const { m, plan, month, setMonth, state, setView, writeMonth, patch } = ctx;
   const [showSpend, setShowSpend] = useState(false);
@@ -1912,6 +2093,8 @@ function Dashboard({ ctx }) {
         "What's coming due next?",
         "Find our car insurance",
       ]} />
+
+      <HealthCard m={m} setView={setView} />
 
       <button className="card herocard" onClick={() => setView("budget")}
         aria-label="Open the budget to work the plan">
@@ -3539,6 +3722,13 @@ function buildSnapshot(state, m, plan, month) {
     unassignedEachMonth: m.unallocated,
     availableToSpendRestOfMonth: m.available,
     savingsRatePct: Math.round(m.savingsRate),
+    cashOnHand: m.cashTotal,
+    emergencyRunwayMonths: Math.round(m.runwayMonths * 10) / 10,
+    netMonthlyCashFlow: m.monthlyNet,
+    financialHealth: {
+      score: m.health.score, standing: m.health.label,
+      vitals: m.health.vitals.map((v) => ({ what: v.label, value: v.value, status: v.status })),
+    },
     lastSixMonths: m.history.map((h) => ({ month: h.label, spent: h.spent })),
     ...(m.faithOn && {
       stewardship: {
