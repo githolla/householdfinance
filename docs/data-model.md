@@ -9,10 +9,10 @@ One JSON object, persisted whole under `twocolumn:v2`.
     "name": "The Kitchen Table Fund",
     "splitRule": "proportional",      // "proportional" | "even"
     "partners": [
-      { "id": "a", "name": "Alex", "income": 4200, "paydays": [1, 15] },  // monthly take-home; optional paydays
-      { "id": "b", "name": "Sam",  "income": 3800, "paydays": [15] }
-      // paydays split the take-home into dated paycheck chunks in model()
-      // (ids "pay:<partner>:<n>", received per month via months[].received)
+      { "id": "a", "name": "Alex", "income": 4200 },   // flat monthly take-home (fallback)
+      { "id": "b", "name": "Sam",  "income": 3800 }
+      // If a partner has paycheck items in `incomes` (pay: true) for the
+      // month, their take-home is the SUM of those instead of `income`.
     ]
   },
 
@@ -31,13 +31,17 @@ One JSON object, persisted whole under `twocolumn:v2`.
   },
 
   "incomes": [
+    { "id": "p1", "pay": true, "name": "Alex's paycheck", "amount": 2100,
+      "day": 15, "who": "a", "recurring": true, "month": "", "date": "" },
     { "id": "i1", "name": "Freelance invoice", "amount": 600, "day": 25,
       "who": "a", "recurring": false, "month": "2026-08", "date": "2026-08-25" }
+    // pay: true marks a paycheck — these SET the partner's take-home
+    // (summed) instead of adding on top of it. Everything else adds.
     // recurring: true applies every month on `day` (month/date are "").
-    // One-time incomes carry a real `date`; month and day are kept in sync
-    // with it so month-keyed computations work. A date in a later month
-    // shows on Budget as "on the horizon" and counts when that month comes.
-    // model() adds the month's incomes to take-home for every derived number.
+    // One-time incomes carry a real `date`; month and day stay in sync
+    // with it. A date in a later month shows on Budget as "on the
+    // horizon" and counts when that month comes. Received is tracked per
+    // month in months[].received by income id.
   ],
 
   "goals": [

@@ -174,15 +174,15 @@ function demoState() {
   const billEnv = { "Rent": "Rent", "Internet": "Utilities", "Electric": "Utilities", "Car loan": "Debt payments", "Phone plan": "Utilities", "Streaming bundle": "Subscriptions" };
   bills.forEach((b) => { b.envId = envIdFor(billEnv[b.name]); });
   months[cur].paid = bills.filter((b) => b.day < dayNow - 1).map((b) => b.id);
-  if (dayNow > 1) months[cur].received.push("pay:a:0");
-  if (dayNow > 15) months[cur].received.push("pay:a:1", "pay:b:0");
+  if (dayNow > 1) months[cur].received.push("payA1");
+  if (dayNow > 15) months[cur].received.push("payA2", "payB1");
 
   return {
     demo: true,
     household: {
       name: "The Kitchen Table Fund",
       splitRule: "proportional",
-      partners: [{ id: "a", name: A, income: 4200, paydays: [1, 15] }, { id: "b", name: B, income: 3800, paydays: [15] }],
+      partners: [{ id: "a", name: A, income: 4200 }, { id: "b", name: B, income: 3800 }],
     },
     months,
     goals: [
@@ -200,6 +200,9 @@ function demoState() {
     ],
     bills,
     incomes: [
+      { id: "payA1", pay: true, name: `${A}'s paycheck`, amount: 2100, day: 1, who: "a", recurring: true, month: "", date: "" },
+      { id: "payA2", pay: true, name: `${A}'s paycheck`, amount: 2100, day: 15, who: "a", recurring: true, month: "", date: "" },
+      { id: "payB1", pay: true, name: `${B}'s paycheck`, amount: 3800, day: 15, who: "b", recurring: true, month: "", date: "" },
       { id: uid(), name: `${A}'s freelance invoice`, amount: 600, day: 25, who: "a", recurring: false, month: cur, date: `${cur}-25` },
     ],
     docs: [
@@ -696,45 +699,37 @@ function upgrade(v1) {
 
 function model(state, plan, month) {
   const [pA, pB] = state.household.partners;
-  const baseIncome = pA.income + pB.income;
 
-  // Expected earnings: recurring paychecks/side income plus one-time
-  // amounts posted to a specific month. "Landed" is tracked per month
-  // (plan.received), the same way bills track paid.
+  // Income. A partner's take-home is either the sum of their paycheck
+  // items for the month (incomes with pay:true — each with its own
+  // amount and date, tracked like expected income) or, when they have
+  // no paychecks defined, their flat monthly number. Never both.
   const liveM = month === monthKey(new Date());
   const received = plan.received || [];
-  const extras = (state.incomes || []).filter((i) => i.recurring || i.month === month);
-  const expected = extras
-    .map((i) => ({
-      ...i,
-      landed: received.includes(i.id),
-      late: i.amount > 0 && !received.includes(i.id) && liveM && i.day < todayDay(),
-    }))
-    .sort((x, y) => x.day - y.day);
-  const extrasTotal = extras.reduce((n, i) => n + i.amount, 0);
-  // Take-home split into dated paychecks when a partner sets paydays —
-  // same received-per-month tracking as expected income, without ever
-  // double-counting (chunks are the base income, not additions to it).
-  const paychecks = [];
-  [pA, pB].forEach((p) => {
-    const days = (p.paydays || []).filter((d) => d >= 1 && d <= 31);
-    if (!days.length || p.income <= 0) return;
-    const per = p.income / days.length;
-    [...days].sort((x, y) => x - y).forEach((d, idx) => {
-      const pid = `pay:${p.id}:${idx}`;
-      paychecks.push({
-        id: pid, who: p.id, name: `${p.name}'s paycheck`, amount: per, day: d,
-        landed: received.includes(pid),
-        late: !received.includes(pid) && liveM && d < todayDay(),
-      });
-    });
+  const allInc = state.incomes || [];
+  const inMonth = (i, k) => i.recurring || (i.date ? i.date.slice(0, 7) : i.month) === k;
+  const paysFor = (pid, k) => allInc.filter((i) => i.pay && i.who === pid && inMonth(i, k));
+  const effFor = (p, k) => {
+    const ps = paysFor(p.id, k);
+    return ps.length ? ps.reduce((n, i) => n + i.amount, 0) : p.income;
+  };
+  const effA = effFor(pA, month), effB = effFor(pB, month);
+  const baseIncome = effA + effB;
+
+  const track = (i) => ({
+    ...i,
+    landed: received.includes(i.id),
+    late: i.amount > 0 && !received.includes(i.id) && liveM && i.day < todayDay(),
   });
-  paychecks.sort((x, y) => x.day - y.day);
-  const incomingLeft = expected.filter((e) => !e.landed).reduce((n, e) => n + e.amount, 0)
-    + paychecks.filter((p) => !p.landed).reduce((n, p) => n + p.amount, 0);
+  const paychecks = [...paysFor(pA.id, month), ...paysFor(pB.id, month)].map(track).sort((x, y) => x.day - y.day);
+  const extras = allInc.filter((i) => !i.pay && inMonth(i, month));
+  const expected = extras.map(track).sort((x, y) => x.day - y.day);
+  const extrasTotal = extras.reduce((n, i) => n + i.amount, 0);
+  const incomingLeft = [...expected, ...paychecks].filter((e) => !e.landed).reduce((n, e) => n + e.amount, 0);
   const income = baseIncome + extrasTotal;
-  // One-time incomes dated to a later month: visible now, counted then.
-  const upcoming = (state.incomes || [])
+  // One-time incomes (paychecks included) dated to a later month:
+  // visible now under "on the horizon", counted when that month comes.
+  const upcoming = allInc
     .filter((i) => !i.recurring && i.month && i.month > month)
     .sort((x, y) => ((x.date || x.month) > (y.date || y.month) ? 1 : -1));
 
@@ -785,8 +780,8 @@ function model(state, plan, month) {
     const k = shiftMonth(month, -i);
     const mm = state.months[k];
     const s = mm ? mm.entries.reduce((n, t) => n + t.amount, 0) : 0;
-    const inc = baseIncome + (state.incomes || [])
-      .filter((x) => x.recurring || x.month === k)
+    const inc = effFor(pA, k) + effFor(pB, k) + allInc
+      .filter((x) => !x.pay && inMonth(x, k))
       .reduce((n, x) => n + x.amount, 0);
     history.push({ key: k, label: monthLabel(k, true), spent: s, income: inc, saved: goalMonthly });
   }
@@ -861,8 +856,8 @@ function model(state, plan, month) {
   }
   if (income > 0 && savingsRate < 10) notes.push(["joint", `You're saving ${Math.round(savingsRate)}% of income. Most plans get comfortable at 15–20%.`]);
 
-  const aInc = pA.income + extras.filter((i) => i.who === "a").reduce((n, i) => n + i.amount, 0);
-  const bInc = pB.income + extras.filter((i) => i.who === "b").reduce((n, i) => n + i.amount, 0);
+  const aInc = effA + extras.filter((i) => i.who === "a").reduce((n, i) => n + i.amount, 0);
+  const bInc = effB + extras.filter((i) => i.who === "b").reduce((n, i) => n + i.amount, 0);
   const shareA = aInc + bInc > 0 ? (state.household.splitRule === "even" ? 0.5 : aInc / (aInc + bInc)) : 0.5;
   // One earner + proportional split would render the other spouse as
   // 0% / $0 — views show a neutral "it's all shared money" line instead.
@@ -952,6 +947,8 @@ function model(state, plan, month) {
     goalStatus, history, bills, billsTotal, billsLeft, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, verse, verseLine, available, daysLeft, perDay,
     baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
+    payCounts: { a: paysFor(pA.id, month).length, b: paysFor(pB.id, month).length },
+    eff: { a: effA, b: effB },
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),
     ownerText: (o) => (o === "a" ? CT.a : o === "b" ? CT.b : CT.joint),
     ownerName: (o) => (o === "a" ? pA.name : o === "b" ? pB.name : "Both"),
@@ -1085,6 +1082,59 @@ function EntryRow({ t, plan, m, writeMonth }) {
       <div className="amt">
         <button className="kill" onClick={() => writeMonth((mm) => { mm.entries = mm.entries.filter((y) => y.id !== t.id); return mm; })}
           aria-label="Remove entry">×</button>
+      </div>
+    </div>
+  );
+}
+
+/*  One income item — paycheck or expected — editable in place: name,
+    amount, every-month day or a real date, received tracking.         */
+function IncomeRow({ inc, m, month, patch, setInc, setIncDate, toggleLanded }) {
+  return (
+    <div className="row wide">
+      <div className="rowname" style={inc.pay ? { paddingLeft: 12 } : undefined}>
+        <button className="tag" style={{ color: m.ownerText(inc.who), borderColor: m.ownerColor(inc.who) }}
+          disabled={!!inc.pay}
+          onClick={() => {
+            const order = ["joint", "a", "b"];
+            setInc(inc.id, "who", order[(order.indexOf(inc.who) + 1) % 3]);
+          }} title={inc.pay ? undefined : "Whose money — tap to change"}>{m.ownerName(inc.who)}</button>
+        <input value={inc.name} onChange={(e) => setInc(inc.id, "name", e.target.value)} aria-label="Income name" />
+        {inc.late && <span className="tag" style={{ color: C.warn, borderColor: C.warn }}>running late</span>}
+        <button className="tag hideS" onClick={() => patch((s) => {
+          const x = (s.incomes || []).find((y) => y.id === inc.id);
+          if (x) {
+            x.recurring = !x.recurring;
+            if (x.recurring) { x.month = ""; x.date = ""; }
+            else { x.month = month; x.date = `${month}-${String(x.day || 15).padStart(2, "0")}`; }
+          }
+          return s;
+        })} title="One-time or every month">{inc.recurring ? "every month" : "one time"}</button>
+        <button className="kill" onClick={() => patch((s) => { s.incomes = (s.incomes || []).filter((y) => y.id !== inc.id); return s; })}
+          aria-label={`Remove ${inc.name}`}>×</button>
+      </div>
+      <div className="amt hideS" style={{ textAlign: "left" }}>
+        {inc.recurring ? (
+          <>
+            <span className="muted">on the </span>
+            <input className="num" style={{ width: 36, textAlign: "left" }} value={inc.day}
+              onChange={(e) => setInc(inc.id, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Day of month" />
+          </>
+        ) : (
+          <input className="field num" type="date" style={{ width: 155, padding: "4px 8px", fontSize: 12.5 }}
+            value={inc.date || `${month}-${String(inc.day || 15).padStart(2, "0")}`}
+            onChange={(e) => setIncDate(inc.id, e.target.value)} aria-label="Expected date" />
+        )}
+      </div>
+      <div className="amt">
+        <input className="num" value={inc.amount || ""} placeholder="0"
+          onChange={(e) => setInc(inc.id, "amount", num(e.target.value))} aria-label="Amount" />
+      </div>
+      <div className="amt">
+        <button className={"btn tiny " + (inc.landed ? "" : "ghost")} onClick={() => toggleLanded(inc)}
+          title={inc.landed ? "Tap if it hasn't actually arrived" : "Tap when the money arrives"}>
+          {inc.landed ? "Received" : "Mark received"}
+        </button>
       </div>
     </div>
   );
@@ -1566,6 +1616,27 @@ function Budget({ ctx }) {
     return mm;
   });
 
+  const [ni, setNi] = useState({ kind: "other", name: "", amount: "", timing: "monthly", day: "", date: "" });
+  const addIncome = () => {
+    if (!ni.name.trim() || !num(ni.amount)) return;
+    const recurring = ni.timing === "monthly";
+    const date = recurring ? "" : (ni.date || `${month}-15`);
+    patch((s) => {
+      s.incomes = s.incomes || [];
+      s.incomes.push({
+        id: uid(), name: ni.name.trim(), amount: num(ni.amount),
+        who: ni.kind === "pay-a" ? "a" : ni.kind === "pay-b" ? "b" : "joint",
+        pay: ni.kind === "pay-a" || ni.kind === "pay-b",
+        recurring,
+        day: recurring ? Math.min(31, Math.max(1, num(ni.day) || 15)) : Math.min(31, Number(date.slice(8, 10)) || 15),
+        month: recurring ? "" : date.slice(0, 7),
+        date,
+      });
+      return s;
+    });
+    setNi({ kind: "other", name: "", amount: "", timing: "monthly", day: "", date: "" });
+  };
+
   return (
     <>
       <Head title="Budget" sub="Plan the month before it happens. Tap any number to change it."
@@ -1583,99 +1654,35 @@ function Budget({ ctx }) {
         </div>
         {[0, 1].map((i) => {
           const p = state.household.partners[i];
+          const count = i === 0 ? m.payCounts.a : m.payCounts.b;
+          const eff = i === 0 ? m.eff.a : m.eff.b;
           return (
             <div className="row wide" key={p.id}>
               <div className="rowname">
                 <span className="tag" style={{ color: m.ownerText(p.id), borderColor: m.ownerColor(p.id) }}>{p.name}</span>
-                <span>take-home, every month</span>
+                <span>take-home</span>
               </div>
-              <div className="amt hideS" style={{ textAlign: "left" }}>
-                <span className="muted">paydays </span>
-                <input key={`pd-${p.id}-${(p.paydays || []).join("-")}`} className="num"
-                  style={{ width: 74, textAlign: "left" }} placeholder="e.g. 1, 15"
-                  defaultValue={(p.paydays || []).join(", ")}
-                  onBlur={(e) => patch((s) => {
-                    s.household.partners[i].paydays = e.target.value
-                      .split(/[^0-9]+/).map((x) => parseInt(x, 10))
-                      .filter((d) => d >= 1 && d <= 31).slice(0, 4);
-                    return s;
-                  })}
-                  onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
-                  aria-label={`${p.name} paydays (days of the month)`}
-                  title="Days of the month the pay arrives — e.g. 1, 15" />
+              <div className="amt hideS muted" style={{ textAlign: "left", fontSize: 11.5 }}>
+                {count > 0 ? `from ${count} paycheck${count === 1 ? "" : "s"} below` : "flat — or add paychecks below"}
               </div>
               <div className="amt">
-                <input className="num" value={p.income || ""} placeholder="0"
-                  onChange={(e) => patch((s) => { s.household.partners[i].income = num(e.target.value); return s; })}
-                  aria-label={`${p.name} take-home`} />
+                {count > 0
+                  ? <span className="num">{money(eff)}</span>
+                  : <input className="num" value={p.income || ""} placeholder="0"
+                      onChange={(e) => patch((s) => { s.household.partners[i].income = num(e.target.value); return s; })}
+                      aria-label={`${p.name} take-home`} />}
               </div>
               <div className="amt muted" style={{ fontSize: 11.5 }}>per month</div>
             </div>
           );
         })}
-        {m.paychecks.map((p) => (
-          <div className="row wide" key={p.id}>
-            <div className="rowname" style={{ paddingLeft: 12 }}>
-              <span className="tag" style={{ color: m.ownerText(p.who), borderColor: m.ownerColor(p.who) }}>{m.ownerName(p.who)}</span>
-              <span className="muted">{p.name} · the {ordinal(p.day)}</span>
-              {p.late && <span className="tag" style={{ color: C.warn, borderColor: C.warn }}>running late</span>}
-            </div>
-            <div className="amt hideS" />
-            <div className="amt num muted">{money(p.amount)}</div>
-            <div className="amt">
-              <button className={"btn tiny " + (p.landed ? "" : "ghost")} onClick={() => toggleLanded(p)}
-                title={p.landed ? "Tap if it hasn't actually arrived" : "Tap when it hits the account"}>
-                {p.landed ? "Received" : "Mark received"}
-              </button>
-            </div>
-          </div>
+        {m.paychecks.map((inc) => (
+          <IncomeRow key={inc.id} inc={inc} m={m} month={month} patch={patch}
+            setInc={setInc} setIncDate={setIncDate} toggleLanded={toggleLanded} />
         ))}
         {m.expected.map((inc) => (
-          <div className="row wide" key={inc.id}>
-            <div className="rowname">
-              <button className="tag" style={{ color: m.ownerText(inc.who), borderColor: m.ownerColor(inc.who) }}
-                onClick={() => {
-                  const order = ["joint", "a", "b"];
-                  setInc(inc.id, "who", order[(order.indexOf(inc.who) + 1) % 3]);
-                }} title="Whose money — tap to change">{m.ownerName(inc.who)}</button>
-              <input value={inc.name} onChange={(e) => setInc(inc.id, "name", e.target.value)} aria-label="Income name" />
-              {inc.late && <span className="tag" style={{ color: C.warn, borderColor: C.warn }}>running late</span>}
-              <button className="tag hideS" onClick={() => patch((s) => {
-                const x = (s.incomes || []).find((y) => y.id === inc.id);
-                if (x) {
-                  x.recurring = !x.recurring;
-                  if (x.recurring) { x.month = ""; x.date = ""; }
-                  else { x.month = month; x.date = `${month}-${String(x.day || 15).padStart(2, "0")}`; }
-                }
-                return s;
-              })} title="One-time or every month">{inc.recurring ? "every month" : "one time"}</button>
-              <button className="kill" onClick={() => patch((s) => { s.incomes = (s.incomes || []).filter((y) => y.id !== inc.id); return s; })}
-                aria-label={`Remove ${inc.name}`}>×</button>
-            </div>
-            <div className="amt hideS" style={{ textAlign: "left" }}>
-              {inc.recurring ? (
-                <>
-                  <span className="muted">on the </span>
-                  <input className="num" style={{ width: 36, textAlign: "left" }} value={inc.day}
-                    onChange={(e) => setInc(inc.id, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Day of month" />
-                </>
-              ) : (
-                <input className="field num" type="date" style={{ width: 155, padding: "4px 8px", fontSize: 12.5 }}
-                  value={inc.date || `${month}-${String(inc.day || 15).padStart(2, "0")}`}
-                  onChange={(e) => setIncDate(inc.id, e.target.value)} aria-label="Expected date" />
-              )}
-            </div>
-            <div className="amt">
-              <input className="num" value={inc.amount || ""} placeholder="0"
-                onChange={(e) => setInc(inc.id, "amount", num(e.target.value))} aria-label="Amount" />
-            </div>
-            <div className="amt">
-              <button className={"btn tiny " + (inc.landed ? "" : "ghost")} onClick={() => toggleLanded(inc)}
-                title={inc.landed ? "Tap if it hasn't actually arrived" : "Tap when the money arrives"}>
-                {inc.landed ? "Received" : "Mark received"}
-              </button>
-            </div>
-          </div>
+          <IncomeRow key={inc.id} inc={inc} m={m} month={month} patch={patch}
+            setInc={setInc} setIncDate={setIncDate} toggleLanded={toggleLanded} />
         ))}
         {m.upcoming.length > 0 && (
           <>
@@ -1705,14 +1712,46 @@ function Budget({ ctx }) {
             ))}
           </>
         )}
-        <button className="btn ghost tiny" style={{ marginTop: 12 }} onClick={() => patch((s) => {
-          s.incomes = s.incomes || [];
-          s.incomes.push({ id: uid(), name: "Expected income", amount: 0, day: 15, who: "joint", recurring: false, month, date: `${month}-15` });
-          return s;
-        })}>Add expected income</button>
-        <p className="empty" style={{ marginTop: 8 }}>
-          A bonus, an invoice, a side job — post it here and it counts toward everything: available to spend,
-          the plan, the fair split, the cash-flow chart, and the planner's advice.
+        <div className="grouphead" style={{ marginTop: 4 }}><span>Add money coming in</span></div>
+        <div className="chips" style={{ marginTop: 10 }}>
+          {[
+            { label: `${m.pA.name}'s paycheck`, kind: "pay-a" },
+            { label: `${m.pB.name}'s paycheck`, kind: "pay-b" },
+            { label: "Bonus", kind: "other" },
+            { label: "Side job", kind: "other" },
+            { label: "Tax refund", kind: "other" },
+            { label: "Gift", kind: "other" },
+          ].map((c) => (
+            <button key={c.label} className={"chip " + (ni.name === c.label ? "on" : "")}
+              onClick={() => setNi({ ...ni, kind: c.kind, name: c.label, timing: c.kind === "other" ? "once" : ni.timing })}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <div className="quickbill" style={{ gridTemplateColumns: "minmax(150px,1fr) 130px 165px 110px auto" }}>
+          <input className="field" placeholder="What's coming in?" value={ni.name}
+            onChange={(e) => setNi({ ...ni, name: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addIncome()}
+            aria-label="Income name" />
+          <select className="field" value={ni.timing} onChange={(e) => setNi({ ...ni, timing: e.target.value })} aria-label="How often">
+            <option value="monthly">Every month</option>
+            <option value="once">One time</option>
+          </select>
+          {ni.timing === "monthly" ? (
+            <input className="field num" placeholder="Day (e.g. 15)" value={ni.day}
+              onChange={(e) => setNi({ ...ni, day: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addIncome()}
+              aria-label="Day of the month it arrives" />
+          ) : (
+            <input className="field num" type="date" value={ni.date || `${month}-15`}
+              onChange={(e) => setNi({ ...ni, date: e.target.value })} aria-label="Date it arrives" />
+          )}
+          <input className="field num" placeholder="$0" value={ni.amount}
+            onChange={(e) => setNi({ ...ni, amount: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addIncome()}
+            aria-label="Amount" />
+          <button className="btn" onClick={addIncome} disabled={!ni.name.trim() || !num(ni.amount)}>Add</button>
+        </div>
+        <p className="empty" style={{ marginTop: 10 }}>
+          Paychecks set the take-home above; a bonus, an invoice, a side job counts on top. Either way it flows into
+          everything — available to spend, the plan, the fair split, the cash-flow chart, and the planner's advice.
         </p>
       </div>
 
@@ -2803,8 +2842,14 @@ function SettingsView({ ctx, setState }) {
               </div>
               <div>
                 <label className="lbl">Monthly take-home</label>
-                <input className="field num" value={state.household.partners[i].income || ""} placeholder="0"
-                  onChange={(e) => patch((s) => { s.household.partners[i].income = num(e.target.value); return s; })} />
+                {(i === 0 ? m.payCounts.a : m.payCounts.b) > 0 ? (
+                  <div className="field num" style={{ background: "#F1F1EF", color: C.soft }}>
+                    {money(i === 0 ? m.eff.a : m.eff.b)} · set by paychecks in Budget
+                  </div>
+                ) : (
+                  <input className="field num" value={state.household.partners[i].income || ""} placeholder="0"
+                    onChange={(e) => patch((s) => { s.household.partners[i].income = num(e.target.value); return s; })} />
+                )}
               </div>
             </div>
           ))}
