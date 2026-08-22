@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v31";
+const APP_VERSION = "v32";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -92,6 +92,7 @@ const blankMonth = (prev) => ({
   paid: [],
   received: [],
   billAmounts: {},
+  paidMeta: {},
 });
 
 /* ---- sample household, for clicking through without setting anything up ---- */
@@ -859,7 +860,9 @@ function model(state, plan, month) {
       const live = month === monthKey(new Date());
       const overdue = !paid && live && b.day < todayDay();
       const dueSoon = !paid && live && !overdue && b.day - todayDay() <= 7;
-      return { ...b, amount, usual: b.amount, overridden: over !== undefined && over !== b.amount, paid, overdue, dueSoon };
+      const meta = (plan.paidMeta || {})[b.id] || {};
+      return { ...b, amount, usual: b.amount, overridden: over !== undefined && over !== b.amount, paid, overdue, dueSoon,
+        paidOn: meta.date || "", conf: meta.conf || "" };
     })
     .sort((x, y) => x.day - y.day);
   const billsTotal = bills.reduce((n, b) => n + b.amount, 0);
@@ -875,8 +878,9 @@ function model(state, plan, month) {
       if (!mm) continue;
       const entry = (mm.entries || []).find((t) => t.billId === billId);
       const over = (mm.billAmounts || {})[billId];
-      if (entry) out.push({ month: k, amount: entry.amount, paid: true });
-      else if (over !== undefined) out.push({ month: k, amount: over, paid: (mm.paid || []).includes(billId) });
+      const meta = (mm.paidMeta || {})[billId] || {};
+      if (entry) out.push({ month: k, amount: entry.amount, paid: true, conf: meta.conf });
+      else if (over !== undefined) out.push({ month: k, amount: over, paid: (mm.paid || []).includes(billId), conf: meta.conf });
     }
     return out;
   };
@@ -2468,13 +2472,16 @@ const COMMON_BILLS = ["Rent", "Mortgage", "Electric", "Water", "Gas", "Internet"
 /*  One bill: a clean read line (name · due day · envelope · amount ·
     paid button); clicking opens the labeled editor with this month's
     amount, the usual, and the cost history.                          */
-function BillRow({ b, m, state, plan, patch, month, togglePaid, setBillAmount, makeUsual }) {
+function BillRow({ b, m, state, plan, patch, month, togglePaid, setBillAmount, makeUsual, setPaidMeta }) {
   const [open, setOpen] = useState(false);
   const i = state.bills.findIndex((x) => x.id === b.id);
   const set = (f, v) => patch((s) => { s.bills[i][f] = v; return s; });
   const env = plan.envelopes.find((e) => e.id === b.envId);
   const payHref = b.payUrl ? (/^https?:\/\//i.test(b.payUrl) ? b.payUrl : "https://" + b.payUrl) : "";
   const METHODS = { auto: "Autopay", online: "Online", check: "Check" };
+  const paidLabel = b.paidOn
+    ? new Date(b.paidOn + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    : "";
   const paidBtn = (
     <button className={"btn tiny " + (b.paid ? "" : "ghost")}
       onClick={(e) => { e.stopPropagation(); togglePaid(b); }}>
@@ -2493,6 +2500,7 @@ function BillRow({ b, m, state, plan, patch, month, togglePaid, setBillAmount, m
         </span>
         <span className="muted" style={{ fontSize: 12 }}>
           due the {ordinal(b.day)}{env ? ` · ${env.name}` : ""}
+          {b.paid && paidLabel ? ` · paid ${paidLabel}` : ""}{b.paid && b.conf ? ` · #${b.conf}` : ""}
         </span>
         {b.payMethod && <span className="tag hideS">{METHODS[b.payMethod] || b.payMethod}</span>}
         {b.overridden && <span className="tag hideS">usually {money(b.usual)}</span>}
@@ -2561,6 +2569,20 @@ function BillRow({ b, m, state, plan, patch, month, togglePaid, setBillAmount, m
           <input className="field" value={b.payUrl || ""} placeholder="comcast.com/pay"
             onChange={(e) => set("payUrl", e.target.value)} aria-label="Payment link" />
         </div>
+        {b.paid && (
+          <>
+            <div>
+              <label className="lbl">Paid on</label>
+              <input className="field num" type="date" value={b.paidOn || ""}
+                onChange={(e) => setPaidMeta(b, "date", e.target.value)} aria-label="Date paid" />
+            </div>
+            <div>
+              <label className="lbl">Confirmation #</label>
+              <input className="field num" value={b.conf || ""} placeholder="from the receipt"
+                onChange={(e) => setPaidMeta(b, "conf", e.target.value)} aria-label="Confirmation number" />
+            </div>
+          </>
+        )}
       </div>
       <div className="snip">
         {(() => {
@@ -2573,6 +2595,7 @@ function BillRow({ b, m, state, plan, patch, month, togglePaid, setBillAmount, m
                 <span key={x.month} style={{ marginRight: 16 }}>
                   {monthLabel(x.month, true)} <b className="num" style={{ color: "#3A453F" }}>{money(x.amount)}</b>
                   {x.paid ? "" : <span className="muted"> planned</span>}
+                  {x.conf ? <span className="muted num" style={{ fontSize: 11 }}> #{x.conf}</span> : ""}
                 </span>
               ))}
               <span className="muted">averages {money(avg)} · usually {money(b.usual)}</span>
@@ -2668,8 +2691,10 @@ function BillsView({ ctx }) {
 
   const togglePaid = (b) => writeMonth((mm) => {
     mm.paid = mm.paid || [];
+    mm.paidMeta = mm.paidMeta || {};
     if (mm.paid.includes(b.id)) {
       mm.paid = mm.paid.filter((x) => x !== b.id);
+      delete mm.paidMeta[b.id];
       // Un-paying removes the entry the paid-toggle logged, so the toggle
       // is symmetric and never double-counts. billId stamps new entries;
       // the note match catches ones logged before the stamp existed.
@@ -2679,12 +2704,21 @@ function BillsView({ ctx }) {
       if (k2 > -1) mm.entries.splice(k2, 1);
     } else {
       mm.paid.push(b.id);
+      // Stamp when it was paid; the bill's editor can correct it or add a
+      // confirmation number.
+      mm.paidMeta[b.id] = { ...(mm.paidMeta[b.id] || {}), date: new Date().toISOString().slice(0, 10) };
       if (b.envId && mm.envelopes.some((e) => e.id === b.envId))
         mm.entries.unshift({
           id: uid(), billId: b.id, envId: b.envId, amount: b.amount, who: b.owner, note: b.name + " (bill)",
           date: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         });
     }
+    return mm;
+  });
+
+  const setPaidMeta = (b, f, v) => writeMonth((mm) => {
+    mm.paidMeta = mm.paidMeta || {};
+    mm.paidMeta[b.id] = { ...(mm.paidMeta[b.id] || {}), [f]: v };
     return mm;
   });
 
@@ -2765,7 +2799,7 @@ function BillsView({ ctx }) {
             : x.day - y.day)
           .map((b) => (
           <BillRow key={b.id} b={b} m={m} state={state} plan={plan} patch={patch} month={month}
-            togglePaid={togglePaid} setBillAmount={setBillAmount} makeUsual={makeUsual} />
+            togglePaid={togglePaid} setBillAmount={setBillAmount} makeUsual={makeUsual} setPaidMeta={setPaidMeta} />
         ))}
       </div>
 

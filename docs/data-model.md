@@ -26,6 +26,9 @@ One JSON object, persisted whole under `twocolumn:v2`.
           "note": "Weekly shop", "date": "Aug 14", "day": 14 }
       ],
       "paid": ["billId"],             // bills marked paid this month
+      "paidMeta": { "b1": { "date": "2026-08-14", "conf": "4X8-2210" } },
+                                      // per-bill receipt: date auto-stamped on mark-paid
+                                      // (editable), confirmation # optional; cleared on un-pay
       "received": ["incomeId"],       // expected incomes marked received this month
       "billAmounts": { "b1": 162 }    // this month's actual bill amounts, when they differ
     }                                 // from bills[].amount (the usual). Paid entries carry
