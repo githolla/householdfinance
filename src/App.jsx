@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v42";
+const APP_VERSION = "v43";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -672,6 +672,11 @@ body{margin:0;background:#F5F1EA;}
 .tc .bs-l{font-size:11.5px;color:var(--soft);}
 .tc .bs-v{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;}
 
+/* trip tracker */
+.tc .trip{border-left:4px solid var(--joint);}
+.tc .tripstat{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:11px 13px;display:flex;flex-direction:column;gap:3px;}
+.tc .tripstat b{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:600;letter-spacing:-.01em;}
+
 /* calendar */
 .tc .cal-key{display:flex;flex-wrap:wrap;gap:8px 16px;margin-bottom:14px;font-size:12px;color:var(--soft);}
 .tc .cal-key span{display:flex;align-items:center;gap:6px;}
@@ -690,7 +695,18 @@ body{margin:0;background:#F5F1EA;}
 .tc .cal-dot{width:6px;height:6px;border-radius:99px;}
 .tc .cal-ev{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 .tc .cal-more{font-size:10px;color:var(--soft);}
-@media(max-width:640px){.tc .cal-cell{min-height:56px;padding:5px;}.tc .cal-ev{display:none;}.tc .cal-more{display:none;}}
+.tc .cal-cell{position:relative;}
+.tc .cal-tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%) translateY(4px);
+ min-width:190px;max-width:260px;background:var(--ink);color:#fff;border-radius:10px;padding:10px 12px;
+ box-shadow:0 12px 30px -10px rgba(0,0,0,.5);opacity:0;visibility:hidden;transition:opacity .12s,transform .12s;
+ z-index:20;pointer-events:none;display:flex;flex-direction:column;gap:5px;}
+.tc .cal-cell:hover .cal-tip,.tc .cal-cell:focus-visible .cal-tip{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);}
+.tc .cal-tip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--ink);}
+.tc .cal-tip-d{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:1px;}
+.tc .cal-tip-row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:12.5px;}
+.tc .cal-tip-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc .cal-tip-am{font-size:12px;}
+@media(max-width:640px){.tc .cal-cell{min-height:56px;padding:5px;}.tc .cal-ev{display:none;}.tc .cal-more{display:none;}.tc .cal-tip{display:none;}}
 
 /* financial health — the planner's read */
 .tc .health{margin-bottom:16px;padding:22px 24px;}
@@ -1574,9 +1590,10 @@ function Guidance({ m, theme, line }) {
 
 /*  One spending entry, editable in place — note, envelope, who, amount.
     Used on the dashboard (detail + group drill-down) and in Spending.   */
-function EntryRow({ t, plan, m, month, writeMonth }) {
+function EntryRow({ t, plan, m, month, writeMonth, trips = [] }) {
   const [open, setOpen] = useState(false);
   const env = plan.envelopes.find((e) => e.id === t.envId);
+  const trip = trips.find((x) => x.id === t.tripId);
   const set = (f, v) => writeMonth((mm) => {
     const x = mm.entries.find((y) => y.id === t.id);
     if (x) x[f] = v;
@@ -1594,6 +1611,7 @@ function EntryRow({ t, plan, m, month, writeMonth }) {
           {t.note || (env ? env.name : "Spending")}
         </span>
         <span className="muted" style={{ fontSize: 12 }}>{env ? env.name : "unfiled"}</span>
+        {trip && <span className="tag" style={{ color: CT.joint, borderColor: C.joint }}>✈ {trip.name}</span>}
       </div>
       <div className="amt muted hideS">{t.date}</div>
       <div className="amt num">{money(t.amount, true)}</div>
@@ -1645,6 +1663,15 @@ function EntryRow({ t, plan, m, month, writeMonth }) {
               });
             }} aria-label="Date" />
         </div>
+        {trips.length > 0 && (
+          <div>
+            <label className="lbl">Trip</label>
+            <select className="field" value={t.tripId || ""} onChange={(e) => set("tripId", e.target.value || undefined)} aria-label="Trip">
+              <option value="">— none —</option>
+              {trips.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+            </select>
+          </div>
+        )}
       </div>
       <div className="efoot">
         <button className="btn tiny" onClick={() => setOpen(false)}>Done</button>
@@ -2810,16 +2837,28 @@ function Budget({ ctx }) {
 const PER_PAGE = 10;
 
 function Spending({ ctx }) {
-  const { m, plan, writeMonth, month, setMonth } = ctx;
+  const { m, plan, state, writeMonth, month, setMonth, patch, setView } = ctx;
   const [q, setQ] = useState("");
   const [who, setWho] = useState("all");
   const [env, setEnv] = useState("all");
   const [sort, setSort] = useState("latest");
   const [page, setPage] = useState(1);
   const [adding, setAdding] = useState(false);
+  const [addTrip, setAddTrip] = useState("");
+  const [tripFilter, setTripFilter] = useState("");
+
+  const trips = state.scenarios || [];
+  const tripBudget = (sc) => (sc.items && sc.items.length) ? sc.items.reduce((n, it) => n + num(it.amount), 0) : num(sc.amount);
+  // Trip spend tallies tagged entries across every month — a trip can
+  // straddle a month boundary.
+  const tripSpent = (id) => Object.values(state.months || {}).reduce((n, mm) =>
+    n + ((mm.entries || []).filter((t) => t.tripId === id).reduce((a, t) => a + t.amount, 0)), 0);
+  const [activeTrip, setActiveTrip] = useState(trips[0] ? trips[0].id : "");
+  const trip = trips.find((t) => t.id === activeTrip) || trips[0];
 
   const envName = (id) => { const e = plan.envelopes.find((x) => x.id === id); return e ? e.name : ""; };
   const filtered = plan.entries.filter((t) => {
+    if (tripFilter && t.tripId !== tripFilter) return false;
     if (who !== "all" && t.who !== who) return false;
     if (env !== "all" && t.envId !== env) return false;
     if (q) {
@@ -2840,19 +2879,21 @@ function Spending({ ctx }) {
   const curPage = Math.min(page, pageCount);
   const shown = rows.slice((curPage - 1) * PER_PAGE, curPage * PER_PAGE);
   // Reset to page 1 whenever the result set changes shape.
-  useEffect(() => { setPage(1); }, [q, who, env, sort]);
+  useEffect(() => { setPage(1); }, [q, who, env, sort, tripFilter]);
 
   return (
     <>
       <Head title="Spending" sub="Everything logged this month, and who spent it."
         right={<div className="headactions">
-          <AddBtn label="Add transaction" onClick={() => setAdding(true)} />
+          <AddBtn label="Add transaction" onClick={() => { setAddTrip(""); setAdding(true); }} />
           <MonthNav month={month} setMonth={setMonth} />
         </div>} />
 
       {adding && (
-        <Modal title="Add a transaction" sub="Logs against a budget category for this month." onClose={() => setAdding(false)}>
-          <Logger envelopes={plan.envelopes} m={m}
+        <Modal title={addTrip ? `Add a trip expense` : "Add a transaction"}
+          sub={addTrip ? `Tagged to ${(trips.find((t) => t.id === addTrip) || {}).name} — logs against a category too.` : "Logs against a budget category for this month."}
+          onClose={() => setAdding(false)}>
+          <Logger envelopes={plan.envelopes} m={m} trips={trips} defaultTripId={addTrip}
             onAdd={(e) => writeMonth((mm) => { mm.entries.unshift(e); return mm; })}
             onDone={() => setAdding(false)} />
         </Modal>
@@ -2861,6 +2902,45 @@ function Spending({ ctx }) {
       <Guidance m={m} theme="contentment"
         line={m.leftToSpend >= 0 ? `${money(m.leftToSpend)} left to spend inside what you planned.`
           : `Spending is ${money(-m.leftToSpend)} past the plan this month.`} />
+
+      {trip && (() => {
+        const budget = tripBudget(trip);
+        const spent = tripSpent(trip.id);
+        const left = budget - spent;
+        const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+        const daysLeft = trip.date ? monthsBetween(month, trip.date.slice(0, 7)) : null;
+        const count = Object.values(state.months || {}).reduce((n, mm) => n + (mm.entries || []).filter((t) => t.tripId === trip.id).length, 0);
+        return (
+          <div className="card trip" style={{ marginBottom: 16 }}>
+            <div className="chead" style={{ flexWrap: "wrap", gap: 10 }}>
+              <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={C.joint} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                Trip: {trip.name}
+              </h3>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto", flexWrap: "wrap" }}>
+                {trips.length > 1 && (
+                  <select className="field" value={activeTrip} onChange={(e) => setActiveTrip(e.target.value)} style={{ width: "auto", padding: "6px 10px", fontSize: 13 }} aria-label="Choose trip">
+                    {trips.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                )}
+                <AddBtn label="Add trip expense" onClick={() => { setAddTrip(trip.id); setAdding(true); }} />
+              </div>
+            </div>
+            <div className="grid g3" style={{ gap: 12, marginBottom: 14 }}>
+              <div className="tripstat"><span className="v-l">Trip budget</span><b className="num">{money(budget)}</b></div>
+              <div className="tripstat"><span className="v-l">Spent so far</span><b className="num">{money(spent)}</b><span className="muted" style={{ fontSize: 11.5 }}>{count} charge{count === 1 ? "" : "s"}</span></div>
+              <div className="tripstat"><span className="v-l">{left >= 0 ? "Left to spend" : "Over budget"}</span><b className="num" style={{ color: left < 0 ? C.warn : C.good }}>{money(Math.abs(left))}</b>{daysLeft > 0 && <span className="muted" style={{ fontSize: 11.5 }}>{daysLeft} mo to go</span>}</div>
+            </div>
+            <div className="track"><i style={{ width: pct + "%", background: left < 0 ? C.warn : C.joint }} /></div>
+            <div className="metaline" style={{ marginTop: 10, justifyContent: "space-between" }}>
+              <button className="btn ghost tiny" onClick={() => setTripFilter(tripFilter === trip.id ? "" : trip.id)}>
+                {tripFilter === trip.id ? "Show all transactions" : "Show only this trip"}
+              </button>
+              <button className="btn ghost tiny" onClick={() => setView("plan")}>Edit trip budget</button>
+            </div>
+          </div>
+        );
+      })()}
 
       <Concierge ctx={ctx} suggest={[
         "What did we spend the most on?",
@@ -2908,11 +2988,11 @@ function Spending({ ctx }) {
 
       <div className="card">
         <div className="chead">
-          <h3>Transactions</h3>
+          <h3>{tripFilter ? `${(trips.find((t) => t.id === tripFilter) || {}).name} — transactions` : "Transactions"}</h3>
           <span className="meta num">{rows.length} shown · {money(total)}</span>
         </div>
         {rows.length === 0 ? <p className="empty">Nothing matches. Clear the filters, or log something above.</p> :
-          shown.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} month={month} writeMonth={writeMonth} />)}
+          shown.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} month={month} writeMonth={writeMonth} trips={trips} />)}
         {pageCount > 1 && (
           <Pager page={curPage} pageCount={pageCount} setPage={setPage} />
         )}
@@ -2943,12 +3023,13 @@ function Pager({ page, pageCount, setPage }) {
 }
 
 // The add-a-transaction form, shown inside a modal. Date defaults to today.
-function Logger({ envelopes, m, onAdd, onDone }) {
+function Logger({ envelopes, m, onAdd, onDone, trips = [], defaultTripId = "" }) {
   const [amount, setAmount] = useState("");
   const [envId, setEnvId] = useState(envelopes[0] ? envelopes[0].id : "");
   const [who, setWho] = useState("joint");
   const [note, setNote] = useState("");
   const [when, setWhen] = useState(todayISO());
+  const [tripId, setTripId] = useState(defaultTripId);
   const [err, setErr] = useState("");
 
   const submit = () => {
@@ -2958,6 +3039,7 @@ function Logger({ envelopes, m, onAdd, onDone }) {
     onAdd({
       id: uid(), envId, amount: num(amount), who, note: note.trim(), day: d.getDate(),
       date: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      ...(tripId ? { tripId } : {}),
     });
     onDone && onDone();
   };
@@ -2987,9 +3069,19 @@ function Logger({ envelopes, m, onAdd, onDone }) {
           </select>
         </Field>
       </div>
-      <Field label="When" err={err}>
-        <input className="field num" type="date" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="When" />
-      </Field>
+      <div className="mrow">
+        <Field label="When" err={err}>
+          <input className="field num" type="date" value={when} onChange={(e) => setWhen(e.target.value)} aria-label="When" />
+        </Field>
+        {trips.length > 0 && (
+          <Field label="Part of a trip?">
+            <select className="field" value={tripId} onChange={(e) => setTripId(e.target.value)} aria-label="Trip">
+              <option value="">— no —</option>
+              {trips.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </Field>
+        )}
+      </div>
       <button className="btn" onClick={submit}>Add transaction</button>
     </>
   );
@@ -3897,6 +3989,20 @@ function CalendarView({ ctx }) {
                   <span key={k} className="cal-ev" style={{ color: toneC[ev.tone] }}>{money(ev.amount)}</span>
                 ))}
                 {items.length > 2 && <span className="cal-more">+{items.length - 2} more</span>}
+                {items.length > 0 && (
+                  <span className="cal-tip" role="tooltip">
+                    <b className="cal-tip-d">{monthLabel(month, false).replace(/ \d{4}/, "")} {d}</b>
+                    {items.map((ev, k) => (
+                      <span className="cal-tip-row" key={k}>
+                        <i className="cal-dot" style={{ background: toneC[ev.tone] }} />
+                        <span className="cal-tip-nm">{ev.label}</span>
+                        <span className="cal-tip-am num" style={{ color: ev.tone === "in" ? C.good : undefined }}>
+                          {ev.tone === "in" ? "+" : ""}{money(ev.amount)}
+                        </span>
+                      </span>
+                    ))}
+                  </span>
+                )}
               </button>
             );
           })}

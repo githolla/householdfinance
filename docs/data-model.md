@@ -23,7 +23,8 @@ One JSON object, persisted whole under `twocolumn:v2`.
       ],
       "entries": [
         { "id": "p1q2r3s", "envId": "k3f9a1x", "amount": 62, "who": "a",
-          "note": "Weekly shop", "date": "Aug 14", "day": 14 }
+          "note": "Weekly shop", "date": "Aug 14", "day": 14,
+          "tripId": "s1" }        // optional: tags the entry to a scenario/trip
       ],
       "paid": ["billId"],             // bills marked paid this month
       "paidMeta": { "b1": { "date": "2026-08-14", "conf": "4X8-2210" } },
