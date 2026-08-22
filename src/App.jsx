@@ -234,7 +234,7 @@ const NAV_SECTIONS = [
   ["Longer view", [
     ["worth", "Net worth"],
     ["reports", "Reports"],
-    ["planner", "Planner"],
+    ["planner", "Assistant"],
     ["settings", "Settings"],
   ]],
 ];
@@ -535,6 +535,7 @@ body{margin:0;background:#F6F6F5;}
 .tc .dropzone{border:1px dashed #C9CDD2;border-radius:var(--r);padding:18px;text-align:center;
  color:var(--soft);font-size:12.5px;margin-bottom:14px;}
 .tc .dropzone.over{background:var(--accsoft);border-color:var(--acc);}
+.tc .card.dragover{border-color:var(--acc);box-shadow:0 0 0 3px rgba(91,91,214,.13);}
 
 /* daily bread */
 .tc .verse{font-size:19px;line-height:1.5;letter-spacing:.015em;margin:4px 0 10px;max-width:680px;font-style:italic;}
@@ -3063,8 +3064,116 @@ function PlannerPage({ ctx }) {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [speakOn, setSpeakOn] = useState(false);
   const logRef = useRef(null);
+  const fileRef = useRef(null);
+  const recRef = useRef(null);
   const chat = state.chat || [];
+  const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  const pushChat = (msgs) => patch((s) => { s.chat = [...(s.chat || []), ...msgs]; return s; });
+
+  const say = (t) => {
+    try {
+      if (!speakOn || !window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(String(t).slice(0, 600)));
+    } catch (e) { /* no voices available */ }
+  };
+
+  const hear = () => {
+    if (!SR) return;
+    if (listening) { if (recRef.current) recRef.current.stop(); return; }
+    const rec = new SR();
+    recRef.current = rec;
+    rec.lang = navigator.language || "en-US";
+    rec.interimResults = false;
+    rec.onresult = (e) => setQ((x) => (x ? x + " " : "") + e.results[0][0].transcript);
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    setListening(true);
+    rec.start();
+  };
+
+  // "find car insurance" → instant local search across everything saved.
+  const localSearch = (qRaw) => {
+    const needle = qRaw.toLowerCase();
+    const out = [];
+    (state.docs || []).forEach((d) => {
+      const i = d.text.toLowerCase().indexOf(needle);
+      if (d.name.toLowerCase().includes(needle) || i >= 0) {
+        const snip = (i >= 0 ? d.text.slice(Math.max(0, i - 40), i + 90) : d.text.slice(0, 90)).replace(/\s+/g, " ").trim();
+        out.push(`Paper drawer — ${d.name} (${d.folder}): “…${snip}…”`);
+      }
+    });
+    state.bills.forEach((b) => {
+      if (b.name.toLowerCase().includes(needle)) out.push(`Bill — ${b.name}, ${money(b.amount)} due the ${ordinal(b.day)}.`);
+    });
+    Object.keys(state.months).sort().reverse().forEach((k) => {
+      (state.months[k].entries || []).forEach((t) => {
+        if ((t.note || "").toLowerCase().includes(needle)) out.push(`Spending — ${t.note}, ${money(t.amount)} (${monthLabel(k, true)}).`);
+      });
+    });
+    state.goals.forEach((g) => {
+      if (g.name.toLowerCase().includes(needle)) out.push(`Goal — ${g.name}: ${money(g.saved)} of ${money(g.target)}.`);
+    });
+    (state.incomes || []).forEach((inc) => {
+      if (inc.name.toLowerCase().includes(needle)) out.push(`Income — ${inc.name}, ${money(inc.amount)}${inc.recurring ? " every month" : ""}.`);
+    });
+    return out;
+  };
+
+  // Files dropped into the chat: extracted, filed in the paper drawer,
+  // and read by the assistant right here in the conversation.
+  const onChatFiles = async (list) => {
+    for (const f of Array.from(list || [])) {
+      const text = await extractText(f);
+      if (!text || !text.trim()) {
+        pushChat([{ role: "assistant", content: `I couldn't read ${f.name} — scanned images and PDFs aren't supported yet.` }]);
+        continue;
+      }
+      const docId = uid();
+      patch((s) => {
+        s.docs = s.docs || [];
+        s.docs.unshift({
+          id: docId, name: f.name.slice(0, 80), text: String(text).slice(0, 100000), folder: "Other",
+          added: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+        });
+        return s;
+      });
+      pushChat([{ role: "user", content: `Uploaded ${f.name}` }]);
+      setBusy(true);
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-6", max_tokens: 700,
+            system:
+              `You are the household financial planner for ${m.pA.name} and ${m.pB.name}. They just uploaded a document ` +
+              `into your chat. Read it and answer plainly: pull out amounts, dates, renewals, obligations, and anything ` +
+              `actionable for a household budget. Spreadsheets arrive as CSV text. Under 200 words.`,
+            messages: [{ role: "user", content: `File: ${f.name}\n\n---\n${String(text).slice(0, 30000)}\n---\n\nWhat should we know from this?` }],
+          }),
+        });
+        const data = await res.json();
+        const reply = (data.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();
+        if (!reply) throw new Error("empty");
+        patch((s) => {
+          const x = (s.docs || []).find((y) => y.id === docId);
+          if (x) x.analysis = reply;
+          s.chat = [...(s.chat || []), { role: "assistant", content: reply }];
+          return s;
+        });
+        say(reply);
+      } catch (e) {
+        pushChat([{ role: "assistant", content: `Filed ${f.name} in the paper drawer on Bills & files. I couldn't reach the planner to read it just now — ask me about it again in a moment.` }]);
+      }
+      setBusy(false);
+    }
+    if (fileRef.current) fileRef.current.value = "";
+  };
 
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [chat, busy]);
 
@@ -3124,6 +3233,18 @@ function PlannerPage({ ctx }) {
   const ask = async (text) => {
     const question = (text === undefined ? q : text).trim();
     if (!question || busy) return;
+    const sm = question.match(/^(?:find|search(?: for)?|where(?:'s| is)|look for|locate)\s+(.+)$/i);
+    if (sm) {
+      const needle = sm[1].replace(/^(?:our|my|the)\s+/i, "").replace(/[?.!]\s*$/, "");
+      const res = localSearch(needle);
+      const reply = res.length
+        ? `Here's what I found for “${needle}”:\n\n${res.slice(0, 12).join("\n")}${res.length > 12 ? `\n…and ${res.length - 12} more.` : ""}`
+        : `Nothing matches “${needle}” in the paper drawer, bills, spending, goals, or incomes. Search looks inside every filed document too — try another word.`;
+      pushChat([{ role: "user", content: question }, { role: "assistant", content: reply }]);
+      say(reply);
+      setQ("");
+      return;
+    }
     const next = [...chat, { role: "user", content: question }];
     patch((s) => { s.chat = next; return s; });
     setQ(""); setErr(""); setBusy(true);
@@ -3151,14 +3272,16 @@ function PlannerPage({ ctx }) {
       const data = await res.json();
       const reply = (data.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();
       patch((s) => { s.chat = [...next, { role: "assistant", content: reply || "No answer came back — try asking again." }]; return s; });
+      if (reply) say(reply);
     } catch (e) {
-      setErr("Couldn't reach your planner just now. Try again in a moment.");
+      setErr("Couldn't reach your assistant just now. Try again in a moment.");
     }
     setBusy(false);
   };
 
   const chips = [
     "Where should the extra go this month?",
+    "Find our car insurance",
     ...(m.faithOn ? ["Are we giving the way we mean to?"] : []),
     "Are our goals realistic on this income?",
     "What should we cut first?",
@@ -3169,22 +3292,48 @@ function PlannerPage({ ctx }) {
 
   return (
     <>
-      <Head title="Planner" sub="It can see your income, envelopes, bills, goals, and accounts." />
+      <Head title="Assistant" sub="Chat about your money, drop in files for it to read and file, or type “find …” to search everything." />
 
       <Guidance m={m} theme="giving"
         line={m.giving.planned > 0 ? `${money(m.giving.planned)} set aside for giving this month — ask it anything.` : "Ask it anything — it answers with your numbers."} />
       <div className="grid g23">
-        <div className="card" style={{ display: "flex", flexDirection: "column", minHeight: 470 }}>
+        <div className={"card" + (dragOver ? " dragover" : "")} style={{ display: "flex", flexDirection: "column", minHeight: 470 }}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); onChatFiles(e.dataTransfer.files); }}>
+          <div className="chead" style={{ marginBottom: 8 }}>
+            <h3>Chat</h3>
+            <button className={"chip " + (speakOn ? "on" : "")}
+              onClick={() => { if (speakOn) { try { window.speechSynthesis.cancel(); } catch (e) { /* fine */ } } setSpeakOn(!speakOn); }}
+              title="Have replies read out loud">
+              {speakOn ? "Reading replies aloud" : "Read replies aloud"}
+            </button>
+          </div>
           <div className="chatlog" ref={logRef} style={{ flex: 1, maxHeight: 460 }}>
-            {chat.length === 0 && <p className="empty">Ask anything about your money. It answers with your numbers, not general advice.</p>}
+            {chat.length === 0 && (
+              <p className="empty">
+                Ask anything about your money — it answers with your numbers. Drop a statement or document here
+                (or Attach one) and it reads and files it. Type “find car insurance” to search everything you've saved.
+              </p>
+            )}
             {chat.map((x, i) => <div key={i} className={"msg " + (x.role === "user" ? "me" : "them")}>{x.content}</div>)}
-            {busy && <div className="msg them muted">Reading your numbers…</div>}
+            {busy && <div className="msg them muted">Reading…</div>}
           </div>
           {err && <p className="empty" style={{ color: C.warn }}>{err}</p>}
           <div className="chips">{chips.map((c) => <button key={c} className="chip" onClick={() => ask(c)} disabled={busy}>{c}</button>)}</div>
           <div className="askrow">
-            <input className="field" placeholder="Ask a question" value={q} onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && ask()} aria-label="Ask your planner" />
+            <button className="btn ghost tiny" style={{ flex: "none" }} onClick={() => fileRef.current && fileRef.current.click()}
+              title="Upload a file into the chat" disabled={busy}>Attach</button>
+            <input ref={fileRef} type="file" multiple accept=".txt,.md,.csv,.tsv,.log,.xlsx,.xls,.ods,.docx,text/*"
+              style={{ display: "none" }} onChange={(e) => onChatFiles(e.target.files)} aria-label="Upload files to the chat" />
+            {SR && (
+              <button className={"btn tiny" + (listening ? "" : " ghost")} style={{ flex: "none" }} onClick={hear}
+                aria-label={listening ? "Stop listening" : "Speak instead of typing"}>
+                {listening ? "Listening…" : "Speak"}
+              </button>
+            )}
+            <input className="field" placeholder="Ask, or “find …” to search" value={q} onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && ask()} aria-label="Ask your assistant" />
             <button className="btn" onClick={() => ask()} disabled={busy || !q.trim()}>Ask</button>
           </div>
           {chat.length > 0 && (
