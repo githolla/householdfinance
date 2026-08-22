@@ -17,20 +17,23 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v30";
+const APP_VERSION = "v31";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
+  // Cents show whenever they exist ($2,780.56), not only when asked for.
+  const dec = cents || Math.abs(v % 1) > 0.004;
   const s = Math.abs(v).toLocaleString(undefined, {
-    minimumFractionDigits: cents ? 2 : 0,
-    maximumFractionDigits: cents ? 2 : 0,
+    minimumFractionDigits: dec ? 2 : 0,
+    maximumFractionDigits: dec ? 2 : 0,
   });
   return (v < 0 ? "-$" : "$") + s;
 };
 const compact = (n) => {
   const v = Math.abs(n);
   if (v >= 1000000) return (n / 1000000).toFixed(1) + "M";
-  if (v >= 1000) return Math.round(n / 1000) + "k";
+  if (v >= 10000) return Math.round(n / 1000) + "k";
+  if (v >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
   return String(Math.round(n));
 };
 const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -76,6 +79,9 @@ const seedEnvelopes = () => [
   { id: uid(), name: "Eating out", group: "Lifestyle", planned: 0, owner: "joint" },
   { id: uid(), name: "Subscriptions", group: "Lifestyle", planned: 0, owner: "joint" },
   { id: uid(), name: "Health", group: "Health", planned: 0, owner: "joint" },
+  { id: uid(), name: "Insurance", group: "Home", planned: 0, owner: "joint" },
+  { id: uid(), name: "Credit card", group: "Other", planned: 0, owner: "joint" },
+  { id: uid(), name: "Work", group: "Other", planned: 0, owner: "joint" },
   { id: uid(), name: "Giving", group: "Giving", planned: 0, owner: "joint" },
   { id: uid(), name: "Everything else", group: "Other", planned: 0, owner: "joint" },
 ];
@@ -396,7 +402,7 @@ body{margin:0;background:#EAE5D8;}
  font-variant-numeric:tabular-nums;margin-top:6px;}
 .tc .ofinc{font-family:'Instrument Sans',sans-serif;font-size:14px;color:var(--soft);font-weight:400;letter-spacing:0;}
 .tc .herosub{font-size:13.5px;color:#3A453F;line-height:1.55;margin:8px 0 16px;max-width:760px;}
-.tc .quickbill{display:grid;grid-template-columns:minmax(150px,1fr) 110px 100px 190px auto;gap:8px;align-items:center;}
+.tc .quickbill{display:grid;grid-template-columns:minmax(130px,1fr) minmax(120px,.9fr) 92px 140px 150px auto;gap:8px;align-items:center;}
 @media(max-width:760px){.tc .quickbill{grid-template-columns:1fr 1fr;}}
 .tc .up{color:var(--good);}.tc .down{color:var(--warn);}.tc .mid{color:var(--b);}
 
@@ -458,7 +464,7 @@ body{margin:0;background:#EAE5D8;}
 .tc .btn.tiny{padding:5px 10px;font-size:10px;letter-spacing:.08em;}
 .tc .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
 .tc .toolbar .field{width:auto;min-width:120px;}
-.tc .logger{display:grid;grid-template-columns:100px 1fr 140px 1fr auto;gap:8px;background:var(--surface);
+.tc .logger{display:grid;grid-template-columns:100px 1fr 130px 145px 1.3fr auto;gap:8px;background:var(--surface);
  border:1px solid var(--line);border-radius:var(--r);padding:10px;margin-bottom:16px;}
 @media(max-width:760px){.tc .logger{grid-template-columns:1fr 1fr;}.tc .logger .wide{grid-column:1/-1;}}
 
@@ -875,6 +881,24 @@ function model(state, plan, month) {
     return out;
   };
 
+  // Bill analytics: what the bills ran each month. Per bill: the paid entry
+  // (billId-stamped) wins, then that month's own amount, then the usual.
+  // Months with no record at all stay at zero rather than inventing history.
+  const billPaidByMonth = [];
+  for (let i = 5; i >= 0; i--) {
+    const k = shiftMonth(month, -i);
+    const mm = state.months[k];
+    let total = 0;
+    if (mm) state.bills.forEach((b) => {
+      const entry = (mm.entries || []).find((t) => t.billId === b.id);
+      const over = (mm.billAmounts || {})[b.id];
+      total += entry ? entry.amount : over !== undefined ? over : b.amount;
+    });
+    billPaidByMonth.push({ label: monthLabel(k, true), Bills: Math.round(total * 100) / 100 });
+  }
+  const billMethodMix = { auto: 0, online: 0, check: 0, unset: 0 };
+  state.bills.forEach((b) => { billMethodMix[b.payMethod || "unset"] = (billMethodMix[b.payMethod || "unset"] || 0) + 1; });
+
   // What's genuinely still spendable: income, less goal savings, less what
   // has already gone out, less the bills that haven't hit yet.
   const available = income - goalMonthly - spent - billsLeft;
@@ -1069,7 +1093,7 @@ function model(state, plan, month) {
   return {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
-    goalStatus, history, bills, billsTotal, billsLeft, billHistory, payoff, notes, thesis, shareA, jointCost,
+    goalStatus, history, bills, billsTotal, billsLeft, billHistory, billPaidByMonth, billMethodMix, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, celebrations, verse, verseLine, available, daysLeft, perDay,
     baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
     payCounts: { a: paysFor(pA.id, month).length, b: paysFor(pB.id, month).length },
@@ -1098,6 +1122,23 @@ const MonthNav = ({ month, setMonth }) => (
     <button className="arrow" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month">›</button>
   </div>
 );
+
+/**
+ * Amount input that survives typing a decimal point. Controlled inputs that
+ * round-trip through num() eat the "." mid-keystroke ("2780." re-renders as
+ * "2780"); this keeps the raw draft while focused and commits the parsed
+ * number on every change.
+ */
+function MoneyInput({ value, onCommit, className = "field num", ...rest }) {
+  const [draft, setDraft] = useState(null);
+  return (
+    <input className={className} inputMode="decimal"
+      value={draft !== null ? draft : (value || "")}
+      onChange={(e) => { setDraft(e.target.value); onCommit(num(e.target.value)); }}
+      onBlur={() => setDraft(null)}
+      {...rest} />
+  );
+}
 
 const scrollCard = (id) => {
   const el = document.getElementById(id);
@@ -1195,7 +1236,7 @@ function Guidance({ m, theme, line }) {
 
 /*  One spending entry, editable in place — note, envelope, who, amount.
     Used on the dashboard (detail + group drill-down) and in Spending.   */
-function EntryRow({ t, plan, m, writeMonth }) {
+function EntryRow({ t, plan, m, month, writeMonth }) {
   const [open, setOpen] = useState(false);
   const env = plan.envelopes.find((e) => e.id === t.envId);
   const set = (f, v) => writeMonth((mm) => {
@@ -1246,8 +1287,25 @@ function EntryRow({ t, plan, m, writeMonth }) {
         </div>
         <div>
           <label className="lbl">Amount</label>
-          <input className="field num" value={t.amount || ""} placeholder="0"
-            onChange={(e) => set("amount", num(e.target.value))} aria-label="Amount" />
+          <MoneyInput value={t.amount} placeholder="0"
+            onCommit={(v) => set("amount", v)} aria-label="Amount" />
+        </div>
+        <div>
+          <label className="lbl">Date</label>
+          <input className="field num" type="date"
+            value={t.day ? `${month}-${String(t.day).padStart(2, "0")}` : ""}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              const d = Number(e.target.value.slice(8, 10));
+              writeMonth((mm) => {
+                const x = mm.entries.find((y) => y.id === t.id);
+                if (x) {
+                  x.day = d;
+                  x.date = new Date(e.target.value + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                }
+                return mm;
+              });
+            }} aria-label="Date" />
         </div>
       </div>
       <div className="efoot">
@@ -1315,8 +1373,10 @@ function IncomeRow({ inc, m, month, patch, setInc, setIncDate, toggleLanded }) {
         <div>
           <label className="lbl">{inc.recurring ? "Day of the month" : "Date it arrives"}</label>
           {inc.recurring ? (
-            <input className="field num" value={inc.day}
-              onChange={(e) => setInc(inc.id, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Day of month" />
+            <input className="field num" type="date"
+              value={`${month}-${String(inc.day || 1).padStart(2, "0")}`}
+              onChange={(e) => e.target.value && setInc(inc.id, "day", Math.min(31, Math.max(1, Number(e.target.value.slice(8, 10)) || 1)))}
+              aria-label="Day of month it repeats" />
           ) : (
             <input className="field num" type="date"
               value={inc.date || `${month}-${String(inc.day || 15).padStart(2, "0")}`}
@@ -1325,8 +1385,8 @@ function IncomeRow({ inc, m, month, patch, setInc, setIncDate, toggleLanded }) {
         </div>
         <div>
           <label className="lbl">Amount</label>
-          <input className="field num" value={inc.amount || ""} placeholder="0"
-            onChange={(e) => setInc(inc.id, "amount", num(e.target.value))} aria-label="Amount" />
+          <MoneyInput value={inc.amount} placeholder="0"
+            onCommit={(v) => setInc(inc.id, "amount", v)} aria-label="Amount" />
         </div>
         {!inc.pay && (
           <div>
@@ -1721,7 +1781,7 @@ function Concierge({ ctx, suggest }) {
           {bulk.map((it, i) => (
             <div className="bulkrow" key={i}>
               <input className="field" value={it.name} onChange={(e) => setBulkItem(i, "name", e.target.value)} aria-label="Item name" />
-              <input className="field num" value={it.amount} onChange={(e) => setBulkItem(i, "amount", num(e.target.value))} aria-label="Amount" />
+              <MoneyInput value={it.amount} onCommit={(v) => setBulkItem(i, "amount", v)} aria-label="Amount" />
               <select className="field" value={it.type} onChange={(e) => setBulkItem(i, "type", e.target.value)} aria-label="What it is">
                 <option value="bill">Monthly bill</option>
                 <option value="budget">Budget envelope</option>
@@ -1874,7 +1934,7 @@ function Dashboard({ ctx }) {
           <div style={{ maxHeight: 340, overflowY: "auto" }}>
             {plan.entries.length === 0
               ? <p className="empty">Nothing logged yet this month. Tell the concierge above what you spent.</p>
-              : plan.entries.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} writeMonth={writeMonth} />)}
+              : plan.entries.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} month={month} writeMonth={writeMonth} />)}
           </div>
         </div>
       )}
@@ -1936,7 +1996,7 @@ function Dashboard({ ctx }) {
                   <div style={{ maxHeight: 250, overflowY: "auto" }}>
                     {groupEntries.length === 0
                       ? <p className="empty">Nothing logged in {selGroup} yet this month.</p>
-                      : groupEntries.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} writeMonth={writeMonth} />)}
+                      : groupEntries.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} month={month} writeMonth={writeMonth} />)}
                   </div>
                 </>
               )}
@@ -2109,8 +2169,8 @@ function Budget({ ctx }) {
               <div className="amt">
                 {count > 0
                   ? <span className="num">{money(eff)}</span>
-                  : <input className="num" value={p.income || ""} placeholder="0"
-                      onChange={(e) => patch((s) => { s.household.partners[i].income = num(e.target.value); return s; })}
+                  : <MoneyInput className="num" value={p.income} placeholder="0"
+                      onCommit={(v) => patch((s) => { s.household.partners[i].income = v; return s; })}
                       aria-label={`${p.name} take-home`} />}
               </div>
               <div className="amt muted" style={{ fontSize: 11.5 }}>per month</div>
@@ -2145,8 +2205,8 @@ function Budget({ ctx }) {
                     onChange={(e) => setIncDate(inc.id, e.target.value)} aria-label="Expected date" />
                 </div>
                 <div className="amt">
-                  <input className="num" value={inc.amount || ""} placeholder="0"
-                    onChange={(e) => setInc(inc.id, "amount", num(e.target.value))} aria-label="Amount" />
+                  <MoneyInput className="num" value={inc.amount} placeholder="0"
+                    onCommit={(v) => setInc(inc.id, "amount", v)} aria-label="Amount" />
                 </div>
                 <div className="amt muted" style={{ fontSize: 11.5 }}>counts in {monthLabel(inc.month, true)}</div>
               </div>
@@ -2255,11 +2315,19 @@ function Budget({ ctx }) {
             </div>
           );
         })}
-        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
           <button className="btn ghost tiny" onClick={() => writeMonth((mm) => {
             mm.envelopes.push({ id: uid(), name: "New envelope", group: "Other", planned: 0, owner: "joint" });
             return mm;
           })}>Add an envelope</button>
+          {[["Insurance", "Home"], ["Credit card", "Other"], ["Work", "Other"], ["Giving", "Giving"]]
+            .filter(([n]) => !plan.envelopes.some((e) => e.name.toLowerCase() === n.toLowerCase()))
+            .map(([n, g]) => (
+              <button key={n} className="chip" onClick={() => writeMonth((mm) => {
+                mm.envelopes.push({ id: uid(), name: n, group: g, planned: 0, owner: "joint" });
+                return mm;
+              })}>+ {n}</button>
+            ))}
           <button className="btn ghost tiny" disabled={!state.months[shiftMonth(month, -1)]}
             title={state.months[shiftMonth(month, -1)] ? undefined : "Works once you have a previous month on record"}
             onClick={() => writeMonth((mm) => {
@@ -2343,7 +2411,7 @@ function Spending({ ctx }) {
 
       <div className="card">
         {rows.length === 0 ? <p className="empty">Nothing matches. Clear the filters, or log something above.</p> :
-          rows.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} writeMonth={writeMonth} />)}
+          rows.map((t) => <EntryRow key={t.id} t={t} plan={plan} m={m} month={month} writeMonth={writeMonth} />)}
       </div>
     </>
   );
@@ -2354,6 +2422,7 @@ function Logger({ envelopes, m, onAdd }) {
   const [envId, setEnvId] = useState(envelopes[0] ? envelopes[0].id : "");
   const [who, setWho] = useState("joint");
   const [note, setNote] = useState("");
+  const [when, setWhen] = useState("");
   useEffect(() => {
     if (!envelopes.some((e) => e.id === envId)) setEnvId(envelopes[0] ? envelopes[0].id : "");
   }, [envelopes, envId]);
@@ -2361,17 +2430,19 @@ function Logger({ envelopes, m, onAdd }) {
   const submit = () => {
     const amt = num(amount);
     if (!amt || !envId) return;
+    const d = when ? new Date(when + "T12:00") : new Date();
     onAdd({
-      id: uid(), envId, amount: amt, who, note: note.trim(),
-      date: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      id: uid(), envId, amount: amt, who, note: note.trim(), day: d.getDate(),
+      date: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
     });
-    setAmount(""); setNote("");
+    setAmount(""); setNote(""); setWhen("");
   };
   const key = (e) => e.key === "Enter" && submit();
 
   return (
     <div className="logger">
-      <input className="field num" placeholder="$0" value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={key} aria-label="Amount" />
+      <input className="field num" inputMode="decimal" placeholder="$0" value={amount}
+        onChange={(e) => setAmount(e.target.value)} onKeyDown={key} aria-label="Amount" />
       <select className="field" value={envId} onChange={(e) => setEnvId(e.target.value)} aria-label="Envelope">
         {envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
       </select>
@@ -2380,6 +2451,8 @@ function Logger({ envelopes, m, onAdd }) {
         <option value="a">{m.pA.name}</option>
         <option value="b">{m.pB.name}</option>
       </select>
+      <input className="field num" type="date" value={when} onChange={(e) => setWhen(e.target.value)}
+        aria-label="When (today if blank)" title="When — today if left blank" />
       <input className="field wide" placeholder="What was it for?" value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={key} aria-label="Note" />
       <button className="btn" onClick={submit} disabled={!num(amount)}>Log it</button>
     </div>
@@ -2390,16 +2463,18 @@ function Logger({ envelopes, m, onAdd }) {
 /*  4. bills                                                           */
 /* ================================================================== */
 
-const COMMON_BILLS = ["Rent", "Mortgage", "Electric", "Water", "Gas", "Internet", "Phone plan", "Car payment", "Car insurance", "Streaming", "Gym"];
+const COMMON_BILLS = ["Rent", "Mortgage", "Electric", "Water", "Gas", "Internet", "Phone plan", "Car payment", "Car insurance", "Home insurance", "Credit card", "Streaming", "Gym"];
 
 /*  One bill: a clean read line (name · due day · envelope · amount ·
     paid button); clicking opens the labeled editor with this month's
     amount, the usual, and the cost history.                          */
-function BillRow({ b, m, state, plan, patch, togglePaid, setBillAmount, makeUsual }) {
+function BillRow({ b, m, state, plan, patch, month, togglePaid, setBillAmount, makeUsual }) {
   const [open, setOpen] = useState(false);
   const i = state.bills.findIndex((x) => x.id === b.id);
   const set = (f, v) => patch((s) => { s.bills[i][f] = v; return s; });
   const env = plan.envelopes.find((e) => e.id === b.envId);
+  const payHref = b.payUrl ? (/^https?:\/\//i.test(b.payUrl) ? b.payUrl : "https://" + b.payUrl) : "";
+  const METHODS = { auto: "Autopay", online: "Online", check: "Check" };
   const paidBtn = (
     <button className={"btn tiny " + (b.paid ? "" : "ghost")}
       onClick={(e) => { e.stopPropagation(); togglePaid(b); }}>
@@ -2413,13 +2488,21 @@ function BillRow({ b, m, state, plan, patch, togglePaid, setBillAmount, makeUsua
       aria-label={`Edit ${b.name}`}>
       <div className="rowname">
         <span style={{ width: 4, height: 16, borderRadius: 3, flex: "none", background: b.paid ? C.a : b.overdue ? C.warn : C.joint }} />
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {b.name}{b.company ? <span className="muted"> — {b.company}</span> : ""}
+        </span>
         <span className="muted" style={{ fontSize: 12 }}>
           due the {ordinal(b.day)}{env ? ` · ${env.name}` : ""}
         </span>
+        {b.payMethod && <span className="tag hideS">{METHODS[b.payMethod] || b.payMethod}</span>}
         {b.overridden && <span className="tag hideS">usually {money(b.usual)}</span>}
       </div>
-      <div className="amt hideS"><span className="editHint">edit</span></div>
+      <div className="amt hideS">
+        {payHref && !b.paid
+          ? <a className="tag" href={payHref} target="_blank" rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()} style={{ textDecoration: "none", color: CT.a, borderColor: C.a }}>pay ↗</a>
+          : <span className="editHint">edit</span>}
+      </div>
       <div className="amt num">{money(b.amount)}</div>
       <div className="amt">{paidBtn}</div>
     </div>
@@ -2433,14 +2516,21 @@ function BillRow({ b, m, state, plan, patch, togglePaid, setBillAmount, makeUsua
           <input className="field" value={b.name} onChange={(e) => set("name", e.target.value)} aria-label="Bill name" />
         </div>
         <div>
-          <label className="lbl">Amount this month</label>
-          <input className="field num" value={b.amount || ""} placeholder="0"
-            onChange={(e) => setBillAmount(b, num(e.target.value))} aria-label={`${b.name} amount this month`} />
+          <label className="lbl">Company</label>
+          <input className="field" value={b.company || ""} placeholder="Comcast, Loancare…"
+            onChange={(e) => set("company", e.target.value)} aria-label="Company" />
         </div>
         <div>
-          <label className="lbl">Due day</label>
-          <input className="field num" value={b.day}
-            onChange={(e) => set("day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Due day" />
+          <label className="lbl">Amount this month</label>
+          <MoneyInput value={b.amount} placeholder="0"
+            onCommit={(v) => setBillAmount(b, v)} aria-label={`${b.name} amount this month`} />
+        </div>
+        <div>
+          <label className="lbl">Due date (repeats monthly)</label>
+          <input className="field num" type="date"
+            value={`${month}-${String(b.day || 1).padStart(2, "0")}`}
+            onChange={(e) => e.target.value && set("day", Math.min(31, Math.max(1, Number(e.target.value.slice(8, 10)) || 1)))}
+            aria-label="Due date" />
         </div>
         <div>
           <label className="lbl">Envelope</label>
@@ -2456,6 +2546,20 @@ function BillRow({ b, m, state, plan, patch, togglePaid, setBillAmount, makeUsua
             <option value="a">{m.pA.name}</option>
             <option value="b">{m.pB.name}</option>
           </select>
+        </div>
+        <div>
+          <label className="lbl">How it's paid</label>
+          <select className="field" value={b.payMethod || ""} onChange={(e) => set("payMethod", e.target.value)} aria-label="How it's paid">
+            <option value="">—</option>
+            <option value="auto">Autopay</option>
+            <option value="online">Online</option>
+            <option value="check">Check</option>
+          </select>
+        </div>
+        <div>
+          <label className="lbl">Payment link</label>
+          <input className="field" value={b.payUrl || ""} placeholder="comcast.com/pay"
+            onChange={(e) => set("payUrl", e.target.value)} aria-label="Payment link" />
         </div>
       </div>
       <div className="snip">
@@ -2485,6 +2589,10 @@ function BillRow({ b, m, state, plan, patch, togglePaid, setBillAmount, makeUsua
           </button>
         )}
         {paidBtn}
+        {payHref && (
+          <a className="btn ghost tiny" href={payHref} target="_blank" rel="noopener noreferrer"
+            style={{ textDecoration: "none" }}>Open payment page ↗</a>
+        )}
         <button className="btn ghost tiny" style={{ marginLeft: "auto", color: C.warn }}
           onClick={() => {
             if (!window.confirm(`Remove ${b.name}?`)) return;
@@ -2500,8 +2608,9 @@ function BillRow({ b, m, state, plan, patch, togglePaid, setBillAmount, makeUsua
 function BillsView({ ctx }) {
   const { m, state, patch, plan, writeMonth, month, setMonth, setView } = ctx;
   const set = (i, f, v) => patch((s) => { s.bills[i][f] = v; return s; });
-  const [nb, setNb] = useState({ name: "", amount: "", day: "", envId: "" });
+  const [nb, setNb] = useState({ name: "", company: "", amount: "", day: "", envId: "" });
   const [unpaidOnly, setUnpaidOnly] = useState(false);
+  const [sortBy, setSortBy] = useState("day");
 
   // Typing an amount changes THIS month only; the usual amount stays as
   // the default for future months until "make usual" adopts the new one.
@@ -2527,9 +2636,12 @@ function BillsView({ ctx }) {
     const rules = [
       [/rent|mortgage/, /rent|mortgage/],
       [/electric|water|gas|internet|wifi|phone|utilit|trash|sewer/, /utilit/],
-      [/car payment|auto loan|loan|card/, /debt/],
+      [/insurance/, /insurance/],
+      [/credit card|card/, /credit|card/],
+      [/car payment|auto loan|loan/, /debt/],
       [/stream|subscript|music/, /subscript/],
-      [/gym|dental|insurance|health/, /health/],
+      [/work|office/, /work/],
+      [/gym|dental|health/, /health/],
     ];
     for (const [k, e] of rules) {
       if (k.test(n)) {
@@ -2544,13 +2656,13 @@ function BillsView({ ctx }) {
     if (!nb.name.trim() || !num(nb.amount)) return;
     patch((s) => {
       s.bills.push({
-        id: uid(), name: nb.name.trim(), amount: num(nb.amount),
+        id: uid(), name: nb.name.trim(), company: nb.company.trim(), amount: num(nb.amount),
         day: Math.min(31, Math.max(1, num(nb.day) || 1)),
         envId: nb.envId, owner: "joint",
       });
       return s;
     });
-    setNb({ name: "", amount: "", day: "", envId: "" });
+    setNb({ name: "", company: "", amount: "", day: "", envId: "" });
   };
   const nbKey = (e) => e.key === "Enter" && addBill();
 
@@ -2606,10 +2718,14 @@ function BillsView({ ctx }) {
           <input className="field" placeholder="Bill name" value={nb.name}
             onChange={(e) => setNb({ ...nb, name: e.target.value, envId: nb.envId || guessEnv(e.target.value) })}
             onKeyDown={nbKey} aria-label="Bill name" />
+          <input className="field" placeholder="Company (Comcast…)" value={nb.company}
+            onChange={(e) => setNb({ ...nb, company: e.target.value })} onKeyDown={nbKey} aria-label="Company" />
           <input className="field num" placeholder="$0" value={nb.amount}
             onChange={(e) => setNb({ ...nb, amount: e.target.value })} onKeyDown={nbKey} aria-label="Amount" />
-          <input className="field num" placeholder="Due day" value={nb.day}
-            onChange={(e) => setNb({ ...nb, day: e.target.value })} onKeyDown={nbKey} aria-label="Due day of month" />
+          <input className="field num" type="date"
+            value={nb.day ? `${month}-${String(nb.day).padStart(2, "0")}` : ""}
+            onChange={(e) => setNb({ ...nb, day: e.target.value ? Number(e.target.value.slice(8, 10)) : "" })}
+            aria-label="Due date" />
           <select className="field" value={nb.envId} onChange={(e) => setNb({ ...nb, envId: e.target.value })} aria-label="Envelope">
             <option value="">no envelope</option>
             {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -2624,13 +2740,90 @@ function BillsView({ ctx }) {
       </div>
 
       <div className="card" id="billList">
+        <div className="chead">
+          <h3>The bills</h3>
+          <select className="field" value={sortBy} onChange={(e) => setSortBy(e.target.value)}
+            style={{ width: "auto", padding: "5px 9px", fontSize: 12 }} aria-label="Sort bills">
+            <option value="day">By due date</option>
+            <option value="amount">Biggest first</option>
+            <option value="name">By name</option>
+            <option value="unpaid">Unpaid first</option>
+            <option value="method">By how it's paid</option>
+          </select>
+        </div>
         {state.bills.length === 0 && <p className="empty">Add the bills that repeat every month — rent, insurance, the streaming stack you forgot about.</p>}
         {unpaidOnly && m.bills.every((b) => b.paid) && state.bills.length > 0 &&
           <p className="empty">Nothing unpaid — every bill this month is settled.</p>}
-        {m.bills.filter((b) => !unpaidOnly || !b.paid).map((b) => (
-          <BillRow key={b.id} b={b} m={m} state={state} plan={plan} patch={patch}
+        {m.bills
+          .filter((b) => !unpaidOnly || !b.paid)
+          .slice()
+          .sort((x, y) =>
+            sortBy === "amount" ? y.amount - x.amount
+            : sortBy === "name" ? x.name.localeCompare(y.name)
+            : sortBy === "unpaid" ? (x.paid ? 1 : 0) - (y.paid ? 1 : 0) || x.day - y.day
+            : sortBy === "method" ? (x.payMethod || "zz").localeCompare(y.payMethod || "zz") || x.day - y.day
+            : x.day - y.day)
+          .map((b) => (
+          <BillRow key={b.id} b={b} m={m} state={state} plan={plan} patch={patch} month={month}
             togglePaid={togglePaid} setBillAmount={setBillAmount} makeUsual={makeUsual} />
         ))}
+      </div>
+
+      <div className="grid g23" style={{ marginTop: 16 }} id="billStats">
+        <div className="card">
+          <div className="chead">
+            <h3>What the bills have cost</h3>
+            <span className="meta">by month — actuals where recorded</span>
+          </div>
+          {m.billPaidByMonth.every((x) => !x.Bills) ? (
+            <p className="empty">This fills in as months go on record — each bar is that month's bills, actual amounts where they were recorded.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={190}>
+              <BarChart data={m.billPaidByMonth} margin={{ top: 6, right: 6, left: 6, bottom: 0 }}>
+                <CartesianGrid stroke={C.line} vertical={false} />
+                <XAxis dataKey="label" {...axis} />
+                <YAxis {...axis} tickFormatter={compact} width={40} />
+                <Tooltip content={<Tip />} cursor={{ fill: "rgba(22,32,29,.05)" }} />
+                <Bar dataKey="Bills" fill={C.a} radius={3} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+        <div className="card">
+          <div className="chead">
+            <h3>The big ones</h3>
+            <span className="meta">this month's amounts</span>
+          </div>
+          {(() => {
+            const top = m.bills.slice().sort((x, y) => y.amount - x.amount).slice(0, 6);
+            const max = top.length ? top[0].amount : 0;
+            return top.length === 0 ? <p className="empty">No bills yet.</p> : top.map((b) => {
+              const env = plan.envelopes.find((e) => e.id === b.envId);
+              const c = env ? (GROUP_COLORS[env.group] || C.joint) : C.joint;
+              return (
+                <div key={b.id} style={{ padding: "7px 0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13 }}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {b.name}{b.company ? <span className="muted"> — {b.company}</span> : ""}
+                    </span>
+                    <span className="num">{money(b.amount)}</span>
+                  </div>
+                  <div className="bar" style={{ marginTop: 5 }}>
+                    <i style={{ width: (max ? (b.amount / max) * 100 : 0) + "%", background: c }} />
+                  </div>
+                </div>
+              );
+            });
+          })()}
+          <p className="mstone" style={{ marginTop: 12 }}>
+            {[
+              m.billMethodMix.auto ? `${m.billMethodMix.auto} on autopay` : "",
+              m.billMethodMix.online ? `${m.billMethodMix.online} paid online` : "",
+              m.billMethodMix.check ? `${m.billMethodMix.check} by check` : "",
+              m.billMethodMix.unset ? `${m.billMethodMix.unset} not set — open a bill to say how it's paid` : "",
+            ].filter(Boolean).join(" · ")}
+          </p>
+        </div>
       </div>
 
       <div style={{ marginTop: 28, marginBottom: 12 }}>
@@ -2948,9 +3141,9 @@ function GoalsView({ ctx }) {
               </div>
             )}
             <div className="fourup">
-              <div><label className="lbl">Target</label><input className="field num" value={g.target || ""} placeholder="0" onChange={(e) => set("target", num(e.target.value))} /></div>
-              <div><label className="lbl">Saved</label><input className="field num" value={g.saved || ""} placeholder="0" onChange={(e) => set("saved", num(e.target.value))} /></div>
-              <div><label className="lbl">Monthly</label><input className="field num" value={g.monthly || ""} placeholder="0" onChange={(e) => set("monthly", num(e.target.value))} /></div>
+              <div><label className="lbl">Target</label><MoneyInput value={g.target} placeholder="0" onCommit={(v) => set("target", v)} aria-label="Target" /></div>
+              <div><label className="lbl">Saved</label><MoneyInput value={g.saved} placeholder="0" onCommit={(v) => set("saved", v)} aria-label="Saved" /></div>
+              <div><label className="lbl">Monthly</label><MoneyInput value={g.monthly} placeholder="0" onCommit={(v) => set("monthly", v)} aria-label="Monthly" /></div>
               <div><label className="lbl">Want it by</label><input className="field num" type="month" value={g.due || ""} onChange={(e) => set("due", e.target.value)} /></div>
             </div>
           </div>
@@ -3020,18 +3213,18 @@ function NetWorth({ ctx }) {
                 {a.type === "debt" && (
                   <>
                     <span className="muted">APR </span>
-                    <input className="num" style={{ width: 40, textAlign: "left" }} value={a.apr || ""} placeholder="0"
-                      onChange={(e) => set(i, "apr", num(e.target.value))} aria-label="APR" />
+                    <MoneyInput className="num" style={{ width: 40, textAlign: "left" }} value={a.apr} placeholder="0"
+                      onCommit={(v) => set(i, "apr", v)} aria-label="APR" />
                     <span className="muted">%</span>
                   </>
                 )}
               </div>
               <div className="amt hideS">
-                {a.type === "debt" && <input className="num" value={a.minPayment || ""} placeholder="min"
-                  onChange={(e) => set(i, "minPayment", num(e.target.value))} aria-label="Minimum payment" />}
+                {a.type === "debt" && <MoneyInput className="num" value={a.minPayment} placeholder="min"
+                  onCommit={(v) => set(i, "minPayment", v)} aria-label="Minimum payment" />}
               </div>
               <div className="amt">
-                <input className="num" value={a.balance || ""} placeholder="0" onChange={(e) => set(i, "balance", num(e.target.value))} aria-label="Balance" />
+                <MoneyInput className="num" value={a.balance} placeholder="0" onCommit={(v) => set(i, "balance", v)} aria-label="Balance" />
               </div>
             </div>
           ))}
@@ -3588,8 +3781,9 @@ function SettingsView({ ctx, setState }) {
                     {money(i === 0 ? m.eff.a : m.eff.b)} · set by paychecks in Budget
                   </div>
                 ) : (
-                  <input className="field num" value={state.household.partners[i].income || ""} placeholder="0"
-                    onChange={(e) => patch((s) => { s.household.partners[i].income = num(e.target.value); return s; })} />
+                  <MoneyInput value={state.household.partners[i].income} placeholder="0"
+                    onCommit={(v) => patch((s) => { s.household.partners[i].income = v; return s; })}
+                    aria-label={`${state.household.partners[i].name} take-home`} />
                 )}
               </div>
             </div>

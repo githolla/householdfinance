@@ -56,8 +56,10 @@ One JSON object, persisted whole under `twocolumn:v2`.
   ],
 
   "bills": [
-    { "id": "b1", "name": "Electric", "amount": 145, "day": 12,
-      "envId": "k3f9a1x", "owner": "joint" }                 // envId points at the CURRENT month
+    { "id": "b1", "name": "Electric", "company": "PPL", "amount": 145, "day": 12,
+      "envId": "k3f9a1x", "owner": "joint",                  // envId points at the CURRENT month
+      "payMethod": "auto",                                   // "auto" | "online" | "check" | "" (unset)
+      "payUrl": "ppl.com/pay" }                              // optional; rendered with https:// prefixed
   ],
 
   "chat": [{ "role": "user", "content": "..." }],            // planner history
