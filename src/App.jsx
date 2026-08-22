@@ -216,7 +216,7 @@ const NAV_SECTIONS = [
     ["dash", "Overview"],
     ["budget", "Budget"],
     ["txn", "Spending"],
-    ["bills", "Bills"],
+    ["bills", "Bills & files"],
     ["goals", "Goals"],
   ]],
   ["Longer view", [
@@ -248,6 +248,9 @@ const C = {
   a: "#7086D6", b: "#55A297", joint: "#C0965C", warn: "#D4574E",
   soft: "#6F6F76", ink: "#18181B", line: "#E7E7E5",
 };
+// Darker companions for text at small sizes — the C hues pass as fills
+// and borders but fail contrast as 10-11px type on white.
+const CT = { a: "#5563A8", b: "#3E7A6F", joint: "#8A6431" };
 const PIE = ["#7086D6", "#55A297", "#C0965C", "#A488CF", "#7FAE7A", "#D4574E", "#6D9DC9", "#9AA3AE"];
 
 /* ================================================================== */
@@ -308,9 +311,10 @@ body{margin:0;background:#F6F6F5;}
  .tc .bottom{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:30;
   background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);
   overflow-x:auto;gap:2px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));}
- .tc .bottom button{flex:1 0 60px;display:flex;flex-direction:column;align-items:center;gap:3px;
+ .tc .bottom button{flex:1 0 22%;display:flex;flex-direction:column;align-items:center;gap:3px;
   background:none;border:none;font-size:10px;font-weight:500;color:var(--soft);padding:5px 2px;
   border-radius:10px;position:relative;white-space:nowrap;}
+ .tc input,.tc select,.tc textarea{font-size:16px;}
  .tc .bottom button.on{color:var(--acc);}
  .tc .bottom .badge{position:absolute;top:0;right:8px;margin:0;padding:0 5px;font-size:9.5px;}
 }
@@ -384,7 +388,8 @@ body{margin:0;background:#F6F6F5;}
 .tc .row:last-child{border-bottom:none;}
 .tc .row.wide{grid-template-columns:1fr 130px 92px 96px;}
 @media(max-width:700px){.tc .row.wide{grid-template-columns:1fr 96px;}
- .tc .hideS{display:none;}}
+ .tc .hideS{display:none;}
+ .tc .rowname{flex-wrap:wrap;}}
 .tc .rowname{display:flex;align-items:center;gap:8px;min-width:0;}
 .tc .rowname input{border:none;background:none;font-size:14px;color:var(--ink);padding:2px 0;
  width:100%;min-width:0;font-family:inherit;}
@@ -392,16 +397,17 @@ body{margin:0;background:#F6F6F5;}
 .tc .amt{text-align:right;font-size:13.5px;}
 .tc .amt input{width:100%;text-align:right;border:none;background:none;font-size:13.5px;color:var(--ink);
  font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;padding:3px 0;}
-.tc .amt input:hover,.tc .amt input:focus{border-bottom:1px solid var(--line);outline:none;}
+.tc .amt input:hover{border-bottom:1px solid var(--line);}
+.tc .amt input:focus{outline:none;border-bottom:2px solid var(--acc);}
 .tc .muted{color:var(--soft);}
 .tc .over{color:var(--warn);font-weight:500;}
 .tc .bar{grid-column:1/-1;height:4px;background:rgba(34,29,23,.08);border-radius:3px;overflow:hidden;}
 .tc .bar i{display:block;height:100%;border-radius:3px;}
-.tc .kill{background:none;border:none;color:#CFC6B4;font-size:15px;padding:0 2px;line-height:1;}
+.tc .kill{background:none;border:none;color:var(--soft);font-size:16px;padding:10px;margin:-8px -6px;line-height:1;}
 .tc .kill:hover{color:var(--warn);}
-.tc .tag{border:1px solid var(--line);background:none;border-radius:20px;font-size:10px;
- letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;color:var(--soft);white-space:nowrap;
- font-family:inherit;max-width:120px;}
+.tc .tag{border:1px solid var(--line);background:none;border-radius:20px;font-size:11px;
+ letter-spacing:.08em;text-transform:uppercase;padding:4px 9px;color:var(--soft);white-space:nowrap;
+ font-family:inherit;max-width:130px;}
 .tc .grouphead{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--soft);
  padding:16px 0 4px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;}
 
@@ -429,7 +435,7 @@ body{margin:0;background:#F6F6F5;}
 .tc .track i{display:block;height:100%;background:var(--joint);border-radius:4px;transition:width .4s ease;}
 .tc .flag{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:20px;
  border:1px solid currentColor;white-space:nowrap;}
-.tc .flag.ok{color:var(--a);}.tc .flag.late{color:var(--warn);}
+.tc .flag.ok{color:#5563A8;}.tc .flag.late{color:var(--warn);}
 .tc .metaline{display:flex;flex-wrap:wrap;gap:13px;font-size:12.5px;color:var(--soft);align-items:center;}
 .tc .metaline b{color:var(--ink);font-weight:500;}
 .tc .fourup{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px;padding-top:12px;
@@ -454,7 +460,10 @@ body{margin:0;background:#F6F6F5;}
 .tc .askrow{display:flex;gap:7px;}
 .tc .empty{font-size:13px;color:var(--soft);line-height:1.55;padding:8px 0;margin:0;}
 
-/* stewardship guidance — front and center on every view */
+/* demo banner + stewardship guidance */
+.tc .demobar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+ background:var(--goldsoft);border:1px solid var(--goldline);border-radius:10px;
+ padding:9px 14px;margin-bottom:16px;font-size:12.5px;color:#6B5327;}
 .tc .guide{display:flex;gap:14px;align-items:flex-start;background:#FBFAF7;border:1px solid #ECE7DC;
  border-left:3px solid var(--joint);border-radius:12px;padding:14px 18px;margin-bottom:16px;}
 .tc .guide .gverse{font-family:'Space Grotesk',Inter,sans-serif;font-size:15px;font-weight:500;
@@ -470,6 +479,7 @@ body{margin:0;background:#F6F6F5;}
 .tc .conbar input{flex:1;border:none;background:none;font-size:14px;color:var(--ink);font-family:inherit;
  padding:8px 0;min-width:0;}
 .tc .conbar input:focus{outline:none;}
+.tc .conbar:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px rgba(91,91,214,.13);}
 .tc .conbar input::placeholder{color:#9AA0A6;}
 .tc .conbar .mic{background:none;border:none;color:var(--soft);border-radius:10px;padding:8px;
  display:grid;place-items:center;flex:none;}
@@ -527,6 +537,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("dash");
   const [month, setMonth] = useState(monthKey(new Date()));
+  const [armClean, setArmClean] = useState(false);
   const timer = useRef(null);
 
   useEffect(() => {
@@ -578,6 +589,11 @@ export default function App() {
   const m = model(state, plan, month);
   const ctx = { state, patch, plan, writeMonth, month, setMonth, m, setView };
   const unpaidCount = m.bills.filter((b) => !b.paid).length;
+  const startClean = async () => {
+    if (!armClean) { setArmClean(true); setTimeout(() => setArmClean(false), 4000); return; }
+    try { await window.storage.delete(KEY); } catch (e) { /* nothing stored */ }
+    setState(null);
+  };
   const navBtn = ([k, label]) => (
     <button key={k} className={view === k ? "on" : ""} onClick={() => setView(k)}>
       <Icon k={k} />{label}
@@ -604,17 +620,15 @@ export default function App() {
           ))}
           <div className="sidefoot">
             <div className="metaline" style={{ justifyContent: "space-between" }}>
-              <span className="muted" style={{ fontSize: 12 }}>free to spend</span>
+              <span className="muted" style={{ fontSize: 12 }}>available to spend</span>
               <b className="num" style={{ color: m.available < 0 ? C.warn : C.ink }}>{money(m.available)}</b>
             </div>
             {state.demo && (
-              <button className="btn ghost tiny" style={{ width: "100%" }}
-                onClick={async () => {
-                  try { await window.storage.delete(KEY); } catch (e) { /* nothing stored */ }
-                  setState(null);
-                }}>Sample · start clean</button>
+              <button className="btn ghost tiny" style={{ width: "100%" }} onClick={startClean}>
+                {armClean ? "Tap again to erase the sample" : "Sample · start clean"}
+              </button>
             )}
-            {m.faithOn && (
+            {m.faithOn && view !== "dash" && (
               <div className="sideverse">
                 <div className="navlab" style={{ margin: "0 0 4px" }}>Daily bread</div>
                 <p className="vt">“{m.verse.text}”</p>
@@ -624,6 +638,14 @@ export default function App() {
           </div>
         </aside>
         <main className="main">
+          {state.demo && (
+            <div className="demobar">
+              <span>You're touring the sample household — nothing here is yours yet.</span>
+              <button className="btn ghost tiny" onClick={startClean}>
+                {armClean ? "Tap again to erase the sample" : "Start your own"}
+              </button>
+            </div>
+          )}
           {view === "dash" && <Dashboard ctx={ctx} />}
           {view === "budget" && <Budget ctx={ctx} />}
           {view === "txn" && <Spending ctx={ctx} />}
@@ -817,6 +839,15 @@ function model(state, plan, month) {
   const aInc = pA.income + extras.filter((i) => i.who === "a").reduce((n, i) => n + i.amount, 0);
   const bInc = pB.income + extras.filter((i) => i.who === "b").reduce((n, i) => n + i.amount, 0);
   const shareA = aInc + bInc > 0 ? (state.household.splitRule === "even" ? 0.5 : aInc / (aInc + bInc)) : 0.5;
+  // One earner + proportional split would render the other spouse as
+  // 0% / $0 — views show a neutral "it's all shared money" line instead.
+  const singleIncome = state.household.splitRule !== "even" && aInc + bInc > 0 && (aInc === 0 || bInc === 0);
+  // Of shared (joint-envelope) spending logged so far, who actually paid.
+  const jointEnvIds = new Set(plan.envelopes.filter((e) => e.owner === "joint").map((e) => e.id));
+  const covered = { a: 0, b: 0 };
+  plan.entries.forEach((t) => {
+    if (jointEnvIds.has(t.envId) && (t.who === "a" || t.who === "b")) covered[t.who] += t.amount;
+  });
   const jointCost = plan.envelopes.filter((e) => e.owner === "joint").reduce((n, e) => n + e.planned, 0) + goalMonthly;
 
   /* ---- stewardship: giving envelopes + the daily verse ---- */
@@ -830,7 +861,12 @@ function model(state, plan, month) {
     givenPct: income > 0 ? (givingGroup.spent / income) * 100 : 0,
   };
 
-  const overEnvs = plan.envelopes.filter((e) => e.planned > 0 && (spentBy[e.id] || 0) > e.planned);
+  // Prefer naming a joint envelope when something is over plan — the
+  // banner and thesis must never read as scripture-adjacent finger-
+  // pointing at one named partner.
+  const overEnvs = plan.envelopes
+    .filter((e) => e.planned > 0 && (spentBy[e.id] || 0) > e.planned)
+    .sort((x, y) => (x.owner === "joint" ? 0 : 1) - (y.owner === "joint" ? 0 : 1));
   let verseTheme = null;
   if (unallocated < -1) verseTheme = "planning";
   else if (overEnvs.length) verseTheme = "contentment";
@@ -851,7 +887,7 @@ function model(state, plan, month) {
         : "The month is fully planned. Every dollar already has a job.";
   } else if (verse.theme === "contentment") {
     verseLine = overEnvs.length
-      ? `${overEnvs[0].name} is ${money((spentBy[overEnvs[0].id] || 0) - overEnvs[0].planned)} past plan — the plan was enough when you wrote it together.`
+      ? `${overEnvs[0].name} is ${money((spentBy[overEnvs[0].id] || 0) - overEnvs[0].planned)} past plan — ${overEnvs[0].owner === "joint" ? "the plan was enough when you wrote it together" : "worth a look together"}.`
       : `Spending is inside the plan this month, with ${money(leftToSpend)} still to spend.`;
   } else if (verse.theme === "debt") {
     verseLine = debtTotal > 0
@@ -878,8 +914,10 @@ function model(state, plan, month) {
   else if (unallocated > 1) thesis = [`${money(unallocated)} still has no job.`, "Give it one — an envelope, a goal, or a payment against what you owe."];
   else if (unallocated < -1) thesis = [`You've planned ${money(-unallocated)} more than you earn.`, "Something has to come down before the month starts spending itself."];
   else {
-    const over = plan.envelopes.filter((e) => e.planned > 0 && (spentBy[e.id] || 0) > e.planned);
-    if (over.length) thesis = [`${over[0].name} is over by ${money((spentBy[over[0].id] || 0) - over[0].planned)}.`, "Everything else is holding — move money from a lighter envelope to cover it."];
+    if (overEnvs.length) thesis = [`${overEnvs[0].name} is over by ${money((spentBy[overEnvs[0].id] || 0) - overEnvs[0].planned)}.`,
+      overEnvs[0].owner === "joint"
+        ? "Everything else is holding — move money from a lighter envelope to cover it."
+        : "Everything else is holding — worth a look together."];
     else thesis = ["Every dollar has a job this month.", `${money(leftToSpend)} left to spend, ${money(goalMonthly)} heading toward what's next.`];
   }
 
@@ -888,8 +926,9 @@ function model(state, plan, month) {
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
     goalStatus, history, bills, billsTotal, billsLeft, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, verse, verseLine, available, daysLeft, perDay,
-    baseIncome, extrasTotal, expected, incomingLeft,
+    baseIncome, extrasTotal, expected, incomingLeft, singleIncome, covered,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),
+    ownerText: (o) => (o === "a" ? CT.a : o === "b" ? CT.b : CT.joint),
     ownerName: (o) => (o === "a" ? pA.name : o === "b" ? pB.name : "Both"),
   };
 }
@@ -979,7 +1018,7 @@ const Notes = ({ notes, limit }) => (
 function Guidance({ m, theme, line }) {
   if (!m.faithOn) return null;
   const v = theme ? verseForDay(theme) : m.verse;
-  const tie = theme ? line : m.verseLine;
+  const tie = line === undefined ? m.verseLine : line;
   return (
     <div className="guide">
       <div style={{ minWidth: 0 }}>
@@ -1002,14 +1041,14 @@ function EntryRow({ t, plan, m, writeMonth }) {
   return (
     <div className="row wide">
       <div className="rowname">
-        <button className="tag" style={{ color: m.ownerColor(t.who), borderColor: m.ownerColor(t.who) }}
+        <button className="tag" style={{ color: m.ownerText(t.who), borderColor: m.ownerColor(t.who) }}
           onClick={() => {
             const order = ["joint", "a", "b"];
             set("who", order[(order.indexOf(t.who) + 1) % 3]);
-          }} title="Who spent it — tap to change">{m.ownerName(t.who)}</button>
+          }} title="Who paid — tap to change">{m.ownerName(t.who)}</button>
         <input value={t.note || ""} placeholder={env ? env.name : "Spending"}
           onChange={(e) => set("note", e.target.value)} aria-label="Note" />
-        <select className="tag hideS" value={t.envId} onChange={(e) => set("envId", e.target.value)} aria-label="Envelope">
+        <select className="tag" value={t.envId} onChange={(e) => set("envId", e.target.value)} aria-label="Envelope">
           {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
       </div>
@@ -1188,14 +1227,17 @@ function Concierge({ ctx }) {
       date: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }),
     };
     writeMonth((mm) => { mm.entries.unshift(entry); return mm; });
-    setLast({ msg: `Logged ${money(amount, true)} to ${env.name}${entry.note ? ` — ${entry.note}` : ""}, ${m.ownerName(entry.who)}.`, entryId: entry.id });
+    const pastMonth = month !== monthKey(new Date()) ? ` Filed in ${monthLabel(month)} — the month you're viewing.` : "";
+    setLast({ msg: `Logged ${money(amount, true)} to ${env.name}${entry.note ? ` — ${entry.note}` : ""}, ${m.ownerName(entry.who)}.${pastMonth}`, entryId: entry.id });
     setText(""); setBusy(false);
   };
 
   return (
     <div className="concierge">
       <div className="conbar">
-        <input placeholder={`Say or type what you spent — “$42 groceries at the farmers market” — or paste a whole list`}
+        <input placeholder={month !== monthKey(new Date())
+          ? `Logging into ${monthLabel(month)} — flip back to this month for today's spending`
+          : `Say or type what you spent — “$42 groceries at the farmers market” — or paste a whole list`}
           value={text} onPaste={onPaste}
           onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && log()}
           aria-label="Log spending in one sentence" />
@@ -1286,7 +1328,7 @@ function Dashboard({ ctx }) {
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
 
-      <Guidance m={m} />
+      <Guidance m={m} line={null} />
 
       <Concierge ctx={ctx} />
 
@@ -1305,7 +1347,7 @@ function Dashboard({ ctx }) {
             ? `${money(m.baseIncome)} take-home + ${money(m.extrasTotal)} posted${m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} yet to land` : ""}`
             : `${m.pA.name} & ${m.pB.name}, take-home`} />
         <Kpi label="Assigned" value={money(m.allocated)}
-          foot={m.income > 0 ? `${Math.round((m.allocated / m.income) * 100)}% of income · ${money(m.goalMonthly)} to goals` : "set incomes in Settings"} />
+          foot={m.income > 0 ? `${money(m.planned)} to envelopes + ${money(m.goalMonthly)} to goals` : "set incomes in Settings"} />
         <Kpi label="Spent this month" value={money(m.spent)} tone={m.leftToSpend < 0 ? "down" : ""}
           foot={`${money(m.leftToSpend)} left of ${money(m.planned)} — tap to see & edit`}
           onClick={() => setShowSpend(!showSpend)} active={showSpend} />
@@ -1456,7 +1498,8 @@ function Dashboard({ ctx }) {
             <div className="note" key={b.id} style={{ justifyContent: "space-between" }}>
               <span style={{ display: "flex", gap: 9, alignItems: "center" }}>
                 <span className="tick" style={{ background: b.paid ? C.a : b.overdue ? C.warn : C.joint, minHeight: 15 }} />
-                <span>{b.name}<span className="muted"> · {ordinal(b.day)}</span></span>
+                <span>{b.name}<span className="muted"> · {ordinal(b.day)}</span>
+                  {b.overdue && <span className="over" style={{ fontWeight: 600 }}> · overdue</span>}</span>
               </span>
               <span className={"num " + (b.paid ? "muted" : "")}>{money(b.amount)}</span>
             </div>
@@ -1505,7 +1548,7 @@ function Budget({ ctx }) {
         {[0, 1].map((i) => (
           <div className="row" key={i}>
             <div className="rowname">
-              <span className="tag" style={{ color: m.ownerColor(state.household.partners[i].id), borderColor: m.ownerColor(state.household.partners[i].id) }}>
+              <span className="tag" style={{ color: m.ownerText(state.household.partners[i].id), borderColor: m.ownerColor(state.household.partners[i].id) }}>
                 {state.household.partners[i].name}
               </span>
               <span>take-home, every month</span>
@@ -1521,7 +1564,7 @@ function Budget({ ctx }) {
         {m.expected.map((inc) => (
           <div className="row wide" key={inc.id}>
             <div className="rowname">
-              <button className="tag" style={{ color: m.ownerColor(inc.who), borderColor: m.ownerColor(inc.who) }}
+              <button className="tag" style={{ color: m.ownerText(inc.who), borderColor: m.ownerColor(inc.who) }}
                 onClick={() => {
                   const order = ["joint", "a", "b"];
                   setInc(inc.id, "who", order[(order.indexOf(inc.who) + 1) % 3]);
@@ -1597,7 +1640,14 @@ function Budget({ ctx }) {
                         const order = ["joint", "a", "b"];
                         set(i, "owner", order[(order.indexOf(e.owner) + 1) % 3]);
                       }} title="Who covers this">{m.ownerName(e.owner)}</button>
-                      <button className="kill" onClick={() => writeMonth((mm) => { mm.envelopes.splice(i, 1); return mm; })} aria-label={`Remove ${e.name}`}>×</button>
+                      <button className="kill" onClick={() => writeMonth((mm) => {
+                        const orphans = mm.entries.filter((t) => t.envId === e.id).length;
+                        if (orphans && !window.confirm(`Remove ${e.name}? Its ${orphans} logged entr${orphans === 1 ? "y" : "ies"} will move to Everything else.`)) return mm;
+                        mm.envelopes.splice(i, 1);
+                        const fallback = mm.envelopes.find((x) => x.name === "Everything else") || mm.envelopes[0];
+                        if (fallback) mm.entries.forEach((t) => { if (t.envId === e.id) t.envId = fallback.id; });
+                        return mm;
+                      })} aria-label={`Remove ${e.name}`}>×</button>
                     </div>
                     <div className="amt">
                       <input className="num" value={e.planned || ""} placeholder="0"
@@ -1616,7 +1666,9 @@ function Budget({ ctx }) {
             mm.envelopes.push({ id: uid(), name: "New envelope", group: "Other", planned: 0, owner: "joint" });
             return mm;
           })}>Add an envelope</button>
-          <button className="btn ghost tiny" onClick={() => writeMonth((mm) => {
+          <button className="btn ghost tiny" disabled={!state.months[shiftMonth(month, -1)]}
+            title={state.months[shiftMonth(month, -1)] ? undefined : "Works once you have a previous month on record"}
+            onClick={() => writeMonth((mm) => {
             const prev = state.months[shiftMonth(month, -1)];
             if (!prev) return mm;
             mm.envelopes.forEach((e) => {
@@ -1665,9 +1717,9 @@ function Spending({ ctx }) {
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
         <Kpi label="Spent this month" value={money(m.spent)} foot={`${plan.entries.length} transactions`} />
-        <Kpi label={m.pA.name} value={money(m.spentByWho.a || 0)} />
-        <Kpi label={m.pB.name} value={money(m.spentByWho.b || 0)} />
-        <Kpi label="Shared" value={money(m.spentByWho.joint || 0)} />
+        <Kpi label={`Paid by ${m.pA.name}`} value={money(m.spentByWho.a || 0)} foot="includes shared purchases they covered" />
+        <Kpi label={`Paid by ${m.pB.name}`} value={money(m.spentByWho.b || 0)} foot="includes shared purchases they covered" />
+        <Kpi label="Marked shared" value={money(m.spentByWho.joint || 0)} />
       </div>
 
       <div className="toolbar">
@@ -1775,12 +1827,20 @@ function BillsView({ ctx }) {
 
   const togglePaid = (b) => writeMonth((mm) => {
     mm.paid = mm.paid || [];
-    if (mm.paid.includes(b.id)) mm.paid = mm.paid.filter((x) => x !== b.id);
-    else {
+    if (mm.paid.includes(b.id)) {
+      mm.paid = mm.paid.filter((x) => x !== b.id);
+      // Un-paying removes the entry the paid-toggle logged, so the toggle
+      // is symmetric and never double-counts. billId stamps new entries;
+      // the note match catches ones logged before the stamp existed.
+      const k = mm.entries.findIndex((t) => t.billId === b.id);
+      const k2 = k > -1 ? k : mm.entries.findIndex((t) =>
+        t.envId === b.envId && t.amount === b.amount && t.note === b.name + " (bill)");
+      if (k2 > -1) mm.entries.splice(k2, 1);
+    } else {
       mm.paid.push(b.id);
       if (b.envId && mm.envelopes.some((e) => e.id === b.envId))
         mm.entries.unshift({
-          id: uid(), envId: b.envId, amount: b.amount, who: b.owner, note: b.name + " (bill)",
+          id: uid(), billId: b.id, envId: b.envId, amount: b.amount, who: b.owner, note: b.name + " (bill)",
           date: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         });
     }
@@ -1789,7 +1849,7 @@ function BillsView({ ctx }) {
 
   return (
     <>
-      <Head title="Bills" sub="The fixed stuff. Mark one paid and it logs itself into the right envelope."
+      <Head title="Bills & files" sub="The fixed stuff — mark one paid and it logs itself into the right envelope. The paper drawer of receipts and documents lives below."
         right={<MonthNav month={month} setMonth={setMonth} />} />
 
       <Guidance m={m} theme="debt"
@@ -1837,7 +1897,7 @@ function BillsView({ ctx }) {
               <div className="rowname">
                 <span style={{ width: 4, height: 16, borderRadius: 3, flex: "none", background: b.paid ? C.a : b.overdue ? C.warn : C.joint }} />
                 <input value={b.name} onChange={(e) => set(i, "name", e.target.value)} aria-label="Bill name" />
-                <select className="tag hideS" value={b.envId || ""} onChange={(e) => set(i, "envId", e.target.value)} aria-label="Envelope">
+                <select className="tag" value={b.envId || ""} onChange={(e) => set(i, "envId", e.target.value)} aria-label="Envelope">
                   <option value="">no envelope</option>
                   {plan.envelopes.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
@@ -1855,7 +1915,7 @@ function BillsView({ ctx }) {
               <div className="amt"><input className="num" value={b.amount || ""} placeholder="0" onChange={(e) => set(i, "amount", num(e.target.value))} aria-label="Amount" /></div>
               <div className="amt">
                 <button className={"btn tiny " + (b.paid ? "" : "ghost")} onClick={() => togglePaid(b)}>
-                  {b.paid ? "Paid" : "Mark paid"}
+                  {b.paid ? "Paid" : b.overdue ? "Overdue — mark paid" : "Mark paid"}
                 </button>
               </div>
             </div>
@@ -2063,8 +2123,10 @@ function FilesSection({ ctx }) {
               <button className="btn ghost tiny" onClick={() => setOpen(open === d.id ? null : d.id)}>
                 {open === d.id ? "Close" : "Open"}
               </button>
-              <button className="kill" onClick={() => patch((s) => { s.docs = (s.docs || []).filter((x) => x.id !== d.id); return s; })}
-                aria-label={`Remove ${d.name}`}>×</button>
+              <button className="kill" onClick={() => {
+                if (!window.confirm(`Remove ${d.name}? Its text and the planner's read go with it.`)) return;
+                patch((s) => { s.docs = (s.docs || []).filter((x) => x.id !== d.id); return s; });
+              }} aria-label={`Remove ${d.name}`}>×</button>
             </span>
           </div>
           {open === d.id
@@ -2133,7 +2195,10 @@ function GoalsView({ ctx }) {
             <div className="chead">
               <input className="field" style={{ border: "none", background: "none", fontFamily: "'Space Grotesk', Inter, sans-serif", fontSize: 19, padding: 0 }}
                 value={g.name} onChange={(e) => set("name", e.target.value)} aria-label="Goal name" />
-              <button className="kill" onClick={() => patch((s) => { s.goals.splice(i, 1); return s; })} aria-label="Remove">×</button>
+              <button className="kill" onClick={() => {
+                if (!window.confirm(`Remove ${g.name}? It has ${money(g.saved)} recorded toward it.`)) return;
+                patch((s) => { s.goals.splice(i, 1); return s; });
+              }} aria-label={`Remove ${g.name}`}>×</button>
             </div>
             <div className="track"><i style={{ width: st.pct + "%", background: st.late ? C.warn : C.joint }} /></div>
             <div className="metaline">
@@ -2341,7 +2406,7 @@ function Reports({ ctx }) {
           )}
         </div>
         <div className="card">
-          <div className="chead"><h3>Who spent it</h3><span className="meta">this month</span></div>
+          <div className="chead"><h3>Who paid</h3><span className="meta">shared runs count toward whoever covered them</span></div>
           {byWho.length === 0 ? <p className="empty">Nothing logged yet.</p> : (
             <>
               <div style={{ height: 185 }}>
@@ -2398,13 +2463,23 @@ function Reports({ ctx }) {
       <div className="card">
         <div className="chead">
           <h3>The fair-split read</h3>
-          <span className="meta">{state.household.splitRule === "even" ? "split down the middle" : "split by income"}</span>
+          <span className="meta">{state.household.splitRule === "even" ? "split down the middle" : "split by income"} — planned shares, not a tally of who's paid</span>
         </div>
-        <div className="grid g3">
-          <Kpi label={`${m.pA.name}'s share of shared costs`} value={money(m.jointCost * m.shareA)} foot={`${Math.round(m.shareA * 100)}% of ${money(m.jointCost)}`} />
-          <Kpi label={`${m.pB.name}'s share`} value={money(m.jointCost * (1 - m.shareA))} foot={`${Math.round((1 - m.shareA) * 100)}% of ${money(m.jointCost)}`} />
-          <Kpi label="Outside the shared pot" value={money(personal)} foot="personal envelopes, spending money, and anything unassigned" />
-        </div>
+        {m.singleIncome ? (
+          <p className="empty">One income means there's nothing to split — it's all shared money, carried together.</p>
+        ) : (
+          <div className="grid g3">
+            <Kpi label={`${m.pA.name}'s share of shared costs`} value={money(m.jointCost * m.shareA)} foot={`${Math.round(m.shareA * 100)}% of ${money(m.jointCost)}`} />
+            <Kpi label={`${m.pB.name}'s share`} value={money(m.jointCost * (1 - m.shareA))} foot={`${Math.round((1 - m.shareA) * 100)}% of ${money(m.jointCost)}`} />
+            <Kpi label="Outside the shared pot" value={money(personal)} foot="personal envelopes, spending money, and anything unassigned" />
+          </div>
+        )}
+        {(m.covered.a > 0 || m.covered.b > 0) && (
+          <p className="empty" style={{ marginTop: 10 }}>
+            So far this month {m.pA.name} has covered {money(m.covered.a)} of shared spending and {m.pB.name} {money(m.covered.b)};
+            entries marked Shared aren't counted toward either.
+          </p>
+        )}
       </div>
     </>
   );
@@ -2562,6 +2637,22 @@ function SettingsView({ ctx, setState }) {
   const { state, patch, m } = ctx;
   const [wipe, setWipe] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [restoreTxt, setRestoreTxt] = useState("");
+  const [restoreErr, setRestoreErr] = useState("");
+
+  const restore = () => {
+    setRestoreErr("");
+    try {
+      const s = JSON.parse(restoreTxt);
+      if (!s || !s.household || !s.months) throw new Error("shape");
+      if (window.confirm("Replace everything here with this copy?")) {
+        setState(s);
+        setRestoreTxt("");
+      }
+    } catch (e) {
+      setRestoreErr("That doesn't look like a copy from this app — paste the whole thing, starting with {.");
+    }
+  };
 
   const exportJson = async () => {
     try {
@@ -2581,13 +2672,13 @@ function SettingsView({ ctx, setState }) {
           <div className="chead"><h3>Household</h3></div>
           <label className="lbl">Name</label>
           <input className="field" style={{ marginBottom: 14 }} value={state.household.name}
-            onChange={(e) => patch((s) => { s.household.name = e.target.value; return s; })} />
+            onChange={(e) => patch((s) => { s.household.name = e.target.value; s.demo = false; return s; })} />
           {[0, 1].map((i) => (
             <div className="pair" key={i}>
               <div>
                 <label className="lbl">{i === 0 ? "First name" : "Second name"}</label>
                 <input className="field" value={state.household.partners[i].name}
-                  onChange={(e) => patch((s) => { s.household.partners[i].name = e.target.value; return s; })} />
+                  onChange={(e) => patch((s) => { s.household.partners[i].name = e.target.value; s.demo = false; return s; })} />
               </div>
               <div>
                 <label className="lbl">Monthly take-home</label>
@@ -2604,9 +2695,11 @@ function SettingsView({ ctx, setState }) {
               onClick={() => patch((s) => { s.household.splitRule = "even"; return s; })}>Down the middle</button>
           </div>
           <p className="empty">
-            {state.household.splitRule === "even"
-              ? `Shared costs split evenly: ${money(m.jointCost / 2)} each.`
-              : `${m.pA.name} covers ${Math.round(m.shareA * 100)}% of shared costs — ${money(m.jointCost * m.shareA)} — matching their share of what comes in.`}
+            {m.singleIncome
+              ? "One income means there's nothing to split — it's all shared money, carried together."
+              : state.household.splitRule === "even"
+                ? `Shared costs split evenly: ${money(m.jointCost / 2)} each.`
+                : `${m.pA.name} covers ${Math.round(m.shareA * 100)}% of shared costs — ${money(m.jointCost * m.shareA)} — matching their share of what comes in.`}
           </p>
           <label className="lbl" style={{ marginTop: 8 }}>Daily scripture</label>
           <div className="chips">
@@ -2636,6 +2729,13 @@ function SettingsView({ ctx, setState }) {
               setWipe(false); setState(null);
             }}>{wipe ? "Tap again to erase everything" : "Start over"}</button>
           </div>
+          <label className="lbl" style={{ marginTop: 18 }}>Restore from a copy</label>
+          <textarea className="field" rows={3} placeholder="Paste a copy made with “Copy all data”…"
+            value={restoreTxt} onChange={(e) => setRestoreTxt(e.target.value)} aria-label="Restore data" />
+          <button className="btn ghost tiny" style={{ marginTop: 8 }} disabled={!restoreTxt.trim()} onClick={restore}>
+            Restore this copy
+          </button>
+          {restoreErr && <p className="empty" style={{ color: C.warn }}>{restoreErr}</p>}
           <div className="chead" style={{ marginTop: 24 }}><h3>What's stored</h3></div>
           {[
             ["Months planned", Object.keys(state.months).length],
@@ -2719,7 +2819,7 @@ function Setup({ onDone }) {
                   onKeyDown={(e) => e.key === "Enter" && start()} /></div>
             </div>
             <button className="btn" onClick={start} disabled={!ready}>Open the ledger</button>
-            <p className="fine">Two minutes · your numbers, your plan</p>
+            <p className="fine">Two minutes · your numbers live in this browser only, so set up on the device you'll both use</p>
           </div>
 
           <div className="card choice">
