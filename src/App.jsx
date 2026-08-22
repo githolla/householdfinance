@@ -3,6 +3,7 @@ import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ReferenceLine,
 } from "recharts";
+import { verseForDay } from "./scripture.js";
 
 /* ================================================================== */
 /*  data + helpers                                                     */
@@ -66,6 +67,7 @@ const seedEnvelopes = () => [
   { id: uid(), name: "Eating out", group: "Lifestyle", planned: 0, owner: "joint" },
   { id: uid(), name: "Subscriptions", group: "Lifestyle", planned: 0, owner: "joint" },
   { id: uid(), name: "Health", group: "Health", planned: 0, owner: "joint" },
+  { id: uid(), name: "Giving", group: "Giving", planned: 0, owner: "joint" },
   { id: uid(), name: "Everything else", group: "Other", planned: 0, owner: "joint" },
 ];
 
@@ -85,6 +87,7 @@ const NOTE_POOL = {
   "Eating out": ["Thai place", "Coffee", "Brunch", "Pizza night", "Date night", "Takeout"],
   "Subscriptions": ["Streaming", "Music", "Cloud storage", "News"],
   "Health": ["Pharmacy", "Copay", "Dentist", "Contacts"],
+  "Giving": ["Tithe", "Local food bank", "Sponsor child", "Church"],
   "Debt payments": ["Car loan", "Credit card"],
   "Everything else": ["Household", "Gift", "Repairs", "Pet supplies", "Haircut"],
 };
@@ -101,6 +104,7 @@ function demoState() {
     { name: "Eating out", group: "Lifestyle", planned: 340, owner: "joint", n: 6 },
     { name: "Subscriptions", group: "Lifestyle", planned: 120, owner: "joint", n: 3 },
     { name: "Health", group: "Health", planned: 220, owner: "joint", n: 2 },
+    { name: "Giving", group: "Giving", planned: 400, owner: "joint", n: 2 },
     { name: `${A}'s spending`, group: "Other", planned: 250, owner: "a", n: 4 },
     { name: `${B}'s spending`, group: "Other", planned: 250, owner: "b", n: 4 },
     { name: "Everything else", group: "Other", planned: 240, owner: "joint", n: 3 },
@@ -369,6 +373,12 @@ const CSS = `
 .tc .askrow{display:flex;gap:7px;}
 .tc .empty{font-size:13px;color:var(--soft);line-height:1.55;padding:8px 0;margin:0;}
 
+/* daily bread */
+.tc .verse{font-size:17.5px;line-height:1.5;letter-spacing:-.01em;margin:2px 0 9px;max-width:660px;}
+.tc .verseref{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);}
+.tc .verseline{font-size:13px;color:var(--soft);line-height:1.5;margin:11px 0 0;padding-top:11px;
+ border-top:1px solid rgba(210,214,204,.62);}
+
 /* tooltip */
 .tc .tip{background:var(--ink);color:var(--paper);border-radius:7px;padding:7px 10px;font-size:12px;line-height:1.5;}
 .tc .tip .k{opacity:.65;}
@@ -626,10 +636,63 @@ function model(state, plan, month) {
     if (ratio > 36) notes.push(["warn", `Debt payments take ${Math.round(ratio)}% of income. Past roughly 36%, everything else gets squeezed.`]);
   }
   if (income > 0 && savingsRate < 10) notes.push(["joint", `You're saving ${Math.round(savingsRate)}% of income. Most plans get comfortable at 15–20%.`]);
-  if (!notes.length) notes.push(["a", "Nothing needs your attention. Log spending as it happens."]);
 
   const shareA = income > 0 ? (state.household.splitRule === "even" ? 0.5 : pA.income / income) : 0.5;
   const jointCost = plan.envelopes.filter((e) => e.owner === "joint").reduce((n, e) => n + e.planned, 0) + goalMonthly;
+
+  /* ---- stewardship: giving envelopes + the daily verse ---- */
+
+  const faithOn = state.faith ? state.faith.enabled !== false : true;
+  const givingGroup = byGroup["Giving"] || { planned: 0, spent: 0 };
+  const giving = {
+    planned: givingGroup.planned,
+    given: givingGroup.spent,
+    plannedPct: income > 0 ? (givingGroup.planned / income) * 100 : 0,
+    givenPct: income > 0 ? (givingGroup.spent / income) * 100 : 0,
+  };
+
+  const overEnvs = plan.envelopes.filter((e) => e.planned > 0 && (spentBy[e.id] || 0) > e.planned);
+  let verseTheme = null;
+  if (unallocated < -1) verseTheme = "planning";
+  else if (overEnvs.length) verseTheme = "contentment";
+  else if (income > 0 && debtTotal > 0 && (debtMin / income) * 100 > 36) verseTheme = "debt";
+  else if (income > 0 && giving.planned === 0) verseTheme = "giving";
+  const verse = verseForDay(verseTheme);
+
+  let verseLine;
+  if (verse.theme === "giving") {
+    verseLine = giving.planned > 0
+      ? `${money(giving.planned)} is set aside for giving this month — ${Math.round(giving.plannedPct)}% of what comes in${giving.given > 0 ? `, and ${money(giving.given)} of it has already gone out` : ""}.`
+      : "Nothing is set aside for giving yet. An envelope in the Giving group is where it would live.";
+  } else if (verse.theme === "planning") {
+    verseLine = unallocated < -1
+      ? `The plan outruns income by ${money(-unallocated)} — counting the cost means something has to come down.`
+      : unallocated > 1
+        ? `${money(unallocated)} is still unassigned — the plan isn't finished until every dollar has a job.`
+        : "The month is fully planned. Every dollar already has a job.";
+  } else if (verse.theme === "contentment") {
+    verseLine = overEnvs.length
+      ? `${overEnvs[0].name} is ${money((spentBy[overEnvs[0].id] || 0) - overEnvs[0].planned)} past plan — the plan was enough when you wrote it together.`
+      : `Spending is inside the plan this month, with ${money(leftToSpend)} still to spend.`;
+  } else if (verse.theme === "debt") {
+    verseLine = debtTotal > 0
+      ? `${money(debtTotal)} is still owed, with ${money(debtMin)} a month going at minimums.`
+      : "Nothing is owed right now — worth remembering how that feels.";
+  } else if (verse.theme === "provision") {
+    verseLine = income > 0
+      ? `${money(income)} comes in each month, and the plan gives ${money(allocated)} of it a job.`
+      : "Add what you each take home in Settings and the plan builds from there.";
+  } else if (verse.theme === "diligence") {
+    verseLine = goalMonthly > 0
+      ? `${money(goalMonthly)} moves toward your goals every month — gathered little by little.`
+      : "Nothing is flowing to goals monthly yet — little by little only works once it starts.";
+  } else {
+    verseLine = `Shared costs run ${money(jointCost)} a month, carried ${state.household.splitRule === "even" ? "evenly" : "in proportion to what you each bring in"}.`;
+  }
+
+  if (faithOn && giving.planned > 0 && giving.given === 0 && month === monthKey(new Date()) && todayDay() > 20)
+    notes.push(["joint", `The ${money(giving.planned)} set aside for giving hasn't gone out yet this month.`]);
+  if (!notes.length) notes.push(["a", "Nothing needs your attention. Log spending as it happens."]);
 
   let thesis;
   if (income === 0) thesis = ["Start with what you each bring home.", "The plan, the goals, and the read on your month all build from that one number."];
@@ -645,6 +708,7 @@ function model(state, plan, month) {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
     goalStatus, history, bills, billsTotal, billsLeft, payoff, notes, thesis, shareA, jointCost,
+    faithOn, giving, verse, verseLine,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),
     ownerName: (o) => (o === "a" ? pA.name : o === "b" ? pB.name : "Both"),
   };
@@ -743,6 +807,18 @@ function Dashboard({ ctx }) {
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
       <p className="thesis">{m.thesis[0]} <span>{m.thesis[1]}</span></p>
+
+      {m.faithOn && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="chead">
+            <h3>Daily bread</h3>
+            <span className="meta">new each morning · World English Bible</span>
+          </div>
+          <p className="verse serif">“{m.verse.text}”</p>
+          <div className="verseref">{m.verse.ref}</div>
+          <p className="verseline">{m.verseLine}</p>
+        </div>
+      )}
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
         <Kpi label="Net worth" value={money(m.netWorth)} foot={`${money(m.assetTotal)} assets · ${money(m.debtTotal)} owed`} tone={m.netWorth < 0 ? "down" : ""} />
@@ -1480,6 +1556,14 @@ function PlannerPage({ ctx }) {
     unassignedEachMonth: m.unallocated,
     savingsRatePct: Math.round(m.savingsRate),
     lastSixMonths: m.history.map((h) => ({ month: h.label, spent: h.spent })),
+    ...(m.faithOn && {
+      stewardship: {
+        todaysVerse: `${m.verse.ref} — ${m.verse.text}`,
+        givingSetAsideThisMonth: m.giving.planned,
+        givenSoFarThisMonth: m.giving.given,
+        givingShareOfIncomePct: Math.round(m.giving.plannedPct),
+      },
+    }),
   };
 
   const ask = async (text) => {
@@ -1501,7 +1585,10 @@ function PlannerPage({ ctx }) {
             `Lead with one clear recommendation rather than a menu of options, then the reasoning. Keep it under 180 words unless asked for more. ` +
             `Never invent numbers that aren't in the snapshot — if something is missing, name what they should fill in. ` +
             `Stay neutral between the two of them; never take a side in a disagreement about money. ` +
-            `You are not a licensed advisor: for tax, legal, insurance, or investment-product decisions, say so in one line and point them to a professional.\n\n` +
+            `You are not a licensed advisor: for tax, legal, insurance, or investment-product decisions, say so in one line and point them to a professional.\n` +
+            (m.faithOn
+              ? `They keep a daily scripture practice around money in this app; today's verse and their giving numbers are in the snapshot. When it fits the question, you may frame advice in stewardship terms — giving, contentment, staying out of debt — but never preach, never guilt, and never use scripture to settle a disagreement between them.\n\n`
+              : `\n`) +
             `Snapshot (monthly amounts unless noted):\n${JSON.stringify(snapshot, null, 2)}`,
           messages: next.map((x) => ({ role: x.role, content: x.content })),
         }),
@@ -1517,6 +1604,7 @@ function PlannerPage({ ctx }) {
 
   const chips = [
     "Where should the extra go this month?",
+    ...(m.faithOn ? ["Are we giving the way we mean to?"] : []),
     "Are our goals realistic on this income?",
     "What should we cut first?",
     "How should we split shared costs fairly?",
@@ -1615,6 +1703,18 @@ function SettingsView({ ctx, setState }) {
             {state.household.splitRule === "even"
               ? `Shared costs split evenly: ${money(m.jointCost / 2)} each.`
               : `${m.pA.name} covers ${Math.round(m.shareA * 100)}% of shared costs — ${money(m.jointCost * m.shareA)} — matching their share of what comes in.`}
+          </p>
+          <label className="lbl" style={{ marginTop: 8 }}>Daily scripture</label>
+          <div className="chips">
+            <button className={"chip " + (m.faithOn ? "on" : "")}
+              onClick={() => patch((s) => { s.faith = { enabled: true }; return s; })}>On</button>
+            <button className={"chip " + (!m.faithOn ? "on" : "")}
+              onClick={() => patch((s) => { s.faith = { enabled: false }; return s; })}>Off</button>
+          </div>
+          <p className="empty">
+            {m.faithOn
+              ? "A verse on money and stewardship, new each morning, on the dashboard — and the planner can see it, along with what you've set aside to give."
+              : "The dashboard and planner leave scripture out."}
           </p>
         </div>
 

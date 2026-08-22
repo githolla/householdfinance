@@ -23,6 +23,7 @@ npm run dev               # localhost:5173
 src/App.jsx      the entire app — ~1,900 lines, default export
 src/main.jsx     mounts App, imports the storage shim first
 src/storage.js   window.storage backed by localStorage (see contract in the file)
+src/scripture.js verse list (World English Bible, public domain) + deterministic daily pick
 vite.config.js   dev proxy that attaches the Anthropic key server-side
 docs/            data model + roadmap
 ```
@@ -54,6 +55,16 @@ Two rules that will bite you:
 - Colours live in the `C` object and the CSS variables — pine `#2E6F63` is partner A, iris `#6B5CA5` is partner B, brass `#B9862B` is shared/goals, rust `#A93E2F` is the only alarm colour. Don't introduce new hues.
 - Type: Fraunces (headings, numbers-as-statements), Karla (UI), IBM Plex Mono (all figures, tabular). Loaded via `@import` in the CSS string.
 - No `<form>` elements — click handlers and Enter keydowns only. Carried over from the artifact; harmless to keep.
+
+## The stewardship layer
+
+Optional biblical layer, on by default, toggled off via `state.faith.enabled` (absent = on; read it through `m.faithOn`, never directly). What it is:
+
+- **Daily bread card** on the dashboard: one verse a day, deterministic by calendar date (`verseForDay` in `src/scripture.js`) so both partners see the same verse. `model()` picks the verse's *theme* from the shape of the month — over plan → contentment, over-planned → planning, heavy debt ratio → debt, no giving set aside → giving — otherwise it rotates. The `verseLine` under it ties the verse to their real numbers.
+- **Giving numbers** (`m.giving`) come from envelopes in the existing `Giving` group — that group is the hook; don't invent a parallel structure.
+- **Planner** gets today's verse + giving stats in the snapshot and may frame advice as stewardship when it fits; its prompt forbids preaching, guilt, and using scripture to settle a disagreement.
+
+Verses are WEB (public domain). Add verses to `scripture.js` with a theme tag; never quote copyrighted translations (NIV, ESV, etc.). The voice rule below applies doubly here: the app observes, it never sermonises.
 
 ## Voice
 

@@ -42,7 +42,9 @@ One JSON object, persisted whole under `twocolumn:v2`.
       "envId": "k3f9a1x", "owner": "joint" }                 // envId points at the CURRENT month
   ],
 
-  "chat": [{ "role": "user", "content": "..." }]             // planner history
+  "chat": [{ "role": "user", "content": "..." }],            // planner history
+
+  "faith": { "enabled": true }        // daily-scripture layer; absent means enabled
 }
 ```
 
