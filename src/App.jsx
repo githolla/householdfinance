@@ -82,6 +82,7 @@ const blankMonth = (prev) => ({
   entries: [],
   paid: [],
   received: [],
+  billAmounts: {},
 });
 
 /* ---- sample household, for clicking through without setting anything up ---- */
@@ -173,6 +174,12 @@ function demoState() {
   };
   const billEnv = { "Rent": "Rent", "Internet": "Utilities", "Electric": "Utilities", "Car loan": "Debt payments", "Phone plan": "Utilities", "Streaming bundle": "Subscriptions" };
   bills.forEach((b) => { b.envId = envIdFor(billEnv[b.name]); });
+  const electric = bills.find((b) => b.name === "Electric");
+  Object.keys(months).forEach((k) => {
+    months[k].billAmounts = electric
+      ? { [electric.id]: Math.round(145 * (0.82 + Math.random() * 0.45)) }
+      : {};
+  });
   months[cur].paid = bills.filter((b) => b.day < dayNow - 1).map((b) => b.id);
   if (dayNow > 1) months[cur].received.push("payA1");
   if (dayNow > 15) months[cur].received.push("payA2", "payB1");
@@ -786,17 +793,38 @@ function model(state, plan, month) {
     history.push({ key: k, label: monthLabel(k, true), spent: s, income: inc, saved: goalMonthly });
   }
 
+  // Bills vary month to month: bills[].amount is the usual amount, and
+  // plan.billAmounts[billId] holds this month's actual when it differs.
+  // Everything downstream uses the effective (this-month) amount.
   const bills = state.bills
     .map((b) => {
+      const over = (plan.billAmounts || {})[b.id];
+      const amount = over !== undefined ? over : b.amount;
       const paid = (plan.paid || []).includes(b.id);
       const live = month === monthKey(new Date());
       const overdue = !paid && live && b.day < todayDay();
       const dueSoon = !paid && live && !overdue && b.day - todayDay() <= 7;
-      return { ...b, paid, overdue, dueSoon };
+      return { ...b, amount, usual: b.amount, overridden: over !== undefined && over !== b.amount, paid, overdue, dueSoon };
     })
     .sort((x, y) => x.day - y.day);
   const billsTotal = bills.reduce((n, b) => n + b.amount, 0);
   const billsLeft = bills.filter((b) => !b.paid).reduce((n, b) => n + b.amount, 0);
+
+  // What a bill actually cost, month by month: the paid entry (stamped
+  // with billId) wins; otherwise that month's own amount, if it set one.
+  const billHistory = (billId) => {
+    const out = [];
+    for (let i = 5; i >= 0; i--) {
+      const k = shiftMonth(month, -i);
+      const mm = state.months[k];
+      if (!mm) continue;
+      const entry = (mm.entries || []).find((t) => t.billId === billId);
+      const over = (mm.billAmounts || {})[billId];
+      if (entry) out.push({ month: k, amount: entry.amount, paid: true });
+      else if (over !== undefined) out.push({ month: k, amount: over, paid: (mm.paid || []).includes(billId) });
+    }
+    return out;
+  };
 
   // What's genuinely still spendable: income, less goal savings, less what
   // has already gone out, less the bills that haven't hit yet.
@@ -944,7 +972,7 @@ function model(state, plan, month) {
   return {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
-    goalStatus, history, bills, billsTotal, billsLeft, payoff, notes, thesis, shareA, jointCost,
+    goalStatus, history, bills, billsTotal, billsLeft, billHistory, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, verse, verseLine, available, daysLeft, perDay,
     baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
     payCounts: { a: paysFor(pA.id, month).length, b: paysFor(pB.id, month).length },
@@ -1942,6 +1970,26 @@ function BillsView({ ctx }) {
   const { m, state, patch, plan, writeMonth, month, setMonth } = ctx;
   const set = (i, f, v) => patch((s) => { s.bills[i][f] = v; return s; });
   const [nb, setNb] = useState({ name: "", amount: "", day: "", envId: "" });
+  const [histId, setHistId] = useState(null);
+
+  // Typing an amount changes THIS month only; the usual amount stays as
+  // the default for future months until "make usual" adopts the new one.
+  const setBillAmount = (b, v) => writeMonth((mm) => {
+    mm.billAmounts = mm.billAmounts || {};
+    mm.billAmounts[b.id] = v;
+    return mm;
+  });
+  const makeUsual = (b) => {
+    patch((s) => {
+      const x = s.bills.find((y) => y.id === b.id);
+      if (x) x.amount = b.amount;
+      return s;
+    });
+    writeMonth((mm) => {
+      if (mm.billAmounts) delete mm.billAmounts[b.id];
+      return mm;
+    });
+  };
 
   const guessEnv = (name) => {
     const n = name.toLowerCase();
@@ -2034,7 +2082,9 @@ function BillsView({ ctx }) {
           <button className="btn" onClick={addBill} disabled={!nb.name.trim() || !num(nb.amount)}>Add</button>
         </div>
         <p className="empty" style={{ marginTop: 10 }}>
-          Link an envelope and marking the bill paid logs the spending into it automatically.
+          Link an envelope and marking the bill paid logs the spending into it automatically. Amounts can change
+          month to month — retype the amount when the real bill arrives and only that month changes; tap
+          "history" on any bill to see what it has actually cost.
         </p>
       </div>
 
@@ -2043,7 +2093,8 @@ function BillsView({ ctx }) {
         {m.bills.map((b) => {
           const i = state.bills.findIndex((x) => x.id === b.id);
           return (
-            <div className="row wide" key={b.id}>
+            <div key={b.id}>
+            <div className="row wide">
               <div className="rowname">
                 <span style={{ width: 4, height: 16, borderRadius: 3, flex: "none", background: b.paid ? C.a : b.overdue ? C.warn : C.joint }} />
                 <input value={b.name} onChange={(e) => set(i, "name", e.target.value)} aria-label="Bill name" />
@@ -2055,6 +2106,16 @@ function BillsView({ ctx }) {
                   const order = ["joint", "a", "b"];
                   set(i, "owner", order[(order.indexOf(b.owner) + 1) % 3]);
                 }}>{m.ownerName(b.owner)}</button>
+                {b.overridden && (
+                  <button className="tag hideS" onClick={() => makeUsual(b)}
+                    title="This month's amount differs — tap to make it the usual going forward">
+                    usually {money(b.usual)}
+                  </button>
+                )}
+                <button className="tag hideS" onClick={() => setHistId(histId === b.id ? null : b.id)}
+                  title="What this bill has cost, month by month">
+                  {histId === b.id ? "hide history" : "history"}
+                </button>
                 <button className="kill" onClick={() => patch((s) => { s.bills.splice(i, 1); return s; })} aria-label="Remove">×</button>
               </div>
               <div className="amt hideS" style={{ textAlign: "left" }}>
@@ -2062,12 +2123,35 @@ function BillsView({ ctx }) {
                 <input className="num" style={{ width: 36, textAlign: "left" }} value={b.day}
                   onChange={(e) => set(i, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Due day" />
               </div>
-              <div className="amt"><input className="num" value={b.amount || ""} placeholder="0" onChange={(e) => set(i, "amount", num(e.target.value))} aria-label="Amount" /></div>
+              <div className="amt"><input className="num" value={b.amount || ""} placeholder="0"
+                onChange={(e) => setBillAmount(b, num(e.target.value))} aria-label={`${b.name} amount this month`}
+                title="Changes this month only — the usual amount stays for future months" /></div>
               <div className="amt">
                 <button className={"btn tiny " + (b.paid ? "" : "ghost")} onClick={() => togglePaid(b)}>
                   {b.paid ? "Paid" : b.overdue ? "Overdue — mark paid" : "Mark paid"}
                 </button>
               </div>
+            </div>
+            {histId === b.id && (
+              <div className="snip" style={{ padding: "4px 0 10px 14px", borderBottom: "1px solid var(--hair)" }}>
+                {(() => {
+                  const h = m.billHistory(b.id);
+                  if (!h.length) return "No history yet — it starts the first month this bill is paid or given its own amount.";
+                  const avg = h.reduce((n, x) => n + x.amount, 0) / h.length;
+                  return (
+                    <>
+                      {h.map((x) => (
+                        <span key={x.month} style={{ marginRight: 16 }}>
+                          {monthLabel(x.month, true)} <b className="num" style={{ color: "#3F4349" }}>{money(x.amount)}</b>
+                          {x.paid ? "" : <span className="muted"> planned</span>}
+                        </span>
+                      ))}
+                      <span className="muted">averages {money(avg)} · usually {money(b.usual)}</span>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
             </div>
           );
         })}

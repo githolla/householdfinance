@@ -26,9 +26,10 @@ One JSON object, persisted whole under `twocolumn:v2`.
           "note": "Weekly shop", "date": "Aug 14", "day": 14 }
       ],
       "paid": ["billId"],             // bills marked paid this month
-      "received": ["incomeId"]        // expected incomes marked landed this month
-    }
-  },
+      "received": ["incomeId"],       // expected incomes marked received this month
+      "billAmounts": { "b1": 162 }    // this month's actual bill amounts, when they differ
+    }                                 // from bills[].amount (the usual). Paid entries carry
+  },                                  // billId, so bill history reads entries first, then these.
 
   "incomes": [
     { "id": "p1", "pay": true, "name": "Alex's paycheck", "amount": 2100,
