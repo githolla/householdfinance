@@ -46,7 +46,8 @@ One JSON object, persisted whole under `twocolumn:v2`.
 
   "docs": [
     { "id": "d1", "name": "Car insurance renewal.txt", "folder": "Insurance",
-      "added": "Aug 22, 2026", "text": "..." }               // folder is one of FOLDERS; text capped at 100k chars
+      "added": "Aug 22, 2026", "text": "...",                // folder is one of FOLDERS; text capped at 100k chars
+      "analysis": "..." }                                    // optional stored AI read of the doc
   ],
 
   "faith": { "enabled": true }        // daily-scripture layer; absent means enabled

@@ -8,7 +8,7 @@ A shared-finances app for a couple: budget, spending, bills, goals, net worth, r
 
 ## Stack
 
-Vite + React 18 (JSX, not TS yet) · recharts · plain CSS in a template literal · localStorage via a shim.
+Vite + React 18 (JSX, not TS yet) · recharts · plain CSS in a template literal · localStorage via a shim · xlsx (SheetJS) and mammoth extract spreadsheet/Word text client-side in the Files view.
 No Tailwind, no component library, no router. Don't add any without being asked.
 
 ```
@@ -28,7 +28,7 @@ vite.config.js   dev proxy that attaches the Anthropic key server-side
 docs/            data model + roadmap
 ```
 
-`App.jsx` is organised in labelled sections, top to bottom: helpers → demo-data generator → CSS → `App` (shell, nav, persistence) → `model()` → shared components (including `Concierge`, the centered AI spending logger on the dashboard — typed or spoken sentence → parsed entry, with a local regex fallback when the AI route is unreachable) → ten view components → `Setup`. The `Files` view is the household's searchable text drawer (`state.docs`, text only, capped at 100k chars per doc).
+`App.jsx` is organised in labelled sections, top to bottom: helpers → demo-data generator → CSS → `App` (shell, nav, persistence) → `model()` → shared components (including `Concierge`, the centered AI spending logger on the dashboard — typed or spoken sentence → parsed entry, with a local regex fallback when the AI route is unreachable) → ten view components → `Setup`. The `Files` view is the household's searchable drawer (`state.docs`, capped at 100k chars per doc): uploads are extracted to text on-device — SheetJS for spreadsheets/CSV, mammoth for .docx, plain read for everything else — and each doc can be sent to the AI for a stored "planner's read" (`doc.analysis`).
 
 ## The one thing that matters architecturally
 
@@ -54,7 +54,7 @@ Two rules that will bite you:
 - All user input goes through `num()`, which strips currency formatting and never returns NaN.
 - Colours live in the `C` object and the CSS variables. The theme is dark luxe: warm near-black ground `#141110`, ivory text `#EDE6DA`, gold `#C9A227` as both the accent and the shared/goals colour. Partner hues keep their families, tinted to read on the dark ground — sea-glass `#5FA893` is partner A, pale iris `#A08FD8` is partner B, rust `#C96A57` is the only alarm colour. Don't introduce new hues — gold hairlines (`--goldline`) carry the luxury, not extra colour.
 - Type: Cormorant Garamond (headings, the hero sentence, the daily verse), Jost (UI), IBM Plex Mono (all figures, tabular). Loaded via `@import` in the CSS string. Display headings are letterspaced uppercase; the `◆` `.gem` divider marks the hero and feature cards.
-- The shell is a sticky top tab bar (no sidebar). The dashboard and setup open with a photo hero — the image is hotlinked from Unsplash with a dark gradient over it, and the gradient plus a solid fallback keep the text readable if the photo doesn't load.
+- The shell is a sticky top tab bar (no sidebar). The dashboard and setup open with a dark hero band (a gradient, deliberately no photo); the dashboard's band carries the thesis sentence and the `Concierge`, so the AI logger is the first thing on the page.
 - No `<form>` elements — click handlers and Enter keydowns only. Carried over from the artifact; harmless to keep.
 
 ## The stewardship layer

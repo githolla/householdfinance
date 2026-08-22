@@ -3,6 +3,8 @@ import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ReferenceLine,
 } from "recharts";
+import * as XLSX from "xlsx";
+import mammoth from "mammoth/mammoth.browser";
 import { verseForDay } from "./scripture.js";
 
 /* ================================================================== */
@@ -227,10 +229,10 @@ const PIE = ["#A5821F", "#2E6F63", "#6B5CA5", "#B9862B", "#4C8C7E", "#A93E2F", "
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-body{margin:0;background:#F5F1E8;}
-.tc{--paper:#F5F1E8;--surface:#FCFAF5;--ink:#221D17;--soft:#7A7264;--line:#E2DACB;
+body{margin:0;background:#F2EDE2;}
+.tc{--paper:#F2EDE2;--surface:#FBF8F1;--ink:#1A1511;--soft:#645B4D;--line:#D6CCB8;
  --a:#2E6F63;--b:#6B5CA5;--joint:#A5821F;--warn:#A93E2F;--r:12px;
- --goldline:rgba(165,130,31,.4);--goldsoft:rgba(165,130,31,.1);--hair:rgba(34,29,23,.08);
+ --goldline:rgba(143,111,20,.45);--goldsoft:rgba(165,130,31,.12);--hair:rgba(26,21,17,.1);
  background:var(--paper);color:var(--ink);font-family:'Jost',ui-sans-serif,system-ui,sans-serif;
  min-height:100vh;box-sizing:border-box;-webkit-font-smoothing:antialiased;font-size:14px;font-weight:400;}
 .tc *,.tc *::before,.tc *::after{box-sizing:border-box;}
@@ -276,18 +278,19 @@ body{margin:0;background:#F5F1E8;}
  color:var(--soft);font-size:13px;display:grid;place-items:center;line-height:1;}
 .tc .arrow:hover{border-color:var(--joint);color:var(--joint);}
 
-/* hero + thesis — stays a dark photo band against the light page */
+/* hero + thesis — a dark band (no photo) against the light page */
 .tc .hero{position:relative;border-radius:14px;overflow:hidden;text-align:center;color:#F3EDE1;
- padding:58px 28px 54px;margin-bottom:24px;border:1px solid var(--goldline);
- background:linear-gradient(180deg,rgba(20,17,16,.5),rgba(20,17,16,.82)),
-  url('https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1600&q=60') center/cover,
-  #1D1815;}
-.tc .hero .gem{margin-bottom:18px;color:#C9A227;}
+ padding:40px 28px 36px;margin-bottom:24px;border:1px solid var(--goldline);
+ background:linear-gradient(180deg,#231C15,#15100C);}
+.tc .hero .gem{margin-bottom:16px;color:#C9A227;}
 .tc .hero .gem::before,.tc .hero .gem::after{background:rgba(201,162,39,.5);}
-.tc .thesis{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(24px,3.4vw,38px);line-height:1.3;
+.tc .hero .btn{color:#F3EDE1;border-color:rgba(201,162,39,.55);}
+.tc .hero .btn.ghost{color:rgba(243,237,225,.75);border-color:rgba(243,237,225,.3);}
+.tc .hero .btn:hover{background:rgba(201,162,39,.18);border-color:#C9A227;}
+.tc .thesis{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(22px,3vw,34px);line-height:1.3;
  letter-spacing:.05em;max-width:1080px;margin:0 auto;font-weight:500;}
-.tc .thesis span{display:block;font-size:clamp(14px,1.6vw,17px);color:rgba(243,237,225,.78);
- letter-spacing:.06em;margin-top:12px;font-style:italic;}
+.tc .thesis span{display:block;font-size:clamp(14px,1.6vw,16.5px);color:rgba(243,237,225,.8);
+ letter-spacing:.06em;margin-top:10px;font-style:italic;}
 
 /* grid + cards */
 .tc .grid{display:grid;gap:16px;}
@@ -304,7 +307,7 @@ body{margin:0;background:#F5F1E8;}
 
 /* kpi */
 .tc .kpi{padding:15px 16px;}
-.tc .kpi .lab{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(165,130,31,.9);}
+.tc .kpi .lab{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(143,111,20,.95);}
 .tc .kpi .val{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;
  font-size:22px;letter-spacing:-.02em;margin-top:8px;line-height:1.1;word-break:break-word;}
 .tc .kpi .foot{font-size:11.5px;color:var(--soft);margin-top:7px;line-height:1.4;}
@@ -343,7 +346,7 @@ body{margin:0;background:#F5F1E8;}
 .tc .tag{border:1px solid var(--line);background:none;border-radius:20px;font-size:10px;
  letter-spacing:.12em;text-transform:uppercase;padding:2px 8px;color:var(--soft);white-space:nowrap;
  font-family:inherit;max-width:120px;}
-.tc .grouphead{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(165,130,31,.9);
+.tc .grouphead{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:rgba(143,111,20,.95);
  padding:16px 0 4px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;}
 
 /* controls */
@@ -376,7 +379,7 @@ body{margin:0;background:#F5F1E8;}
 .tc .fourup{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px;padding-top:12px;
  border-top:1px solid var(--line);}
 @media(max-width:640px){.tc .fourup{grid-template-columns:repeat(2,1fr);}}
-.tc .lbl{display:block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(165,130,31,.9);margin-bottom:5px;}
+.tc .lbl{display:block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(143,111,20,.95);margin-bottom:5px;}
 
 /* notes + chat */
 .tc .note{display:flex;gap:9px;font-size:13px;line-height:1.45;padding:8px 0;
@@ -395,13 +398,14 @@ body{margin:0;background:#F5F1E8;}
 .tc .askrow{display:flex;gap:7px;}
 .tc .empty{font-size:13px;color:var(--soft);line-height:1.55;padding:8px 0;margin:0;}
 
-/* concierge + files */
-.tc .concierge{max-width:860px;margin:0 auto 24px;text-align:center;padding:24px 26px;}
-.tc .concierge .why{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;color:var(--joint);
- font-size:14.5px;margin:8px 0 15px;}
-.tc .concierge .askrow{max-width:680px;margin:0 auto;}
+/* concierge (lives inside the hero) + files */
+.tc .concierge{max-width:740px;margin:24px auto 0;}
+.tc .concierge .conlab{font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:#C9A227;margin-bottom:12px;}
 .tc .concierge .askrow .btn{white-space:nowrap;flex:none;}
-.tc .concierge .confirm{font-size:12.5px;color:var(--soft);margin:12px 0 0;}
+.tc .concierge .field{padding:12px 14px;font-size:14px;}
+.tc .concierge .confirm{font-size:12.5px;color:rgba(243,237,225,.88);margin:12px 0 0;}
+.tc .analysis{border-left:2px solid var(--joint);padding:6px 0 6px 12px;margin-top:10px;}
+.tc .analysis p{font-size:13px;line-height:1.55;margin:5px 0 0;white-space:pre-wrap;}
 .tc .doc{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;background:var(--surface);}
 .tc .doc .snip{font-size:12.5px;color:var(--soft);margin:7px 0 0;line-height:1.5;}
 .tc .doc pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:12.5px;color:var(--soft);
@@ -918,10 +922,8 @@ function Concierge({ ctx }) {
   };
 
   return (
-    <div className="card concierge">
-      <div className="gem">◆</div>
-      <h3>Tell it what you spent</h3>
-      <p className="why">“$42 groceries at the farmers market” · “coffee 6.50, {m.pA.name}”</p>
+    <div className="concierge">
+      <div className="conlab">Tell it what you spent — say it or type it</div>
       <div className="askrow">
         {SR && (
           <button className={"btn tiny" + (listening ? "" : " ghost")} onClick={hear}
@@ -929,7 +931,8 @@ function Concierge({ ctx }) {
             {listening ? "Listening…" : "Speak"}
           </button>
         )}
-        <input className="field" placeholder="Say it or type it — amount, what, who" value={text}
+        <input className="field" placeholder={`Try “$42 groceries at the farmers market” or “coffee 6.50, ${m.pA.name}”`}
+          value={text}
           onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && log()}
           aria-label="Log spending in one sentence" />
         <button className="btn" onClick={log} disabled={busy || !text.trim()}>{busy ? "…" : "Log it"}</button>
@@ -943,7 +946,7 @@ function Concierge({ ctx }) {
           </button>
         </p>
       )}
-      {last && last.err && <p className="confirm" style={{ color: C.warn }}>{last.err}</p>}
+      {last && last.err && <p className="confirm" style={{ color: "#E39A8B" }}>{last.err}</p>}
     </div>
   );
 }
@@ -964,9 +967,8 @@ function Dashboard({ ctx }) {
       <div className="hero">
         <div className="gem">◆</div>
         <h2 className="thesis">{m.thesis[0]} <span>{m.thesis[1]}</span></h2>
+        <Concierge ctx={ctx} />
       </div>
-
-      <Concierge ctx={ctx} />
 
       <Head
         title="Dashboard"
@@ -1382,14 +1384,52 @@ function BillsView({ ctx }) {
 
 const FOLDERS = ["Receipts", "Statements", "Insurance", "Taxes", "Home", "Other"];
 
+/* Extract text from whatever gets dropped in: spreadsheets and Word docs
+   are converted on-device (SheetJS / mammoth); everything else is read as
+   plain text. Returns "" when a file has nothing readable in it. */
+async function extractText(file) {
+  const ext = (file.name.toLowerCase().split(".").pop() || "");
+  const asArrayBuffer = () => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+  try {
+    if (["xlsx", "xls", "ods", "csv", "tsv"].includes(ext)) {
+      const wb = XLSX.read(await asArrayBuffer(), { type: "array" });
+      return wb.SheetNames.map((n) => {
+        const csv = XLSX.utils.sheet_to_csv(wb.Sheets[n]).trim();
+        return wb.SheetNames.length > 1 ? `== ${n} ==\n${csv}` : csv;
+      }).filter(Boolean).join("\n\n");
+    }
+    if (ext === "docx") {
+      const res = await mammoth.extractRawText({ arrayBuffer: await asArrayBuffer() });
+      return res.value || "";
+    }
+    return await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result));
+      r.onerror = rej;
+      r.readAsText(file);
+    });
+  } catch (e) {
+    return "";
+  }
+}
+
 function FilesView({ ctx }) {
-  const { state, patch } = ctx;
+  const { state, patch, m } = ctx;
   const docs = state.docs || [];
   const [q, setQ] = useState("");
   const [folder, setFolder] = useState("all");
   const [open, setOpen] = useState(null);
   const [paste, setPaste] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [readErr, setReadErr] = useState("");
+  const [busyId, setBusyId] = useState(null);
+  const [aq, setAq] = useState({});
+  const [aerr, setAerr] = useState("");
   const fileRef = useRef(null);
 
   const addDoc = (name, text) => patch((s) => {
@@ -1402,13 +1442,51 @@ function FilesView({ ctx }) {
     return s;
   });
 
-  const onFiles = (list) => {
-    Array.from(list || []).forEach((f) => {
-      const reader = new FileReader();
-      reader.onload = () => addDoc(f.name, reader.result);
-      reader.readAsText(f);
-    });
+  const onFiles = async (list) => {
+    setReadErr("");
+    const skipped = [];
+    for (const f of Array.from(list || [])) {
+      const text = await extractText(f);
+      if (text && text.trim()) addDoc(f.name, text);
+      else skipped.push(f.name);
+    }
+    if (skipped.length) setReadErr(`Couldn't read ${skipped.join(", ")} — scanned images and PDFs aren't supported yet.`);
     if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const analyze = async (d) => {
+    if (busyId) return;
+    setBusyId(d.id); setAerr("");
+    const question = (aq[d.id] || "").trim();
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6", max_tokens: 700,
+          system:
+            `You are the household financial planner for ${m.pA.name} and ${m.pB.name}, a couple who share money. ` +
+            `They filed a document in their shared drawer and want your read on it. Be plain and specific: pull out ` +
+            `amounts, dates, renewals, obligations, changes, and anything actionable for a household budget. ` +
+            `Spreadsheets arrive as CSV text. Keep it under 200 words unless the document demands more. ` +
+            `Their combined monthly take-home is ${m.income || "not set"}. If the document is empty or unreadable, say so plainly.`,
+          messages: [{
+            role: "user",
+            content: `File: ${d.name}\n\n---\n${d.text.slice(0, 30000)}\n---\n\n${question || "What should we know from this?"}`,
+          }],
+        }),
+      });
+      const data = await res.json();
+      const reply = (data.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();
+      if (!reply) throw new Error("empty reply");
+      patch((s) => {
+        const x = (s.docs || []).find((y) => y.id === d.id);
+        if (x) x.analysis = reply;
+        return s;
+      });
+    } catch (e) {
+      setAerr("Couldn't reach the planner just now — try again in a moment.");
+    }
+    setBusyId(null);
   };
 
   const set = (id, f, v) => patch((s) => {
@@ -1435,7 +1513,7 @@ function FilesView({ ctx }) {
 
   return (
     <>
-      <Head title="Files" sub="The paper you'd otherwise lose — receipts, statements, renewal letters. Search finds it later." />
+      <Head title="Files" sub="The paper you'd otherwise lose — receipts, statements, spreadsheets, renewal letters. Search finds it; the planner reads it." />
 
       <div
         className={"dropzone" + (dragOver ? " over" : "")}
@@ -1443,11 +1521,14 @@ function FilesView({ ctx }) {
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { e.preventDefault(); setDragOver(false); onFiles(e.dataTransfer.files); }}
       >
-        Drop text files here, or{" "}
+        Drop files here — text, CSV, Excel (.xlsx), Word (.docx) — or{" "}
         <button className="btn ghost tiny" onClick={() => fileRef.current && fileRef.current.click()}>choose files</button>
-        <input ref={fileRef} type="file" multiple accept=".txt,.md,.csv,.log,text/*" style={{ display: "none" }}
+        <input ref={fileRef} type="file" multiple accept=".txt,.md,.csv,.tsv,.log,.xlsx,.xls,.ods,.docx,text/*" style={{ display: "none" }}
           onChange={(e) => onFiles(e.target.files)} aria-label="Upload files" />
-        <div style={{ marginTop: 6, fontSize: 11 }}>Text only for now, stored in this browser with everything else.</div>
+        <div style={{ marginTop: 6, fontSize: 11 }}>
+          Spreadsheets and Word documents are converted to text on your device, and nothing leaves this browser until you ask for an analysis.
+        </div>
+        {readErr && <div style={{ marginTop: 6, fontSize: 11.5, color: C.warn }}>{readErr}</div>}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -1493,8 +1574,26 @@ function FilesView({ ctx }) {
             </span>
           </div>
           {open === d.id
-            ? <pre>{d.text}</pre>
+            ? (
+              <>
+                <pre>{d.text}</pre>
+                <div className="askrow" style={{ marginTop: 10 }}>
+                  <input className="field" placeholder="Ask about this file, or leave blank for the planner's read"
+                    value={aq[d.id] || ""} onChange={(e) => setAq({ ...aq, [d.id]: e.target.value })}
+                    onKeyDown={(e) => e.key === "Enter" && analyze(d)} aria-label="Question about this file" />
+                  <button className="btn tiny" style={{ whiteSpace: "nowrap", flex: "none" }} disabled={busyId === d.id}
+                    onClick={() => analyze(d)}>{busyId === d.id ? "Reading…" : "Analyze"}</button>
+                </div>
+                {aerr && busyId === null && <p className="snip" style={{ color: C.warn }}>{aerr}</p>}
+              </>
+            )
             : <p className="snip">{snippet(d)}{d.text.length > 150 ? "…" : ""}</p>}
+          {d.analysis && (
+            <div className="analysis">
+              <span className="verseref">Planner's read</span>
+              <p>{d.analysis}</p>
+            </div>
+          )}
         </div>
       ))}
     </>
