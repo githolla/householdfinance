@@ -23,9 +23,17 @@ One JSON object, persisted whole under `twocolumn:v2`.
         { "id": "p1q2r3s", "envId": "k3f9a1x", "amount": 62, "who": "a",
           "note": "Weekly shop", "date": "Aug 14", "day": 14 }
       ],
-      "paid": ["billId"]              // bills marked paid this month
+      "paid": ["billId"],             // bills marked paid this month
+      "received": ["incomeId"]        // expected incomes marked landed this month
     }
   },
+
+  "incomes": [
+    { "id": "i1", "name": "Freelance invoice", "amount": 600, "day": 25,
+      "who": "a", "recurring": false, "month": "2026-08" }
+    // recurring: true applies every month (month is ""); false applies only to `month`.
+    // model() adds these to the partners' take-home for every derived number.
+  ],
 
   "goals": [
     { "id": "g1", "name": "Emergency fund", "target": 15000, "saved": 6800,

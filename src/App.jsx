@@ -81,6 +81,7 @@ const blankMonth = (prev) => ({
   envelopes: prev ? prev.envelopes.map((e) => ({ ...e, id: uid() })) : seedEnvelopes(),
   entries: [],
   paid: [],
+  received: [],
 });
 
 /* ---- sample household, for clicking through without setting anything up ---- */
@@ -155,7 +156,7 @@ function demoState() {
     });
 
     entries.sort((x, y) => y.day - x.day);
-    months[k] = { envelopes, entries, paid: [] };
+    months[k] = { envelopes, entries, paid: [], received: [] };
   }
 
   const bills = [
@@ -196,6 +197,9 @@ function demoState() {
       { id: uid(), name: "Credit card", type: "debt", balance: 3850, owner: "joint", apr: 22.9, minPayment: 120 },
     ],
     bills,
+    incomes: [
+      { id: uid(), name: `${A}'s freelance invoice`, amount: 600, day: 25, who: "a", recurring: false, month: cur },
+    ],
     docs: [
       {
         id: uid(), name: "Car insurance renewal.txt", folder: "Insurance",
@@ -562,6 +566,7 @@ export default function App() {
     patch((s) => {
       const base = s.months[month] || structuredClone(plan);
       if (!base.paid) base.paid = [];
+      if (!base.received) base.received = [];
       s.months[month] = fn(base);
       return s;
     });
@@ -655,6 +660,7 @@ function upgrade(v1) {
     goals: (v1.goals || []).map((g) => ({ ...g, owner: "joint" })),
     accounts: [],
     bills: [],
+    incomes: [],
     docs: [],
     chat: v1.chat || [],
   };
@@ -666,7 +672,24 @@ function upgrade(v1) {
 
 function model(state, plan, month) {
   const [pA, pB] = state.household.partners;
-  const income = pA.income + pB.income;
+  const baseIncome = pA.income + pB.income;
+
+  // Expected earnings: recurring paychecks/side income plus one-time
+  // amounts posted to a specific month. "Landed" is tracked per month
+  // (plan.received), the same way bills track paid.
+  const liveM = month === monthKey(new Date());
+  const received = plan.received || [];
+  const extras = (state.incomes || []).filter((i) => i.recurring || i.month === month);
+  const expected = extras
+    .map((i) => ({
+      ...i,
+      landed: received.includes(i.id),
+      late: i.amount > 0 && !received.includes(i.id) && liveM && i.day < todayDay(),
+    }))
+    .sort((x, y) => x.day - y.day);
+  const extrasTotal = extras.reduce((n, i) => n + i.amount, 0);
+  const incomingLeft = expected.filter((e) => !e.landed).reduce((n, e) => n + e.amount, 0);
+  const income = baseIncome + extrasTotal;
 
   const spentBy = {};
   plan.entries.forEach((t) => { spentBy[t.envId] = (spentBy[t.envId] || 0) + t.amount; });
@@ -715,7 +738,10 @@ function model(state, plan, month) {
     const k = shiftMonth(month, -i);
     const mm = state.months[k];
     const s = mm ? mm.entries.reduce((n, t) => n + t.amount, 0) : 0;
-    history.push({ key: k, label: monthLabel(k, true), spent: s, income, saved: goalMonthly });
+    const inc = baseIncome + (state.incomes || [])
+      .filter((x) => x.recurring || x.month === k)
+      .reduce((n, x) => n + x.amount, 0);
+    history.push({ key: k, label: monthLabel(k, true), spent: s, income: inc, saved: goalMonthly });
   }
 
   const bills = state.bills
@@ -776,6 +802,7 @@ function model(state, plan, month) {
   });
   bills.filter((b) => b.overdue).forEach((b) => notes.push(["warn", `${b.name} was due the ${ordinal(b.day)} and isn't marked paid.`]));
   bills.filter((b) => b.dueSoon).forEach((b) => notes.push(["joint", `${b.name} (${money(b.amount)}) is due the ${ordinal(b.day)}.`]));
+  expected.filter((e) => e.late).forEach((e) => notes.push(["joint", `${e.name} (${money(e.amount)}) was expected the ${ordinal(e.day)} and isn't marked landed.`]));
   state.goals.forEach((g) => {
     const st = goalStatus(g);
     if (st.late) notes.push(["warn", `${g.name} misses ${monthLabel(g.due)} at ${money(g.monthly)}/mo — it needs ${money(st.needed)}.`]);
@@ -787,7 +814,9 @@ function model(state, plan, month) {
   }
   if (income > 0 && savingsRate < 10) notes.push(["joint", `You're saving ${Math.round(savingsRate)}% of income. Most plans get comfortable at 15–20%.`]);
 
-  const shareA = income > 0 ? (state.household.splitRule === "even" ? 0.5 : pA.income / income) : 0.5;
+  const aInc = pA.income + extras.filter((i) => i.who === "a").reduce((n, i) => n + i.amount, 0);
+  const bInc = pB.income + extras.filter((i) => i.who === "b").reduce((n, i) => n + i.amount, 0);
+  const shareA = aInc + bInc > 0 ? (state.household.splitRule === "even" ? 0.5 : aInc / (aInc + bInc)) : 0.5;
   const jointCost = plan.envelopes.filter((e) => e.owner === "joint").reduce((n, e) => n + e.planned, 0) + goalMonthly;
 
   /* ---- stewardship: giving envelopes + the daily verse ---- */
@@ -859,6 +888,7 @@ function model(state, plan, month) {
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
     goalStatus, history, bills, billsTotal, billsLeft, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, verse, verseLine, available, daysLeft, perDay,
+    baseIncome, extrasTotal, expected, incomingLeft,
     ownerColor: (o) => (o === "a" ? C.a : o === "b" ? C.b : C.joint),
     ownerName: (o) => (o === "a" ? pA.name : o === "b" ? pB.name : "Both"),
   };
@@ -1263,15 +1293,17 @@ function Dashboard({ ctx }) {
       <div className="card herocard">
         <div className="biglab">Available to spend</div>
         <div className="bignum num" style={{ color: m.available < 0 ? C.warn : C.ink }}>
-          {money(m.available)}<span className="ofinc"> of {money(m.income)} coming in{m.perDay !== null ? ` · ${money(m.perDay)}/day for ${m.daysLeft} more day${m.daysLeft === 1 ? "" : "s"}` : ""}</span>
+          {money(m.available)}<span className="ofinc"> of {money(m.income)} coming in{m.incomingLeft > 0 ? ` (${money(m.incomingLeft)} still to land)` : ""}{m.perDay !== null ? ` · ${money(m.perDay)}/day for ${m.daysLeft} more day${m.daysLeft === 1 ? "" : "s"}` : ""}</span>
         </div>
         <p className="herosub">{m.thesis[0]} {m.thesis[1]}</p>
         <Rail m={m} plan={plan} />
       </div>
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi label="Came in" value={money(m.income)}
-          foot={`${m.pA.name} & ${m.pB.name}, take-home`} />
+        <Kpi label="Coming in" value={money(m.income)}
+          foot={m.extrasTotal > 0
+            ? `${money(m.baseIncome)} take-home + ${money(m.extrasTotal)} posted${m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} yet to land` : ""}`
+            : `${m.pA.name} & ${m.pB.name}, take-home`} />
         <Kpi label="Assigned" value={money(m.allocated)}
           foot={m.income > 0 ? `${Math.round((m.allocated / m.income) * 100)}% of income · ${money(m.goalMonthly)} to goals` : "set incomes in Settings"} />
         <Kpi label="Spent this month" value={money(m.spent)} tone={m.leftToSpend < 0 ? "down" : ""}
@@ -1440,8 +1472,20 @@ function Dashboard({ ctx }) {
 /* ================================================================== */
 
 function Budget({ ctx }) {
-  const { m, plan, writeMonth, month, setMonth, state } = ctx;
+  const { m, plan, writeMonth, month, setMonth, state, patch } = ctx;
   const set = (i, field, val) => writeMonth((mm) => { mm.envelopes[i][field] = val; return mm; });
+
+  const setInc = (id, f, v) => patch((s) => {
+    const x = (s.incomes || []).find((y) => y.id === id);
+    if (x) x[f] = v;
+    return s;
+  });
+  const toggleLanded = (inc) => writeMonth((mm) => {
+    mm.received = mm.received.includes(inc.id)
+      ? mm.received.filter((x) => x !== inc.id)
+      : [...mm.received, inc.id];
+    return mm;
+  });
 
   return (
     <>
@@ -1453,8 +1497,74 @@ function Budget({ ctx }) {
           : m.unallocated < -1 ? `The plan is ${money(-m.unallocated)} past income — something has to come down.`
             : "Every dollar has a job this month."} />
 
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="chead">
+          <h3>Money coming in</h3>
+          <span className="meta num">{money(m.income)} expected{m.incomingLeft > 0 ? ` · ${money(m.incomingLeft)} still to land` : ""}</span>
+        </div>
+        {[0, 1].map((i) => (
+          <div className="row" key={i}>
+            <div className="rowname">
+              <span className="tag" style={{ color: m.ownerColor(state.household.partners[i].id), borderColor: m.ownerColor(state.household.partners[i].id) }}>
+                {state.household.partners[i].name}
+              </span>
+              <span>take-home, every month</span>
+            </div>
+            <div className="amt muted">monthly</div>
+            <div className="amt">
+              <input className="num" value={state.household.partners[i].income || ""} placeholder="0"
+                onChange={(e) => patch((s) => { s.household.partners[i].income = num(e.target.value); return s; })}
+                aria-label={`${state.household.partners[i].name} take-home`} />
+            </div>
+          </div>
+        ))}
+        {m.expected.map((inc) => (
+          <div className="row wide" key={inc.id}>
+            <div className="rowname">
+              <button className="tag" style={{ color: m.ownerColor(inc.who), borderColor: m.ownerColor(inc.who) }}
+                onClick={() => {
+                  const order = ["joint", "a", "b"];
+                  setInc(inc.id, "who", order[(order.indexOf(inc.who) + 1) % 3]);
+                }} title="Whose money — tap to change">{m.ownerName(inc.who)}</button>
+              <input value={inc.name} onChange={(e) => setInc(inc.id, "name", e.target.value)} aria-label="Income name" />
+              <button className="tag hideS" onClick={() => patch((s) => {
+                const x = (s.incomes || []).find((y) => y.id === inc.id);
+                if (x) { x.recurring = !x.recurring; x.month = x.recurring ? "" : month; }
+                return s;
+              })} title="One-time or every month">{inc.recurring ? "every month" : `${monthLabel(inc.month || month, true)} only`}</button>
+              <button className="kill" onClick={() => patch((s) => { s.incomes = (s.incomes || []).filter((y) => y.id !== inc.id); return s; })}
+                aria-label={`Remove ${inc.name}`}>×</button>
+            </div>
+            <div className="amt hideS" style={{ textAlign: "left" }}>
+              <span className="muted">lands </span>
+              <input className="num" style={{ width: 36, textAlign: "left" }} value={inc.day}
+                onChange={(e) => setInc(inc.id, "day", Math.min(31, Math.max(1, num(e.target.value) || 1)))} aria-label="Expected day" />
+            </div>
+            <div className="amt">
+              <input className="num" value={inc.amount || ""} placeholder="0"
+                onChange={(e) => setInc(inc.id, "amount", num(e.target.value))} aria-label="Amount" />
+            </div>
+            <div className="amt">
+              <button className={"btn tiny " + (inc.landed ? "" : "ghost")} onClick={() => toggleLanded(inc)}>
+                {inc.landed ? "Landed" : inc.late ? "Late — landed?" : "Mark landed"}
+              </button>
+            </div>
+          </div>
+        ))}
+        <button className="btn ghost tiny" style={{ marginTop: 12 }} onClick={() => patch((s) => {
+          s.incomes = s.incomes || [];
+          s.incomes.push({ id: uid(), name: "Expected income", amount: 0, day: 15, who: "joint", recurring: false, month });
+          return s;
+        })}>Add expected income</button>
+        <p className="empty" style={{ marginTop: 8 }}>
+          A bonus, an invoice, a side job — post it here and it counts toward everything: available to spend,
+          the plan, the fair split, the cash-flow chart, and the planner's advice.
+        </p>
+      </div>
+
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi label="Income" value={money(m.income)} />
+        <Kpi label="Income" value={money(m.income)}
+          foot={m.extrasTotal > 0 ? `${money(m.baseIncome)} take-home + ${money(m.extrasTotal)} posted` : undefined} />
         <Kpi label="Planned out" value={money(m.planned)} foot={`${Math.round(m.income ? (m.planned / m.income) * 100 : 0)}% of income`} />
         <Kpi label="Toward goals" value={money(m.goalMonthly)} />
         <Kpi label="Unassigned" value={money(m.unallocated)} tone={m.unallocated < -1 ? "down" : m.unallocated > 1 ? "mid" : "up"} />
@@ -2319,6 +2429,10 @@ function PlannerPage({ ctx }) {
     partners: [m.pA, m.pB].map((p) => ({ name: p.name, monthlyTakeHome: p.income })),
     splitRule: state.household.splitRule,
     monthlyIncome: m.income,
+    expectedEarningsThisMonth: m.expected.map((e) => ({
+      name: e.name, amount: e.amount, expectedDay: e.day, whose: m.ownerName(e.who),
+      landed: e.landed, recurring: !!e.recurring,
+    })),
     envelopes: plan.envelopes.map((e) => ({
       name: e.name, group: e.group, planned: e.planned,
       spentSoFar: m.spentBy[e.id] || 0, coveredBy: m.ownerName(e.owner),
@@ -2568,6 +2682,7 @@ function Setup({ onDone }) {
       goals: [],
       accounts: [],
       bills: [],
+      incomes: [],
       docs: [],
       chat: [],
     });
