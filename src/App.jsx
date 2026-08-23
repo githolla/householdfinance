@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v59";
+const APP_VERSION = "v60";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -1604,7 +1604,7 @@ function model(state, plan, month) {
 
   const payoff = (extra, strategy) => {
     const list = debts.map((d) => ({ ...d }));
-    if (!list.length) return { months: 0, interest: 0, order: [] };
+    if (!list.length) return { months: 0, interest: 0, order: [], series: [] };
     list.sort((x, y) => (strategy === "snowball" ? x.balance - y.balance : (y.apr || 0) - (x.apr || 0)));
     const order = list.map((d) => d.name);
     if (list.reduce((n, d) => n + (d.minPayment || 0), 0) + extra <= 0)
@@ -5269,12 +5269,13 @@ function DebtView({ ctx }) {
   const interestSaved = Math.max(0, base.interest - withX.interest);
   const monthsSaved = Math.max(0, base.months - withX.months);
   const hasExtra = num(extra) > 0;
-  const maxLen = Math.max(base.series.length, withX.series.length);
+  const baseSeries = base.series || [], xSeries = withX.series || [];
+  const maxLen = Math.max(baseSeries.length, xSeries.length);
   const chart = [];
   for (let i = 0; i < maxLen; i++) chart.push({
     label: monthLabel(shiftMonth(month, i), true),
-    "At minimums": base.series[i] ? Math.round(base.series[i].balance) : 0,
-    "With extra": withX.series[i] ? Math.round(withX.series[i].balance) : 0,
+    "At minimums": baseSeries[i] ? Math.round(baseSeries[i].balance) : 0,
+    "With extra": xSeries[i] ? Math.round(xSeries[i].balance) : 0,
   });
 
   return (
