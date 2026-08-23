@@ -294,6 +294,30 @@ export const STUDIES = [
     pray: "Lord, be first — and we'll trust You with the rest." },
 ];
 
-export function studyForDay(d = new Date()) {
-  return STUDIES[dayIndex(d) % STUDIES.length];
+// Each study's theme, so the app can pick one that fits the day's shape
+// (bills overdue → debt, income landing → provision, not yet tithed →
+// giving, and so on) rather than only rotating by date.
+const STUDY_THEME = {
+  "Proverbs 21:5": "planning", "Luke 14:28": "planning", "Proverbs 22:7": "debt",
+  "Proverbs 3:9": "giving", "Philippians 4:12": "contentment", "Matthew 6:21": "contentment",
+  "Ecclesiastes 4:9": "together", "Proverbs 6:6-8": "diligence", "Luke 12:15": "contentment",
+  "Romans 13:8": "debt", "Proverbs 30:8": "contentment", "Proverbs 13:11": "diligence",
+  "2 Corinthians 9:7": "giving", "Proverbs 22:1": "diligence", "Proverbs 23:4": "contentment",
+  "Proverbs 11:25": "giving", "Luke 16:10": "diligence", "Matthew 6:19-20": "contentment",
+  "Proverbs 16:3": "planning", "Deuteronomy 8:18": "provision", "Proverbs 15:16": "contentment",
+  "Proverbs 10:4": "diligence", "Luke 6:38": "giving", "Proverbs 13:22": "diligence",
+  "1 Timothy 6:6": "contentment", "Proverbs 27:23": "planning", "1 Timothy 6:10": "contentment",
+  "Ecclesiastes 11:1-2": "planning", "Matthew 6:24": "contentment", "Proverbs 10:22": "provision",
+  "Matthew 6:33": "provision",
+};
+
+/**
+ * Today's study. Pass a theme to draw one that fits the day's situation
+ * (the app derives the theme from bills, income, and giving); omit it to
+ * rotate through everything. Deterministic by day within the pool.
+ */
+export function studyForDay(theme, d = new Date()) {
+  const pool = theme ? STUDIES.filter((s) => STUDY_THEME[s.ref] === theme) : STUDIES;
+  const list = pool.length ? pool : STUDIES;
+  return list[dayIndex(d) % list.length];
 }

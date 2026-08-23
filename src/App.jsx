@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v45";
+const APP_VERSION = "v46";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -827,6 +827,7 @@ body{margin:0;background:#F5F1EA;}
 .tc .sb-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#7FC9A9;}
 .tc .sb-verse{font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(16px,2vw,20px);font-weight:600;line-height:1.4;
  letter-spacing:-.01em;margin:10px 0 12px;max-width:820px;}
+.tc .sb-context{font-size:13px;color:rgba(255,255,255,.82);margin:0 0 12px;padding-left:12px;border-left:2px solid #7FC9A9;}
 .tc .sb-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .tc .sb-ref{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.7);}
 .tc .sb-cta{font-size:12.5px;font-weight:600;color:#fff;}
@@ -835,6 +836,9 @@ body{margin:0;background:#F5F1EA;}
 .tc button.sideverse{cursor:pointer;text-align:left;width:100%;transition:background .12s;}
 .tc button.sideverse:hover{background:rgba(255,255,255,.09);}
 .tc .study{display:flex;flex-direction:column;gap:16px;}
+.tc .study-for{background:#12332C;border-radius:10px;padding:12px 14px;}
+.tc .study-for .study-lab{color:#7FC9A9;}
+.tc .study-for p{font-size:13.5px;color:#fff;margin:6px 0 0;line-height:1.5;}
 .tc .study-verse{background:var(--paper);border-left:3px solid var(--a);border-radius:10px;padding:14px 16px;}
 .tc .study-text{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:600;line-height:1.5;letter-spacing:-.01em;margin:0 0 8px;}
 .tc .study-ref{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--b);}
@@ -877,6 +881,34 @@ const greeting = () => {
   const h = new Date().getHours();
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 };
+
+// Reads the day's shape — overdue/due bills, income landing today, whether
+// the giving goal is met — and returns the study theme it calls for plus a
+// live line tying today's study to their real situation.
+function studyContext(m, month) {
+  const live = month === monthKey(new Date());
+  const td = todayDay();
+  const overdue = m.bills.filter((b) => b.overdue);
+  const dueSoon = m.bills.filter((b) => b.dueSoon && !b.paid);
+  const landing = live ? [...(m.paychecks || []), ...(m.expected || [])].filter((i) => i.day === td && i.amount > 0) : [];
+  const g = m.giving || {};
+  const tithePending = m.faithOn && g.target > 0 && !g.metTarget;
+  if (overdue.length)
+    return { theme: "debt", line: `${overdue[0].name}${overdue.length > 1 ? ` and ${overdue.length - 1} more` : ""} ${overdue.length > 1 ? "are" : "is"} past due — today's a good day to set it right.` };
+  if (landing.length)
+    return { theme: "provision", line: `${landing.map((i) => i.name).join(" and ")} lands today.${tithePending ? " First fruits first — before it's spent." : ""}` };
+  if (tithePending && g.given < g.target)
+    return { theme: "giving", line: `You've given ${money(g.given)} of your ${money(g.target)} goal this month — ${money(Math.max(0, g.target - g.given))} to go.` };
+  if (dueSoon.length) {
+    const tot = dueSoon.reduce((n, b) => n + b.amount, 0);
+    return { theme: "planning", line: `${money(tot)} in bills ${dueSoon.length > 1 ? `(${dueSoon.length} of them) ` : ""}land in the next few days.` };
+  }
+  if (m.faithOn && g.metTarget)
+    return { theme: "contentment", line: `You've met your ${g.targetPct}% giving this month — ${money(g.given)} given first. Rest in that.` };
+  if (m.billsLeft <= 0 && m.bills.length)
+    return { theme: "contentment", line: "Every bill this month is paid — the month is quiet." };
+  return { theme: null, line: "" };
+}
 
 function TopBar({ state, m, setView, onUpload }) {
   return (
@@ -953,11 +985,17 @@ function UploadModal({ ctx, onClose }) {
 
 // Today's short study on money and wisdom — passage, reflection, a
 // question to talk through, and a prayer. Same for both partners each day.
-function DailyStudy({ onClose }) {
-  const s = studyForDay();
+function DailyStudy({ study, onClose }) {
+  const s = study || studyForDay();
   return (
     <Modal title="Today's study" sub={s.day} onClose={onClose}>
       <div className="study">
+        {s.context && (
+          <div className="study-for">
+            <span className="study-lab">For your day</span>
+            <p>{s.context}</p>
+          </div>
+        )}
         <div className="study-verse">
           <p className="study-text">“{s.text}”</p>
           <span className="study-ref">{s.ref}</span>
@@ -1041,7 +1079,9 @@ export default function App() {
   if (!state) return <Setup onDone={setState} />;
 
   const m = model(state, plan, month);
-  const ctx = { state, patch, plan, writeMonth, month, setMonth, m, setView, openStudy: () => setStudyOpen(true) };
+  const sctx = m.faithOn ? studyContext(m, month) : { theme: null, line: "" };
+  const todayStudy = { ...studyForDay(sctx.theme), context: sctx.line };
+  const ctx = { state, patch, plan, writeMonth, month, setMonth, m, setView, study: todayStudy, openStudy: () => setStudyOpen(true) };
   const unpaidCount = m.bills.filter((b) => !b.paid).length;
   const startClean = async () => {
     if (!armClean) { setArmClean(true); setTimeout(() => setArmClean(false), 4000); return; }
@@ -1096,7 +1136,7 @@ export default function App() {
         <main className="main">
           <TopBar state={state} m={m} setView={setView} onUpload={() => setUploading(true)} />
           {uploading && <UploadModal ctx={ctx} onClose={() => setUploading(false)} />}
-          {studyOpen && m.faithOn && <DailyStudy onClose={() => setStudyOpen(false)} />}
+          {studyOpen && m.faithOn && <DailyStudy study={todayStudy} onClose={() => setStudyOpen(false)} />}
           {state.demo && (
             <div className="demobar">
               <span>You're touring the sample household — nothing here is yours yet.</span>
@@ -2429,10 +2469,9 @@ function HealthCard({ m, setView }) {
 const monthLabelForHealth = (m) => (m.income > 0 ? "this month" : "not enough entered yet");
 
 function Dashboard({ ctx }) {
-  const { m, plan, month, setMonth, state, setView, writeMonth, patch, openStudy } = ctx;
+  const { m, plan, month, setMonth, state, setView, writeMonth, patch, openStudy, study } = ctx;
   const [showSpend, setShowSpend] = useState(false);
   const [selGroup, setSelGroup] = useState(null);
-  const study = studyForDay();
 
   const groupData = GROUPS
     .map((g) => ({ name: g, value: (m.byGroup[g] || {}).spent || 0, planned: (m.byGroup[g] || {}).planned || 0 }))
@@ -2458,6 +2497,7 @@ function Dashboard({ ctx }) {
         <button className="studybanner" onClick={openStudy} aria-label="Open today's study">
           <span className="sb-eyebrow">Today's study · {study.day}</span>
           <p className="sb-verse">“{study.text}”</p>
+          {study.context && <p className="sb-context">{study.context}</p>}
           <div className="sb-foot">
             <span className="sb-ref">{study.ref}</span>
             <span className="sb-cta">Read &amp; reflect →</span>
