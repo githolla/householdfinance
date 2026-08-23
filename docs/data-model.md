@@ -81,6 +81,9 @@ One JSON object, persisted whole under `twocolumn:v2`.
 
   "faith": { "enabled": true, "givingTarget": 10 },  // scripture layer (absent = on) + giving % target (default 10)
 
+  "framework": { "needs": 50, "wants": 20, "save": 20 }, // budget guideline targets
+                                                          // (give % = faith.givingTarget); absent = 50/20/20
+
   "milestones": ["debt:a1", "tithe:2026-08"],        // celebration ids already marked
   "milestoneLog": [{ "id": "debt:a1", "text": "Car loan is paid off.", "when": "2026-08" }]
 }

@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v47";
+const APP_VERSION = "v48";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -692,6 +692,19 @@ body{margin:0;background:#F5F1EA;}
 .tc .bs{border-left:4px solid var(--line);background:var(--paper);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;}
 .tc .bs-l{font-size:11.5px;color:var(--soft);}
 .tc .bs-v{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;}
+
+/* balanced-budget guideline */
+.tc .fwrow{display:grid;grid-template-columns:auto minmax(120px,1.4fr) 1fr 44px 44px 78px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--hair);}
+.tc .fwrow:last-child{border-bottom:none;}
+.tc .fw-dot{width:10px;height:10px;border-radius:3px;}
+.tc .fw-nm{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc .fw-bar{position:relative;height:9px;background:var(--track);border-radius:99px;overflow:visible;}
+.tc .fw-bar i{position:absolute;left:0;top:0;height:100%;border-radius:99px;}
+.tc .fw-target{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);border-radius:2px;}
+.tc .fw-pct{font-size:13px;font-weight:600;text-align:right;}
+.tc .fw-tg{font-size:12px;text-align:right;}
+.tc .fw-amt{font-size:12.5px;text-align:right;}
+@media(max-width:640px){.tc .fwrow{grid-template-columns:auto 1fr 42px;}.tc .fw-bar,.tc .fw-tg,.tc .fw-amt{display:none;}}
 
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
@@ -1438,6 +1451,38 @@ function model(state, plan, month) {
     metTarget: income > 0 && givingGroup.spent >= (income * givingTargetPct) / 100,
   };
 
+  /* ---- the balanced-budget guideline: 50/30/20, made biblical by putting
+     the tithe first (give 10 · needs 50 · wants 20 · save 20 by default).
+     Envelope groups roll up into four buckets; goals count as saving. ---- */
+  const BUCKET_OF = { Giving: "give", Home: "needs", Daily: "needs", Health: "needs", Lifestyle: "wants", Other: "wants" };
+  const fw = state.framework || {};
+  const fwTargets = {
+    give: givingTargetPct,
+    needs: fw.needs != null ? fw.needs : 50,
+    wants: fw.wants != null ? fw.wants : 20,
+    save: fw.save != null ? fw.save : 20,
+  };
+  const bucketAmt = { give: 0, needs: 0, wants: 0, save: goalMonthly };
+  GROUPS.forEach((g) => { const b = BUCKET_OF[g]; if (b) bucketAmt[b] += (byGroup[g] || {}).planned || 0; });
+  const fwRows = [
+    { key: "give", label: "Give", note: "the tithe, off the top", color: C.good },
+    { key: "needs", label: "Needs", note: "home, food, health, transport", color: C.a },
+    { key: "wants", label: "Wants", note: "lifestyle, eating out, extras", color: C.b },
+    { key: "save", label: "Save", note: "goals, emergency fund, extra debt", color: C.joint },
+  ].map((r) => {
+    const amount = bucketAmt[r.key];
+    const pct = income > 0 ? (amount / income) * 100 : 0;
+    const target = fwTargets[r.key];
+    const targetAmt = (income * target) / 100;
+    // Under-giving/under-saving and over-spending are the flags worth raising.
+    const off = pct - target;
+    const status = income === 0 ? "na"
+      : (r.key === "give" || r.key === "save") ? (off >= -2 ? "good" : off >= -6 ? "watch" : "serious")
+        : (off <= 2 ? "good" : off <= 8 ? "watch" : "serious");
+    return { ...r, amount, pct, target, targetAmt, off, status };
+  });
+  const framework = { targets: fwTargets, rows: fwRows };
+
   // Milestones worth marking: a debt reaching zero, the giving target
   // met, giving growing month over month. Shown until the couple marks
   // the moment (state.milestones); celebrated plainly, never gamified.
@@ -1624,7 +1669,7 @@ function model(state, plan, month) {
   return {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
-    cashTotal, runwayMonths, monthlyNet, monthlyCost, health,
+    cashTotal, runwayMonths, monthlyNet, monthlyCost, health, framework,
     goalStatus, history, bills, billsTotal, billsLeft, billHistory, billPaidByMonth, billMethodMix, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, celebrations, verse, verseLine, available, daysLeft, perDay,
     baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
@@ -2740,6 +2785,41 @@ function Dashboard({ ctx }) {
 /*  2. budget                                                          */
 /* ================================================================== */
 
+// The balanced-budget guideline — 50/30/20 with the tithe put first.
+// Shows each bucket's share of income against its target, with a marker.
+function FrameworkCard({ m, setView }) {
+  const fw = m.framework;
+  const worst = fw.rows.slice().filter((r) => r.status !== "good" && r.status !== "na")
+    .sort((a, b) => Math.abs(b.off) - Math.abs(a.off))[0];
+  const read = m.income === 0 ? "Add your income and the guideline fills in."
+    : !worst ? "Your plan lines up with the guideline — give first, live within needs, and keep saving."
+      : worst.key === "give" ? `Giving is ${Math.round(worst.pct)}% — the guide is ${worst.target}%. About ${money(Math.max(0, worst.targetAmt - worst.amount))} more would reach the tithe.`
+        : worst.key === "save" ? `Saving is ${Math.round(worst.pct)}% — aim for ${worst.target}%. Around ${money(Math.max(0, worst.targetAmt - worst.amount))} more a month gets there.`
+          : `${worst.label} run ${Math.round(worst.pct)}% of income — the guide is ${worst.target}%. Trimming ${money(Math.max(0, worst.amount - worst.targetAmt))} brings it in line.`;
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="chead">
+        <h3>The balanced budget</h3>
+        <span className="meta">50/30/20 — the tithe first ({m.framework.targets.give}/{m.framework.targets.needs}/{m.framework.targets.wants}/{m.framework.targets.save})</span>
+      </div>
+      {fw.rows.map((r) => (
+        <div className="fwrow" key={r.key}>
+          <span className="fw-dot" style={{ background: r.color }} />
+          <span className="fw-nm">{r.label}<span className="muted"> · {r.note}</span></span>
+          <span className="fw-bar">
+            <i style={{ width: Math.min(100, r.pct) + "%", background: r.status === "serious" ? C.warn : r.color }} />
+            <span className="fw-target" style={{ left: Math.min(100, r.target) + "%" }} title={`Target ${r.target}%`} />
+          </span>
+          <span className="fw-pct num" style={{ color: r.status === "serious" ? C.warn : "var(--ink)" }}>{Math.round(r.pct)}%</span>
+          <span className="fw-tg num muted">/ {r.target}%</span>
+          <span className="fw-amt num muted">{money(r.amount)}</span>
+        </div>
+      ))}
+      <p className="mstone" style={{ marginTop: 12 }}>{read} <button className="seelink" style={{ display: "inline" }} onClick={() => setView("settings")}>Adjust the guide →</button></p>
+    </div>
+  );
+}
+
 // One budget envelope: the editable row, plus a tap to reveal the latest
 // three transactions that landed in this category.
 function EnvRow({ e, m, plan, set, writeMonth }) {
@@ -3017,6 +3097,8 @@ function Budget({ ctx }) {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}><Rail m={m} plan={plan} /></div>
+
+      <FrameworkCard m={m} setView={setView} />
 
       <div className="card" id="planCard">
         {GROUPS.filter((g) => m.byGroup[g]).map((g) => {
@@ -5088,6 +5170,10 @@ function buildSnapshot(state, m, plan, month) {
       score: m.health.score, standing: m.health.label,
       vitals: m.health.vitals.map((v) => ({ what: v.label, value: v.value, status: v.status })),
     },
+    budgetGuideline: {
+      rule: `${m.framework.targets.give}/${m.framework.targets.needs}/${m.framework.targets.wants}/${m.framework.targets.save} — give first, then needs/wants/save`,
+      buckets: m.framework.rows.map((r) => ({ bucket: r.label, actualPct: Math.round(r.pct), targetPct: r.target })),
+    },
     upcomingPlans: (state.scenarios || []).map((sc) => ({
       what: sc.name, cost: num(sc.amount), when: sc.date, funding: sc.fund === "cash" ? "from savings" : "saving monthly",
     })),
@@ -5467,6 +5553,36 @@ function SettingsView({ ctx, setState }) {
               </p>
             </>
           )}
+        </div>
+
+        <div className="card">
+          <div className="chead"><h3>Budget guideline</h3><span className="meta">50/30/20, tithe first</span></div>
+          <p className="empty" style={{ marginTop: 0 }}>
+            A classic split, made biblical by giving first: {m.faithOn ? `${m.giving.targetPct}% to give, then` : ""} needs, wants, and saving as shares of income. The Budget page shows how your plan compares.
+          </p>
+          {(() => {
+            const t = m.framework.targets;
+            const total = t.give + t.needs + t.wants + t.save;
+            const setFw = (f, v) => patch((s) => { s.framework = { ...(s.framework || {}), [f]: Math.max(0, Math.min(100, num(v))) }; return s; });
+            return (
+              <>
+                <div className="fourup" style={{ borderTop: "none", paddingTop: 0 }}>
+                  <div><label className="lbl">Give %</label>
+                    <div className="field num" style={{ background: "#EFEADF", color: C.soft }}>{t.give}%</div></div>
+                  <div><label className="lbl">Needs %</label>
+                    <input className="field num" value={t.needs} onChange={(e) => setFw("needs", e.target.value)} aria-label="Needs percent" /></div>
+                  <div><label className="lbl">Wants %</label>
+                    <input className="field num" value={t.wants} onChange={(e) => setFw("wants", e.target.value)} aria-label="Wants percent" /></div>
+                  <div><label className="lbl">Save %</label>
+                    <input className="field num" value={t.save} onChange={(e) => setFw("save", e.target.value)} aria-label="Save percent" /></div>
+                </div>
+                <p className="empty" style={{ marginTop: 10, color: total === 100 ? "var(--soft)" : C.b }}>
+                  {total === 100 ? "Adds up to 100% — balanced." : `These add up to ${total}% (give is set by your tithe target above). A full plan totals 100%.`}
+                  {" "}<button className="seelink" style={{ display: "inline" }} onClick={() => patch((s) => { s.framework = { needs: 50, wants: 20, save: 20 }; return s; })}>Reset to 50/20/20</button>
+                </p>
+              </>
+            );
+          })()}
         </div>
 
         <div className="card">
