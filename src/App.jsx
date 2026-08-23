@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v50";
+const APP_VERSION = "v51";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -694,9 +694,19 @@ body{margin:0;background:#F5F1EA;}
 .tc .bs-v{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;}
 
 /* balanced-budget guideline */
+.tc .idealbar{display:flex;height:40px;border-radius:10px;overflow:hidden;gap:2px;background:var(--track);}
+.tc .ib-seg{display:grid;place-items:center;min-width:2px;transition:width .4s ease;}
+.tc .ib-lab{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:#fff;}
+.tc .ideallegend{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px;}
+.tc .il{display:flex;align-items:center;gap:7px;font-size:13px;}
+.tc .il-dot{width:9px;height:9px;border-radius:3px;}
+.tc .il-nm{color:var(--soft);}
+.tc .il b{font-family:'IBM Plex Mono',monospace;}
+.tc .fw-headline{font-size:13.5px;color:#3A453F;line-height:1.5;margin:14px 0 2px;padding:12px 0 0;border-top:1px solid var(--line);}
+.tc .fw-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);margin:16px 0 2px;}
 .tc .fwrow-wrap{border-bottom:1px solid var(--hair);}
 .tc .fwrow-wrap:last-child{border-bottom:none;}
-.tc .fwrow{display:grid;grid-template-columns:16px auto minmax(120px,1.4fr) 1fr 44px 44px 78px;gap:10px;align-items:center;padding:11px 0;
+.tc .fwrow{display:grid;grid-template-columns:16px auto minmax(130px,1.3fr) 1fr 150px;gap:12px;align-items:center;padding:11px 0;
  width:100%;background:none;border:none;text-align:left;color:inherit;font:inherit;border-radius:9px;}
 .tc .fwrow.click{cursor:pointer;}
 .tc .fwrow.click:hover{background:var(--accsoft);padding-left:8px;padding-right:8px;margin:0 -8px;width:calc(100% + 16px);}
@@ -704,18 +714,17 @@ body{margin:0;background:#F5F1EA;}
 .tc .fwrow-wrap.open .fw-chev{transform:rotate(90deg);color:var(--a);}
 .tc .fw-dot{width:10px;height:10px;border-radius:3px;}
 .tc .fw-nm{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.tc .fw-bar{position:relative;height:9px;background:var(--track);border-radius:99px;overflow:visible;}
-.tc .fw-bar i{position:absolute;left:0;top:0;height:100%;border-radius:99px;}
-.tc .fw-target{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);border-radius:2px;}
-.tc .fw-pct{font-size:13px;font-weight:600;text-align:right;}
-.tc .fw-tg{font-size:12px;text-align:right;}
-.tc .fw-amt{font-size:12.5px;text-align:right;}
+.tc .fw-bar{position:relative;height:9px;background:var(--track);border-radius:99px;overflow:hidden;}
+.tc .fw-bar i{position:absolute;left:0;top:0;height:100%;border-radius:99px;transition:width .4s ease;}
+.tc .fw-money{font-size:13px;text-align:right;white-space:nowrap;}
+.tc .fw-money b{font-family:'IBM Plex Mono',monospace;}
+@media(max-width:640px){.tc .fw-money .muted{display:none;}}
 .tc .fw-exp{padding:6px 0 14px 26px;}
 .tc .fw-exp-read{font-size:13px;color:#3A453F;margin:0 0 10px;}
 .tc .fw-exp-body{display:flex;flex-direction:column;gap:8px;align-items:flex-start;}
 .tc .fw-envrow{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;max-width:420px;font-size:13.5px;}
 .tc .fw-envrow .field{width:110px;}
-@media(max-width:640px){.tc .fwrow{grid-template-columns:16px auto 1fr 42px;}.tc .fw-bar,.tc .fw-tg,.tc .fw-amt{display:none;}}
+@media(max-width:640px){.tc .fwrow{grid-template-columns:16px auto 1fr auto;}.tc .fw-bar{display:none;}}
 
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
@@ -2814,32 +2823,70 @@ function FrameworkCard({ ctx }) {
     return mm;
   });
 
+  const income = m.income;
+  const totalPlanned = fw.rows.reduce((n, r) => n + r.amount, 0);
+  const anyPlanned = totalPlanned > 0.5;
+
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div className="chead">
         <h3>The balanced budget</h3>
-        <span className="meta">50/30/20 — the tithe first ({fw.targets.give}/{fw.targets.needs}/{fw.targets.wants}/{fw.targets.save})</span>
+        <span className="meta">{income > 0 ? `on ${money(income)}/mo · give first` : "50/30/20 · the tithe first"}</span>
       </div>
+
+      {income > 0 && (
+        <>
+          {/* The ideal split, in real dollars — where the guide sends each dollar */}
+          <div className="idealbar" role="img" aria-label="Recommended split of your income">
+            {fw.rows.map((r) => (
+              <div key={r.key} className="ib-seg" style={{ width: r.target + "%", background: r.color }} title={`${r.label} · ${money(r.targetAmt)}`}>
+                {r.target >= 12 && <span className="ib-lab">{r.target}%</span>}
+              </div>
+            ))}
+          </div>
+          <div className="ideallegend">
+            {fw.rows.map((r) => (
+              <div className="il" key={r.key}>
+                <span className="il-dot" style={{ background: r.color }} />
+                <span className="il-nm">{r.label}</span>
+                <b className="num">{money(r.targetAmt)}</b>
+              </div>
+            ))}
+          </div>
+          <p className="fw-headline">
+            {!anyPlanned
+              ? <>Nothing's assigned yet. That's the guide above, in real dollars — tap a bucket to fill it in.</>
+              : (() => {
+                const worst = fw.rows.slice().filter((r) => r.status !== "good").sort((a, b) => Math.abs(b.off) - Math.abs(a.off))[0];
+                if (!worst) return <>Your plan matches the guide — give first, live within needs, keep saving.</>;
+                const g = worst.targetAmt - worst.amount;
+                return worst.key === "give" || worst.key === "save"
+                  ? <><b>{worst.label}</b> is {money(worst.amount)} — about <b className="num">{money(Math.max(0, g))}</b> short of the {worst.target}% guide.</>
+                  : <><b>{worst.label}</b> run {money(worst.amount)} — {g < 0 ? <><b className="num" style={{ color: C.warn }}>{money(-g)}</b> over</> : <><b className="num">{money(g)}</b> under</>} the {money(worst.targetAmt)} guide.</>;
+              })()}
+          </p>
+        </>
+      )}
+
+      <div className="fw-sub">Your plan vs. the guide</div>
       {fw.rows.map((r) => {
         const isOpen = open === r.key;
         const gap = r.targetAmt - r.amount; // + = under target, - = over
+        const fillPct = r.targetAmt > 0 ? Math.min(100, (r.amount / r.targetAmt) * 100) : (r.amount > 0 ? 100 : 0);
         const envs = r.key === "save" ? [] : plan.envelopes.filter((e) => (BUCKET_GROUPS[r.key] || []).includes(e.group || "Other"));
         return (
           <div key={r.key} className={"fwrow-wrap" + (isOpen ? " open" : "")}>
             <button className="fwrow click" onClick={() => setOpen(isOpen ? null : r.key)} aria-expanded={isOpen}
-              aria-label={`${r.label}: ${Math.round(r.pct)} percent of ${r.target} percent target`}>
+              aria-label={`${r.label}: planned ${money(r.amount)} of ${money(r.targetAmt)} target`}>
               <span className="fw-chev">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
               </span>
               <span className="fw-dot" style={{ background: r.color }} />
               <span className="fw-nm">{r.label}<span className="muted"> · {r.note}</span></span>
               <span className="fw-bar">
-                <i style={{ width: Math.min(100, r.pct) + "%", background: r.status === "serious" ? C.warn : r.color }} />
-                <span className="fw-target" style={{ left: Math.min(100, r.target) + "%" }} title={`Target ${r.target}%`} />
+                <i style={{ width: fillPct + "%", background: r.status === "serious" ? C.warn : r.color }} />
               </span>
-              <span className="fw-pct num" style={{ color: r.status === "serious" ? C.warn : "var(--ink)" }}>{Math.round(r.pct)}%</span>
-              <span className="fw-tg num muted">/ {r.target}%</span>
-              <span className="fw-amt num muted">{money(r.amount)}</span>
+              <span className="fw-money num"><b>{money(r.amount)}</b><span className="muted"> / {money(r.targetAmt)}</span></span>
             </button>
             {isOpen && (
               <div className="fw-exp">
