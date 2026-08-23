@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v54";
+const APP_VERSION = "v55";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -233,6 +233,9 @@ function demoState() {
   };
 }
 
+// The everyday app is the first (core) section; the second is "More tools",
+// hidden until the household turns it on (state.showAdvanced). Settings sits
+// on its own at the foot of the nav, always reachable.
 const NAV_SECTIONS = [
   ["Money", [
     ["dash", "Overview"],
@@ -240,18 +243,19 @@ const NAV_SECTIONS = [
     ["txn", "Spending"],
     ["bills", "Bills & files"],
     ["goals", "Pots"],
+    ["planner", "Assistant"],
+  ], false],
+  ["More tools", [
     ["calendar", "Calendar"],
-  ]],
-  ["Longer view", [
     ["insights", "Insights"],
     ["plan", "Plan ahead"],
     ["worth", "Net worth"],
     ["reports", "Reports"],
-    ["planner", "Assistant"],
-    ["settings", "Settings"],
-  ]],
+  ], true],
 ];
-const ALL_NAV = NAV_SECTIONS.flatMap(([, items]) => items);
+const SETTINGS_NAV = ["settings", "Settings"];
+const ADVANCED_VIEWS = new Set(NAV_SECTIONS.filter(([, , adv]) => adv).flatMap(([, items]) => items).map(([k]) => k));
+const ALL_NAV = [...NAV_SECTIONS.flatMap(([, items]) => items), SETTINGS_NAV];
 
 const IC = {
   dash: <><rect x="3" y="3" width="8" height="8" rx="2" /><rect x="13" y="3" width="8" height="8" rx="2" /><rect x="3" y="13" width="8" height="8" rx="2" /><rect x="13" y="13" width="8" height="8" rx="2" /></>,
@@ -319,6 +323,11 @@ body{margin:0;background:#F5F1EA;}
 .tc .mark .who{font-size:11.5px;color:var(--sidetext);}
 .tc .navlab{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;
  color:rgba(255,255,255,.38);margin:8px 10px 6px;}
+.tc button.navtoggle{display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
+ width:calc(100% - 20px);margin:14px 10px 6px;padding:0;text-align:left;}
+.tc button.navtoggle:hover{color:rgba(255,255,255,.7);}
+.tc .navtoggle-chev{transition:transform .15s;display:inline-block;font-size:13px;opacity:.7;}
+.tc button.navtoggle.open .navtoggle-chev{transform:rotate(90deg);}
 .tc nav{display:flex;flex-direction:column;gap:3px;}
 .tc nav button{display:flex;align-items:center;gap:12px;background:none;border:none;border-radius:11px;
  padding:11px 14px;font-size:14px;font-weight:500;color:var(--sidetext);text-align:left;width:100%;
@@ -1163,6 +1172,14 @@ export default function App() {
       {k === "bills" && unpaidCount > 0 && <span className="badge">{unpaidCount}</span>}
     </button>
   );
+  // "More tools" is off by default; opening it (or landing on one of its views)
+  // reveals the advanced pages without cluttering the everyday nav.
+  const showAdvanced = !!state.showAdvanced;
+  const advOpen = showAdvanced || ADVANCED_VIEWS.has(view);
+  const bottomNav = [
+    ...NAV_SECTIONS.filter(([, , adv]) => !adv || advOpen).flatMap(([, items]) => items),
+    SETTINGS_NAV,
+  ];
 
   return (
     <Frame>
@@ -1175,12 +1192,23 @@ export default function App() {
               <span className="who">{m.pA.name} &amp; {m.pB.name}</span>
             </div>
           </div>
-          {NAV_SECTIONS.map(([lab, items]) => (
-            <div key={lab}>
-              <div className="navlab">{lab}</div>
-              <nav>{items.map(navBtn)}</nav>
-            </div>
+          {NAV_SECTIONS.map(([lab, items, advanced]) => (
+            advanced ? (
+              <div key={lab}>
+                <button className={"navlab navtoggle" + (advOpen ? " open" : "")}
+                  onClick={() => patch((s) => { s.showAdvanced = !showAdvanced; return s; })} aria-expanded={advOpen}>
+                  {lab}<span className="navtoggle-chev">›</span>
+                </button>
+                {advOpen && <nav>{items.map(navBtn)}</nav>}
+              </div>
+            ) : (
+              <div key={lab}>
+                <div className="navlab">{lab}</div>
+                <nav>{items.map(navBtn)}</nav>
+              </div>
+            )
           ))}
+          <nav style={{ marginTop: 4 }}>{navBtn(SETTINGS_NAV)}</nav>
           <div className="sidefoot">
             <div className="metaline" style={{ justifyContent: "space-between" }}>
               <span className="muted" style={{ fontSize: 12 }}>available to spend</span>
@@ -1227,7 +1255,7 @@ export default function App() {
           {view === "planner" && <PlannerPage ctx={ctx} />}
           {view === "settings" && <SettingsView ctx={ctx} setState={setState} />}
         </main>
-        <div className="bottom">{ALL_NAV.map(navBtn)}</div>
+        <div className="bottom">{bottomNav.map(navBtn)}</div>
       </div>
     </Frame>
   );
@@ -5917,6 +5945,21 @@ function SettingsView({ ctx, setState }) {
               </p>
             </>
           )}
+        </div>
+
+        <div className="card">
+          <div className="chead"><h3>How much to show</h3><span className="meta">simple by default</span></div>
+          <div className="chips">
+            <button className={"chip " + (!state.showAdvanced ? "on" : "")}
+              onClick={() => patch((s) => { s.showAdvanced = false; return s; })}>Simple</button>
+            <button className={"chip " + (state.showAdvanced ? "on" : "")}
+              onClick={() => patch((s) => { s.showAdvanced = true; return s; })}>Full</button>
+          </div>
+          <p className="empty">
+            {state.showAdvanced
+              ? "Every tool is in the sidebar — Calendar, Insights, Plan ahead, Net worth, and Reports alongside the everyday pages."
+              : "Just the everyday pages: Overview, Budget, Spending, Bills, Pots, and the Assistant. The extra tools stay tucked under “More tools” in the sidebar until you want them."}
+          </p>
         </div>
 
         <div className="card">
