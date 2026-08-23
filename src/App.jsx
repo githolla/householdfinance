@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v57";
+const APP_VERSION = "v58";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -841,8 +841,27 @@ body{margin:0;background:#F5F1EA;}
 .tc .ga-item.open .ga-chev{transform:rotate(90deg);color:var(--a);}
 .tc .ga-a{font-size:13px;color:#3A453F;line-height:1.6;padding:0 2px 14px;}
 .tc .ga-a p{margin:0 0 8px;}
+.tc .ga-intro{color:var(--soft);margin:0 0 10px;}
 .tc .ga-list{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;}
 .tc .ga-ref{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--soft);}
+.tc .ga-subs{display:flex;flex-direction:column;gap:7px;}
+.tc .ga-sub{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--paper);}
+.tc .ga-sub.open{border-color:var(--joint);background:#fff;}
+.tc .ga-sub-q{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;background:none;border:none;
+ padding:11px 13px;font-size:13px;font-weight:600;color:var(--ink);text-align:left;cursor:pointer;}
+.tc .ga-sub-q:hover{color:var(--a);}
+.tc .ga-sub.open .ga-sub-q{color:var(--joint);}
+.tc .ga-sub.open .ga-chev{transform:rotate(90deg);}
+.tc .ga-sub-a{font-size:12.5px;color:#3A453F;line-height:1.6;padding:0 13px 13px;}
+.tc .ga-sub-a p{margin:0 0 8px;}
+.tc .ga-sub-a p:last-child{margin-bottom:0;}
+
+/* tabs */
+.tc .tabs{display:flex;gap:4px;background:var(--track);border-radius:12px;padding:4px;margin-bottom:18px;}
+.tc .tab{flex:1;background:none;border:none;border-radius:9px;padding:9px 12px;cursor:pointer;
+ font-size:13px;font-weight:600;color:var(--soft);transition:background .12s,color .12s;}
+.tc .tab:hover{color:var(--ink);}
+.tc .tab.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow);}
 
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
@@ -4823,6 +4842,7 @@ function DreamsView({ ctx }) {
   const { m, state, patch, setView } = ctx;
   const [adding, setAdding] = useState(false);
   const [custom, setCustom] = useState("");
+  const [tab, setTab] = useState("dreams");
   const nowYear = new Date().getFullYear();
   const dreamCount = (state.dreams || []).length;
   // Debt-free target reflects what's actually owed, when there is any.
@@ -4846,7 +4866,13 @@ function DreamsView({ ctx }) {
   return (
     <>
       <Head title="Dreams" sub="The big things you're building toward — and exactly what it takes to get there."
-        right={<AddBtn label="Add a dream" onClick={() => setAdding(true)} />} />
+        right={tab === "dreams" ? <AddBtn label="Add a dream" onClick={() => setAdding(true)} /> : null} />
+
+      <div className="tabs">
+        <button className={"tab" + (tab === "dreams" ? " on" : "")} onClick={() => setTab("dreams")}>My dreams</button>
+        <button className={"tab" + (tab === "sandbox" ? " on" : "")} onClick={() => setTab("sandbox")}>Investing sandbox</button>
+        <button className={"tab" + (tab === "learn" ? " on" : "")} onClick={() => setTab("learn")}>Learn to invest</button>
+      </div>
 
       {adding && (
         <Modal title="What are you dreaming toward?" sub="Pick one, or type your own — every number is yours to change after." onClose={() => setAdding(false)}>
@@ -4867,28 +4893,31 @@ function DreamsView({ ctx }) {
         </Modal>
       )}
 
-      <Guidance m={m} theme="diligence"
-        line={m.dreamsTotal > 0
-          ? `${money(m.dreamsSaved)} of ${money(m.dreamsTotal)} already set toward what you're building.`
-          : "Name one big thing — the app will work out what it takes to get there."} />
+      {tab === "dreams" && (
+        <>
+          <Guidance m={m} theme="diligence"
+            line={m.dreamsTotal > 0
+              ? `${money(m.dreamsSaved)} of ${money(m.dreamsTotal)} already set toward what you're building.`
+              : "Name one big thing — the app will work out what it takes to get there."} />
 
-      <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Kpi label="Building toward" value={money(m.dreamsTotal)} foot={`${dreamCount} dream${dreamCount === 1 ? "" : "s"}`} />
-        <Kpi label="Saved so far" value={money(m.dreamsSaved)}
-          foot={m.dreamsTotal > 0 ? `${Math.round((m.dreamsSaved / m.dreamsTotal) * 100)}% of the way` : "—"} />
-        <Kpi label="Free each month" value={money(m.freeCash)} foot="after bills and the plan"
-          onClick={() => setView("bills")} />
-        <Kpi label="Invested today" value={money(m.invested)} foot="in your investment accounts"
-          onClick={() => setView("worth")} />
-      </div>
+          <div className="grid g4" style={{ marginBottom: 16 }}>
+            <Kpi label="Building toward" value={money(m.dreamsTotal)} foot={`${dreamCount} dream${dreamCount === 1 ? "" : "s"}`} />
+            <Kpi label="Saved so far" value={money(m.dreamsSaved)}
+              foot={m.dreamsTotal > 0 ? `${Math.round((m.dreamsSaved / m.dreamsTotal) * 100)}% of the way` : "—"} />
+            <Kpi label="Free each month" value={money(m.freeCash)} foot="after bills and the plan"
+              onClick={() => setView("bills")} />
+            <Kpi label="Invested today" value={money(m.invested)} foot="in your investment accounts"
+              onClick={() => setView("worth")} />
+          </div>
 
-      <InvestSandbox ctx={ctx} />
+          {dreamCount === 0
+            ? <div className="card"><p className="empty">No dreams yet. Tap <b>Add a dream</b> above — a mission trip, an RV, being debt-free, retiring well — and I'll work out what it takes.</p></div>
+            : m.dreams.map((d) => <DreamCard key={d.id} d={d} ctx={ctx} />)}
+        </>
+      )}
 
-      <InvestGuide ctx={ctx} />
-
-      {dreamCount === 0
-        ? <div className="card"><p className="empty">No dreams yet. Add the first big thing you'd both name — a home, retiring well, a business, being debt-free.</p></div>
-        : m.dreams.map((d) => <DreamCard key={d.id} d={d} ctx={ctx} />)}
+      {tab === "sandbox" && <InvestSandbox ctx={ctx} />}
+      {tab === "learn" && <InvestGuide ctx={ctx} />}
     </>
   );
 }
@@ -5037,7 +5066,8 @@ function InvestSandbox({ ctx }) {
 // you can invest in, and a biblical view. Education, not product advice.
 function InvestGuide({ ctx }) {
   const { m } = ctx;
-  const [open, setOpen] = useState(null);
+  const [open, setOpen] = useState(0);
+  const [sub, setSub] = useState(null);
 
   const topDebt = (m.debts || []).filter((d) => d.balance > 0).sort((a, b) => (b.apr || 0) - (a.apr || 0))[0];
   const highCost = topDebt && (topDebt.apr || 0) >= 8;
@@ -5059,33 +5089,43 @@ function InvestGuide({ ctx }) {
 
   const LESSONS = [
     { q: "How investing actually works",
-      a: <>You buy a small share of real companies — a <b>stock</b> — or a basket of hundreds at once — an <b>index fund</b>. As those businesses grow and pay dividends, your share grows with them. The engine is <b>compounding</b>: your growth earns its own growth, then that earns more. It needs one thing above all — <b>time</b>. Markets fall some years and rise more over decades, so the long horizon is what turns a bumpy ride into real reward.</> },
+      intro: <>Investing means owning a small piece of something that grows — and letting time multiply it. Tap each idea to go deeper.</>,
+      subs: [
+        { t: "What a stock really is", d: <><p>A <b>stock</b> (or “share”) is a tiny slice of ownership in a real company. Buy one share of a business and you own a sliver of everything it owns and earns. When the company grows and becomes more valuable, your slice is worth more too; many companies also pay out a share of profits as <b>dividends</b> — cash that lands in your account a few times a year.</p><p>You don't call the company — you buy and sell shares through a <b>brokerage</b> account (an investing account you open online, much like a bank account).</p></> },
+        { t: "Index funds — the whole market in one buy", d: <><p>Instead of betting on one company, an <b>index fund</b> (or ETF) bundles hundreds or thousands of them into a single purchase. A common one, an “S&P 500” fund, holds the 500 largest U.S. companies at once. Buy one share of the fund and you own a sliver of all of them.</p><p>Why it's the wise default: if one company stumbles, the other hundreds carry you. It's cheap, hands-off, and historically the whole market has trended up over long stretches even though any single year can be rough.</p></> },
+        { t: "Compounding — growth on your growth", d: <><p>This is the engine. Say $1,000 grows 7% in a year — you now have $1,070. The next year's 7% is figured on $1,070, not the original $1,000, so you earn a little more. Repeat for decades and the curve bends sharply upward — your earlier gains start earning gains of their own.</p><p>It's why $300/month invested from age 25 can outrun a much bigger amount started at 45. The magic ingredient isn't a hot pick — it's <b>time</b>.</p></> },
+        { t: "Risk, reward, and the long game", d: <><p>Higher potential return always comes with more bounce. Stocks have historically returned more than bonds or cash — but they can drop 20–30% in a bad year before recovering. Bonds move less; cash barely moves at all.</p><p>The trick is matching your timeline to the risk: money you need next year stays safe in cash; money for a dream 10+ years out can ride the ups and downs of stocks, because history has rewarded those who stayed put and didn't sell in the dip.</p></> },
+      ] },
     { q: "The safe, wise way to do it",
-      a: <ul className="ga-list">
-        <li>Cushion and high-cost debt first (the ladder above).</li>
-        <li><b>Spread it out.</b> A low-cost index fund holds hundreds of companies, so no single failure sinks you.</li>
-        <li><b>Invest steadily</b> — the same amount every month — instead of trying to guess the market's highs and lows.</li>
-        <li><b>Keep costs low</b> and leave it alone; fees and constant trading quietly eat returns.</li>
-        <li>Only invest money you <b>won't need for 5+ years</b>.</li>
-        <li>Ignore hype, hot tips, and anything that smells like get-rich-quick.</li>
-      </ul> },
+      intro: <>None of this needs to be risky if you follow a few time-tested rules. Tap any to learn why.</>,
+      subs: [
+        { t: "Get your foundation first", d: <>Before investing a dollar, have a cash cushion (3–6 months of expenses) and clear any high-interest debt — that's the ladder above. Investing on a shaky foundation forces you to sell at the worst time when life happens.</> },
+        { t: "Diversify — never bet on one horse", d: <>Spreading money across many companies (an index fund does this for you) means no single failure can sink you. Concentrated bets — one stock, one crypto coin, your own employer's stock — are how people lose big.</> },
+        { t: "Invest steadily (dollar-cost averaging)", d: <>Put in the same amount every month, automatically, no matter what the market's doing. You'll buy more shares when prices are low and fewer when high, and you sidestep the impossible game of timing the market. Boring and automatic beats clever and occasional.</> },
+        { t: "Keep costs low and leave it alone", d: <>A fund charging 1%/yr vs 0.05%/yr can cost you tens of thousands over a lifetime. Pick low-cost index funds, then resist the urge to tinker — frequent trading and fees are a quiet tax on your returns. Set it, add to it, ignore the headlines.</> },
+        { t: "Only invest money you won't need soon", d: <>Anything you'll need within about 5 years — a car, a wedding, next year's rent — belongs in savings, not the market. That way a downturn is never an emergency; you simply wait it out.</> },
+        { t: "Ignore get-rich-quick and hot tips", d: <>If something promises fast, guaranteed, or “can't-miss” returns, it's either a scam or a gamble. Real investing is slow and a little boring. Wealth is built by decades of steady contributions, not by a lucky pick.</> },
+      ] },
     { q: "What you can invest in",
-      a: <ul className="ga-list">
-        <li><b>Index funds / ETFs</b> — a whole market in one cheap basket. The simplest wise default.</li>
-        <li><b>Individual stocks</b> — one company; higher risk, needs homework.</li>
-        <li><b>Bonds</b> — lending to governments or companies for steadier, lower returns.</li>
-        <li><b>Retirement accounts</b> (401(k), IRA, Roth) — not investments themselves, but tax-smart buckets you hold the above inside.</li>
-        <li><b>Real estate</b> — property to rent or resell; bigger, slower to sell.</li>
-        <li><b>High-yield savings / CDs</b> — not really investing, but a safe home for your cushion.</li>
-      </ul> },
+      intro: <>A quick tour, roughly safest to boldest. Tap each to see how it works, and who it fits.</>,
+      subs: [
+        { t: "High-yield savings & CDs — safe, not really investing", d: <>A high-yield savings account or a CD (certificate of deposit) pays modest interest with virtually no risk. Returns barely beat inflation, so this isn't wealth-building — but it's the right home for your emergency cushion and any money you'll need soon.</> },
+        { t: "Bonds — steady and calmer", d: <>A bond is a loan you make to a government or company; they pay you interest and return your money at the end. Returns are lower than stocks but the ride is much smoother. Many people hold some bonds to steady the boat, more so as they near the goal.</> },
+        { t: "Index funds & ETFs — the simplest wise default", d: <>As above: hundreds of companies in one cheap, hands-off basket. For most households, a broad low-cost index fund is the whole strategy. Open a brokerage or retirement account, buy the fund, add to it monthly.</> },
+        { t: "Individual stocks — higher risk, more homework", d: <>Owning one company can pay off big or hurt badly, and picking winners consistently is genuinely hard — even for pros. If you enjoy it, keep it to a small “fun” slice; let index funds do the heavy lifting.</> },
+        { t: "Retirement accounts — the tax-smart wrappers", d: <>A <b>401(k)</b> (through work) or an <b>IRA/Roth IRA</b> (you open one) aren't investments themselves — they're special accounts you hold funds inside, where growth isn't taxed each year. If your employer matches contributions, that's free money; grab it first.</> },
+        { t: "Real estate — bigger and slower", d: <>Property you rent out or resell can build wealth, but it takes real money up front, ongoing work, and it's slow to sell. Some invest in it hands-off through a REIT (a fund of properties) that trades like a stock.</> },
+      ] },
     ...(m.faithOn ? [{ q: "A faithful view of investing",
-      a: <><p>Scripture treats putting money to work as wise stewardship, not worldly. In the parable of the talents the servant who invested was praised and the one who buried his was not <span className="ga-ref">(Matthew 25)</span>. But it draws clear lines:</p>
-        <ul className="ga-list">
-          <li><b>Patience over quick riches.</b> “Wealth gained dishonestly dwindles away, but he who gathers by hand makes it grow.” <span className="ga-ref">Proverbs 13:11</span></li>
-          <li><b>Spread the risk.</b> “Give a portion to seven, yes, even to eight; for you don't know what evil will be on the earth.” <span className="ga-ref">Ecclesiastes 11:2</span></li>
-          <li><b>Guard your heart.</b> Trust God, not riches, and “the love of money is a root of all kinds of evil.” <span className="ga-ref">1 Timothy 6:10</span></li>
-          <li><b>Give as you grow.</b> Invest to provide and to be generous, not to hoard.</li>
-        </ul></> }] : []),
+      intro: <>Scripture treats putting money to work wisely as good stewardship — with clear guardrails. Tap each to sit with it.</>,
+      subs: [
+        { t: "Stewardship — money put to work", d: <>In the parable of the talents, the servants who invested what they were given were praised; the one who buried his in fear was rebuked <span className="ga-ref">(Matthew 25:14–30)</span>. Growing what you've been entrusted with — carefully, not recklessly — is portrayed as faithful, not worldly.</> },
+        { t: "Patience over quick riches", d: <>“Wealth gained dishonestly dwindles away, but he who gathers by hand makes it grow.” <span className="ga-ref">Proverbs 13:11</span>. And “A faithful man will be rich with blessings, but one who is eager to be rich will not go unpunished.” <span className="ga-ref">Proverbs 28:20</span>. Steady and honest beats fast and frantic.</> },
+        { t: "Spread the risk", d: <>“Give a portion to seven, yes, even to eight; for you don't know what evil will be on the earth.” <span className="ga-ref">Ecclesiastes 11:2</span> — an ancient case for diversifying, written long before index funds.</> },
+        { t: "Guard your heart", d: <>“Those who want to be rich fall into a temptation… for the love of money is a root of all kinds of evil.” <span className="ga-ref">1 Timothy 6:9–10</span>. Invest to provide and to be free to give — not to hoard, and never letting the pursuit own you.</> },
+        { t: "Give as you grow", d: <>Wealth in Scripture is meant to flow, not pool. As your investments grow, let your generosity grow with them — the tithe first, and open hands beyond it.</> },
+      ] },
+    ] : []),
   ];
 
   return (
@@ -5111,10 +5151,27 @@ function InvestGuide({ ctx }) {
       <div className="guide-acc">
         {LESSONS.map((l, i) => (
           <div key={l.q} className={"ga-item" + (open === i ? " open" : "")}>
-            <button className="ga-q" onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}>
+            <button className="ga-q" onClick={() => { setOpen(open === i ? null : i); setSub(null); }} aria-expanded={open === i}>
               {l.q}<span className="ga-chev">›</span>
             </button>
-            {open === i && <div className="ga-a">{l.a}</div>}
+            {open === i && (
+              <div className="ga-a">
+                {l.intro && <p className="ga-intro">{l.intro}</p>}
+                <div className="ga-subs">
+                  {l.subs.map((s, j) => {
+                    const k = `${i}-${j}`;
+                    return (
+                      <div key={s.t} className={"ga-sub" + (sub === k ? " open" : "")}>
+                        <button className="ga-sub-q" onClick={() => setSub(sub === k ? null : k)} aria-expanded={sub === k}>
+                          <span>{s.t}</span><span className="ga-chev">›</span>
+                        </button>
+                        {sub === k && <div className="ga-sub-a">{s.d}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
