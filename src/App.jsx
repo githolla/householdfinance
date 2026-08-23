@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v46";
+const APP_VERSION = "v47";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -3503,7 +3503,7 @@ function BillRow({ b, m, state, plan, patch, month, togglePaid, setBillAmount, m
 function BillsView({ ctx }) {
   const { m, state, patch, plan, writeMonth, month, setMonth, setView } = ctx;
   const set = (i, f, v) => patch((s) => { s.bills[i][f] = v; return s; });
-  const [nb, setNb] = useState({ name: "", company: "", amount: "", day: "", envId: "" });
+  const [nb, setNb] = useState({ name: "", company: "", amount: "", day: todayDay(), envId: "" });
   const [unpaidOnly, setUnpaidOnly] = useState(false);
   const [sortBy, setSortBy] = useState("day");
   const [billQ, setBillQ] = useState("");
@@ -3557,12 +3557,12 @@ function BillsView({ ctx }) {
     patch((s) => {
       s.bills.push({
         id: uid(), name: nb.name.trim(), company: nb.company.trim(), amount: num(nb.amount),
-        day: Math.min(31, Math.max(1, num(nb.day) || 1)),
+        day: Math.min(31, Math.max(1, num(nb.day) || todayDay())),
         envId: nb.envId, owner: "joint",
       });
       return s;
     });
-    setNb({ name: "", company: "", amount: "", day: "", envId: "" });
+    setNb({ name: "", company: "", amount: "", day: todayDay(), envId: "" });
     setAdding(false);
   };
   const nbKey = (e) => e.key === "Enter" && addBill();
@@ -3604,7 +3604,7 @@ function BillsView({ ctx }) {
     <>
       <Head title="Bills & files" sub="The fixed stuff — mark one paid and it logs itself into the right category."
         right={<div className="headactions">
-          <AddBtn label="Add bill" onClick={() => { setNb({ name: "", company: "", amount: "", day: "", envId: "" }); setNbErr(""); setAdding(true); }} />
+          <AddBtn label="Add bill" onClick={() => { setNb({ name: "", company: "", amount: "", day: todayDay(), envId: "" }); setNbErr(""); setAdding(true); }} />
           <MonthNav month={month} setMonth={setMonth} />
         </div>} />
 
