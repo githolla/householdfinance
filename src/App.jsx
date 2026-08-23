@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v43";
+const APP_VERSION = "v44";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -243,6 +243,7 @@ const NAV_SECTIONS = [
     ["calendar", "Calendar"],
   ]],
   ["Longer view", [
+    ["insights", "Insights"],
     ["plan", "Plan ahead"],
     ["worth", "Net worth"],
     ["reports", "Reports"],
@@ -260,6 +261,9 @@ const IC = {
   goals: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" /></>,
   plan: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>,
   calendar: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></>,
+  insights: <><path d="M3 3v18h18" /><path d="M7 14l3-4 3 2 4-6" /><circle cx="20" cy="6" r="1.4" fill="currentColor" stroke="none" /></>,
+  upload: <><path d="M12 15V3M7 8l5-5 5 5" /><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" /></>,
+  search: <><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></>,
   worth: <path d="M3 20h18M6 16l4-6 4 3 5-8" />,
   reports: <path d="M5 20v-8M12 20V5M19 20v-5" />,
   planner: <path d="M4 5h16v11H9l-5 4z" />,
@@ -334,8 +338,25 @@ body{margin:0;background:#F5F1EA;}
 .tc .side .btn.ghost{color:rgba(255,255,255,.82);border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.04);}
 .tc .side .btn.ghost:hover{color:#fff;border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.09);}
 .tc .side .sidefoot .num{color:#fff;}
-.tc .main{padding:24px 28px 90px;min-width:0;}
+.tc .main{padding:20px 32px 90px;min-width:0;}
 .tc .bottom{display:none;}
+
+/* top app bar */
+.tc .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+ padding:6px 0 18px;margin-bottom:6px;border-bottom:1px solid var(--line);}
+.tc .tb-hi .tb-lab{font-size:12.5px;color:var(--soft);}
+.tc .tb-hi .tb-name{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin-top:1px;}
+.tc .tb-actions{display:flex;align-items:center;gap:10px;}
+.tc .tb-btn{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);
+ border-radius:11px;padding:9px 14px;font-size:13px;font-weight:500;color:var(--ink);box-shadow:var(--shadow);}
+.tc .tb-btn:hover{border-color:var(--a);color:var(--a);}
+.tc .tb-btn.accent{background:var(--a);border-color:var(--a);color:#fff;}
+.tc .tb-btn.accent:hover{background:#0C5A50;color:#fff;}
+.tc .tb-avs{display:flex;}
+.tc .tb-av{width:36px;height:36px;border-radius:99px;display:grid;place-items:center;color:#fff;font-weight:600;font-size:14px;
+ border:2.5px solid var(--paper);}
+.tc .tb-av + .tb-av{margin-left:-12px;}
+@media(max-width:700px){.tc .tb-btn-t{display:none;}.tc .tb-btn{padding:9px;} .tc .topbar{padding-bottom:14px;}}
 @media(max-width:900px){
  .tc .shell{grid-template-columns:1fr;}
  .tc .side{display:none;}
@@ -672,6 +693,22 @@ body{margin:0;background:#F5F1EA;}
 .tc .bs-l{font-size:11.5px;color:var(--soft);}
 .tc .bs-v{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;}
 
+/* insights */
+.tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
+.tc .mover:last-child{border-bottom:none;}
+.tc .mv-dot{width:9px;height:9px;border-radius:3px;}
+.tc .mv-nm{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc .mv-bar{position:relative;height:8px;background:var(--track);border-radius:99px;overflow:hidden;}
+.tc .mv-bar i{position:absolute;top:0;height:100%;border-radius:99px;}
+.tc .mv-mid{position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--soft);opacity:.4;}
+.tc .mv-fig{font-size:12px;font-weight:600;text-align:right;}
+.tc .mv-amt{font-size:12px;text-align:right;}
+@media(max-width:640px){.tc .mover{grid-template-columns:auto 1fr 56px;}.tc .mv-bar,.tc .mv-amt{display:none;}}
+.tc .topn{padding:9px 0;border-bottom:1px solid var(--hair);}
+.tc .topn:last-child{border-bottom:none;}
+.tc .topn-h{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;}
+.tc .topn-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
 /* trip tracker */
 .tc .trip{border-left:4px solid var(--joint);}
 .tc .tripstat{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:11px 13px;display:flex;flex-direction:column;gap:3px;}
@@ -778,6 +815,8 @@ body{margin:0;background:#F5F1EA;}
 .tc .dropzone{border:1.5px dashed var(--line);border-radius:var(--r);padding:18px;text-align:center;
  color:var(--soft);font-size:12.5px;margin-bottom:14px;}
 .tc .dropzone.over{background:var(--accsoft);border-color:var(--ink);}
+.tc .dropzone.big{padding:30px 18px;color:var(--a);}
+.tc .dropzone.big p{color:var(--soft);}
 .tc .card.dragover{border-color:var(--ink);box-shadow:0 0 0 3px rgba(22,32,29,.1);}
 
 /* daily bread */
@@ -808,6 +847,88 @@ body{margin:0;background:#F5F1EA;}
 `;
 
 /* ================================================================== */
+/*  app shell — top bar + global upload                                */
+/* ================================================================== */
+
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+};
+
+function TopBar({ state, m, setView, onUpload }) {
+  return (
+    <div className="topbar">
+      <div className="tb-hi">
+        <span className="tb-lab">{greeting()},</span>
+        <h2 className="tb-name">{m.pA.name} &amp; {m.pB.name}</h2>
+      </div>
+      <div className="tb-actions">
+        <button className="tb-btn" onClick={() => setView("planner")} aria-label="Search and ask">
+          <Icon k="search" size={16} /><span className="tb-btn-t">Search & ask</span>
+        </button>
+        <button className="tb-btn accent" onClick={onUpload} aria-label="Upload a document">
+          <Icon k="upload" size={16} /><span className="tb-btn-t">Upload</span>
+        </button>
+        <div className="tb-avs" title={`${m.pA.name} & ${m.pB.name}`}>
+          <span className="tb-av" style={{ background: C.a }}>{m.pA.name.charAt(0)}</span>
+          <span className="tb-av" style={{ background: C.b }}>{m.pB.name.charAt(0)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Drop or pick documents from anywhere — statements, receipts, policies —
+// extracted on-device and filed to the paper drawer for search + AI reads.
+function UploadModal({ ctx, onClose }) {
+  const { patch, setView } = ctx;
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState([]);
+  const [over, setOver] = useState(false);
+
+  const take = async (files) => {
+    const list = Array.from(files || []);
+    if (!list.length) return;
+    setBusy(true);
+    const added = [];
+    for (const f of list) {
+      const text = (await extractText(f)).slice(0, 100000);
+      const doc = { id: uid(), name: f.name, folder: "Other", added: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }), text };
+      added.push(doc);
+    }
+    patch((s) => { s.docs = [...added, ...(s.docs || [])]; return s; });
+    setDone((d) => [...d, ...added.map((a) => a.name)]);
+    setBusy(false);
+  };
+
+  return (
+    <Modal title="Upload a document" sub="Bank statements, receipts, insurance, a spreadsheet — read on your device and kept private." onClose={onClose}>
+      <div className={"dropzone big" + (over ? " over" : "")}
+        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => { e.preventDefault(); setOver(false); take(e.dataTransfer.files); }}>
+        <Icon k="upload" size={26} />
+        <p style={{ margin: "10px 0 4px", fontWeight: 600, color: "var(--ink)" }}>{busy ? "Reading…" : "Drop files here"}</p>
+        <p className="muted" style={{ fontSize: 12.5, margin: 0 }}>text, CSV, Excel (.xlsx), Word (.docx)</p>
+        <label className="btn" style={{ marginTop: 14, display: "inline-block" }}>
+          Choose files
+          <input type="file" multiple style={{ display: "none" }} onChange={(e) => take(e.target.files)} />
+        </label>
+      </div>
+      {done.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <p className="mstone" style={{ margin: "0 0 10px" }}>Filed {done.length} document{done.length === 1 ? "" : "s"}: {done.join(", ")}.</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn ghost tiny" onClick={() => { onClose(); setView("bills"); }}>See in the drawer</button>
+            <button className="btn ghost tiny" onClick={() => { onClose(); setView("planner"); }}>Ask the planner about it</button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/* ================================================================== */
 /*  root                                                               */
 /* ================================================================== */
 
@@ -817,6 +938,7 @@ export default function App() {
   const [view, setView] = useState("dash");
   const [month, setMonth] = useState(monthKey(new Date()));
   const [armClean, setArmClean] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const timer = useRef(null);
 
   useEffect(() => {
@@ -918,6 +1040,8 @@ export default function App() {
           </div>
         </aside>
         <main className="main">
+          <TopBar state={state} m={m} setView={setView} onUpload={() => setUploading(true)} />
+          {uploading && <UploadModal ctx={ctx} onClose={() => setUploading(false)} />}
           {state.demo && (
             <div className="demobar">
               <span>You're touring the sample household — nothing here is yours yet.</span>
@@ -932,6 +1056,7 @@ export default function App() {
           {view === "bills" && <BillsView ctx={ctx} />}
           {view === "goals" && <GoalsView ctx={ctx} />}
           {view === "calendar" && <CalendarView ctx={ctx} />}
+          {view === "insights" && <Insights ctx={ctx} />}
           {view === "plan" && <PlanAhead ctx={ctx} />}
           {view === "worth" && <NetWorth ctx={ctx} />}
           {view === "reports" && <Reports ctx={ctx} />}
@@ -1131,8 +1256,9 @@ function model(state, plan, month) {
     list.sort((x, y) => (strategy === "snowball" ? x.balance - y.balance : (y.apr || 0) - (x.apr || 0)));
     const order = list.map((d) => d.name);
     if (list.reduce((n, d) => n + (d.minPayment || 0), 0) + extra <= 0)
-      return { months: 0, interest: 0, order };
+      return { months: 0, interest: 0, order, series: [] };
     let months = 0, interest = 0;
+    const series = [{ month: 0, balance: list.reduce((n, d) => n + d.balance, 0) }];
     while (list.some((d) => d.balance > 0) && months < 600) {
       months++;
       let pool = extra;
@@ -1149,8 +1275,9 @@ function model(state, plan, month) {
         const pay = Math.min(d.balance, pool);
         d.balance -= pay; pool -= pay;
       }
+      series.push({ month: months, balance: Math.max(0, list.reduce((n, d) => n + d.balance, 0)) });
     }
-    return { months, interest, order };
+    return { months, interest, order, series };
   };
 
   const notes = [];
@@ -3909,6 +4036,197 @@ function PotCard({ g, ctx }) {
         <div><label className="lbl">Want it by</label><input className="field num" type="month" value={g.due || ""} onChange={(e) => set("due", e.target.value)} /></div>
       </div>
     </div>
+  );
+}
+
+/* ================================================================== */
+/*  5d. insights — the intelligence hub                                */
+/* ================================================================== */
+
+// Reads the household's own history for patterns worth knowing, and turns
+// the debt accounts into side-by-side payoff scenarios you can steer.
+function Insights({ ctx }) {
+  const { m, plan, state, month, setView } = ctx;
+  const [extra, setExtra] = useState("");
+  const [strategy, setStrategy] = useState("avalanche");
+
+  // Spend by group for any month object.
+  const groupSpendFor = (mm) => {
+    if (!mm) return {};
+    const gof = {}; (mm.envelopes || []).forEach((e) => { gof[e.id] = e.group || "Other"; });
+    const out = {}; (mm.entries || []).forEach((t) => { const g = gof[t.envId] || "Other"; out[g] = (out[g] || 0) + t.amount; });
+    return out;
+  };
+  const cur = groupSpendFor(plan);
+  const priorKeys = [1, 2, 3].map((i) => shiftMonth(month, -i));
+  const priorData = priorKeys.map((k) => groupSpendFor(state.months[k])).filter((o) => Object.keys(o).length);
+  const movers = GROUPS.map((g) => {
+    const now = cur[g] || 0;
+    const priors = priorData.map((o) => o[g] || 0);
+    const avg = priors.length ? priors.reduce((n, x) => n + x, 0) / priors.length : 0;
+    return { g, now, avg, diff: now - avg, pct: avg > 0 ? ((now - avg) / avg) * 100 : (now > 0 ? 100 : 0) };
+  }).filter((x) => x.now > 0 || x.avg > 0).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+
+  // Top merchants / notes this month.
+  const byNote = {};
+  plan.entries.forEach((t) => { const k = (t.note || "").trim() || "Unlabelled"; byNote[k] = (byNote[k] || 0) + t.amount; });
+  const topNotes = Object.entries(byNote).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  // Debt payoff scenarios.
+  const hasDebt = m.debts.length > 0;
+  const baseAv = m.payoff(0, "avalanche");
+  const baseSb = m.payoff(0, "snowball");
+  const base = strategy === "snowball" ? baseSb : baseAv;
+  const withX = m.payoff(num(extra), strategy);
+  const interestSaved = Math.max(0, base.interest - withX.interest);
+  const monthsSaved = Math.max(0, base.months - withX.months);
+  // Overlay the two series for the chart.
+  const maxLen = Math.max(base.series.length, withX.series.length);
+  const payChart = [];
+  for (let i = 0; i < maxLen; i++) {
+    payChart.push({
+      label: monthLabel(shiftMonth(month, i), true),
+      "At minimums": base.series[i] ? Math.round(base.series[i].balance) : 0,
+      "With extra": withX.series[i] ? Math.round(withX.series[i].balance) : (i < maxLen ? 0 : undefined),
+    });
+  }
+
+  const verse = m.faithOn ? verseForDay(hasDebt ? "debt" : "diligence") : null;
+
+  return (
+    <>
+      <Head title="Insights" sub="What your numbers are quietly telling you — patterns, movers, and the way out of debt." />
+
+      {m.faithOn && verse && (
+        <div className="guide">
+          <div>
+            <p className="gverse">“{verse.text}”</p>
+            <span className="gref">{verse.ref}</span>
+            <span className="gline">{hasDebt ? `${money(m.debtTotal)} owed today — here's the fastest road out.` : "Watching the patterns is how the diligent stay ahead."}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Health score, compact */}
+      <HealthCard m={m} setView={setView} />
+
+      {/* Spending patterns */}
+      <div className="grid g23" style={{ marginBottom: 16 }}>
+        <div className="card">
+          <div className="chead"><h3>What moved this month</h3><span className="meta">vs. your {priorData.length || 0}-month average</span></div>
+          {movers.length === 0 || priorData.length === 0 ? (
+            <p className="empty">Once you have a couple of months logged, the biggest changes show up here.</p>
+          ) : movers.slice(0, 6).map((x) => (
+            <div className="mover" key={x.g}>
+              <span className="mv-dot" style={{ background: GROUP_COLORS[x.g] || C.soft }} />
+              <span className="mv-nm">{x.g}</span>
+              <span className="mv-bar">
+                <i style={{ width: Math.min(100, Math.abs(x.pct)) + "%", background: x.diff > 0 ? C.warn : C.good, marginLeft: x.diff > 0 ? "50%" : `${50 - Math.min(50, Math.abs(x.pct) / 2)}%` }} />
+                <span className="mv-mid" />
+              </span>
+              <span className="mv-fig num" style={{ color: x.diff > 0 ? C.warn : C.good }}>
+                {x.diff > 0 ? "▲" : "▼"} {Math.abs(Math.round(x.pct))}%
+              </span>
+              <span className="mv-amt num muted">{money(x.now)}</span>
+            </div>
+          ))}
+          {movers.length > 0 && priorData.length > 0 && (
+            <p className="mstone" style={{ marginTop: 12 }}>
+              {(() => {
+                const up = movers.find((x) => x.diff > 1);
+                const down = movers.find((x) => x.diff < -1);
+                if (up && Math.abs(up.diff) >= (down ? Math.abs(down.diff) : 0))
+                  return `${up.g} is up ${money(up.diff)} on your average — the biggest change this month.`;
+                if (down) return `${down.g} is down ${money(-down.diff)} — nice restraint there.`;
+                return "Spending is close to your usual across the board.";
+              })()}
+            </p>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="chead"><h3>Where it's going</h3><span className="meta">top this month</span></div>
+          {topNotes.length === 0 ? <p className="empty">Nothing logged yet this month.</p> :
+            topNotes.map(([n, amt]) => {
+              const max = topNotes[0][1];
+              return (
+                <div className="topn" key={n}>
+                  <div className="topn-h"><span className="topn-nm">{n}</span><span className="num">{money(amt)}</span></div>
+                  <div className="track" style={{ margin: "6px 0 0" }}><i style={{ width: (max ? (amt / max) * 100 : 0) + "%", background: C.a }} /></div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
+      {/* Cash-flow trend */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="chead"><h3>The trend</h3><span className="meta">income vs. spending, six months</span></div>
+        <div style={{ height: 220 }}>
+          <ResponsiveContainer>
+            <AreaChart data={m.history} margin={{ top: 6, right: 6, left: -14, bottom: 0 }}>
+              <defs>
+                <linearGradient id="giS" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={C.a} stopOpacity={0.25} /><stop offset="100%" stopColor={C.a} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke={C.line} vertical={false} />
+              <XAxis dataKey="label" {...axis} /><YAxis {...axis} tickFormatter={compact} width={46} />
+              <Tooltip content={<Tip />} cursor={{ stroke: C.line }} />
+              <Area type="monotone" dataKey="spent" name="Spent" stroke={C.a} fill="url(#giS)" strokeWidth={2} />
+              <Line type="monotone" dataKey="income" name="Income" stroke={C.ink} strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Debt payoff scenarios */}
+      <div className="card">
+        <div className="chead"><h3>Debt payoff scenarios</h3>
+          <button className="seelink" onClick={() => setView("worth")}>Manage debts →</button></div>
+        {!hasDebt ? (
+          <p className="empty">No debts on record — nothing owed is a strong place to build from. Add any loans on Net worth to model a payoff.</p>
+        ) : (
+          <>
+            <div className="toolbar" style={{ marginBottom: 16 }}>
+              <div className="chips" style={{ marginBottom: 0 }}>
+                <button className={"chip " + (strategy === "avalanche" ? "on" : "")} onClick={() => setStrategy("avalanche")}>Avalanche · highest rate first</button>
+                <button className={"chip " + (strategy === "snowball" ? "on" : "")} onClick={() => setStrategy("snowball")}>Snowball · smallest first</button>
+              </div>
+              <label className="srt" style={{ marginLeft: "auto" }}><span>Extra / mo</span>
+                <input className="field num" style={{ width: 110 }} inputMode="decimal" placeholder="$0" value={extra}
+                  onChange={(e) => setExtra(e.target.value)} aria-label="Extra per month" />
+              </label>
+            </div>
+            <div className="grid g3" style={{ gap: 12, marginBottom: 16 }}>
+              <div className="tripstat"><span className="v-l">Debt-free in</span><b className="num">{withX.months ? `${withX.months} mo` : "—"}</b><span className="muted" style={{ fontSize: 11.5 }}>{withX.months ? monthLabel(shiftMonth(month, withX.months)) : "add a payment"}</span></div>
+              <div className="tripstat"><span className="v-l">Interest you'll pay</span><b className="num">{money(withX.interest)}</b>{interestSaved > 0 && <span className="muted" style={{ fontSize: 11.5, color: C.good }}>saves {money(interestSaved)}</span>}</div>
+              <div className="tripstat"><span className="v-l">Sooner by</span><b className="num" style={{ color: monthsSaved > 0 ? C.good : undefined }}>{monthsSaved ? `${monthsSaved} mo` : "—"}</b><span className="muted" style={{ fontSize: 11.5 }}>{num(extra) > 0 ? `with ${money(num(extra))}/mo extra` : "add extra to compare"}</span></div>
+            </div>
+            <div style={{ height: 220 }}>
+              <ResponsiveContainer>
+                <LineChart data={payChart} margin={{ top: 6, right: 10, left: -6, bottom: 0 }}>
+                  <CartesianGrid stroke={C.line} vertical={false} />
+                  <XAxis dataKey="label" {...axis} interval="preserveStartEnd" />
+                  <YAxis {...axis} tickFormatter={compact} width={46} />
+                  <Tooltip content={<Tip />} />
+                  <Line type="monotone" dataKey="At minimums" stroke={C.soft} strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+                  <Line type="monotone" dataKey="With extra" stroke={C.a} strokeWidth={2.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="railkey" style={{ marginTop: 10 }}>
+              <span><i className="dot" style={{ background: C.soft }} />At minimums</span>
+              <span><i className="dot" style={{ background: C.a }} />With {money(num(extra))}/mo extra</span>
+            </div>
+            <p className="mstone" style={{ marginTop: 12 }}>
+              Order to attack: <b>{withX.order.join(" → ")}</b>.{" "}
+              {strategy === "avalanche" ? "Avalanche kills the priciest interest first — the cheapest path." : "Snowball clears whole balances fast — the most motivating path."}
+            </p>
+          </>
+        )}
+      </div>
+    </>
   );
 }
 
