@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v53";
+const APP_VERSION = "v54";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -694,6 +694,18 @@ body{margin:0;background:#F5F1EA;}
 .tc .bs-v{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;}
 
 /* balanced-budget guideline */
+.tc .fw-howlink{display:block;margin-top:3px;background:none;border:none;padding:0;text-align:left;
+ font-size:12.5px;color:var(--soft);}
+.tc .fw-howlink:hover{color:var(--a);}
+.tc .fw-how{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px;}
+.tc .fw-how-lead{font-size:14px;line-height:1.6;color:var(--ink);margin:0 0 14px;}
+.tc .fw-how-defs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px;}
+@media(max-width:620px){.tc .fw-how-defs{grid-template-columns:1fr;}}
+.tc .fw-how-defs > div{position:relative;padding-left:18px;}
+.tc .fw-how-defs .il-dot{position:absolute;left:0;top:5px;}
+.tc .fw-how-defs b{font-size:13.5px;}
+.tc .fw-how-defs p{font-size:12.5px;color:var(--soft);line-height:1.5;margin:3px 0 0;}
+.tc .fw-how-foot{font-size:12.5px;color:var(--soft);line-height:1.5;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line);}
 .tc .idealbar{display:flex;height:40px;border-radius:10px;overflow:hidden;gap:2px;background:var(--track);}
 .tc .ib-seg{display:grid;place-items:center;min-width:2px;transition:width .4s ease;}
 .tc .ib-lab{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:#fff;}
@@ -728,6 +740,27 @@ body{margin:0;background:#F5F1EA;}
 .tc .fw-envrow{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;max-width:420px;font-size:13.5px;}
 .tc .fw-envrow .field{width:110px;}
 @media(max-width:640px){.tc .fwrow{grid-template-columns:16px auto 1fr auto;}.tc .fw-bar{display:none;}}
+
+/* income needed */
+.tc .inc-sub{font-size:12.5px;color:var(--soft);margin-top:3px;}
+.tc .inc-big{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;line-height:1;white-space:nowrap;}
+.tc .inc-big span{font-size:12px;font-weight:400;color:var(--soft);margin-left:2px;}
+.tc .inc-bar{position:relative;height:38px;margin-top:24px;}
+.tc .inc-track{display:flex;height:100%;border-radius:10px;overflow:hidden;gap:2px;background:var(--track);}
+.tc .inc-seg{min-width:2px;transition:width .4s ease;}
+.tc .inc-mark{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--ink);border-radius:2px;transition:left .4s ease;}
+.tc .inc-mark-lab{position:absolute;top:-18px;left:50%;transform:translateX(-50%);white-space:nowrap;
+ font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:var(--ink);}
+.tc .inc-mark.edge .inc-mark-lab{left:auto;right:0;transform:none;}
+.tc .inc-legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;}
+.tc .inc-tiers{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:2px;}
+.tc .inc-tier{display:flex;align-items:center;gap:10px;font-size:13.5px;padding:5px 0;}
+.tc .inc-tier-ic{display:grid;place-items:center;width:18px;height:18px;border-radius:99px;font-size:11px;font-weight:700;flex:none;}
+.tc .inc-tier.ok .inc-tier-ic{background:var(--good);color:#fff;}
+.tc .inc-tier.no .inc-tier-ic{background:var(--track);color:var(--soft);}
+.tc .inc-tier.no .inc-tier-lab{color:var(--soft);}
+.tc .inc-tier-lab{flex:1;}
+.tc .inc-tier b{font-family:'IBM Plex Mono',monospace;}
 
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
@@ -1621,6 +1654,28 @@ function model(state, plan, month) {
   }, 0);
   const monthlyNet = income - allocated - billsOutsidePlan;
 
+  /* ---- income needed: what the month actually requires, built up from the
+     bills first, then everyday spending, then the full plan (adds giving and
+     savings). It comes alive the moment bills are entered and is compared
+     against what actually comes in, so a household can see the take-home
+     target to work toward. Tiers never double-count: bills that already sit
+     inside an envelope are subtracted out of the everyday figure. ---- */
+  const givingPlanned = (byGroup.Giving || {}).planned || 0;
+  const billsInPlan = billsTotal - billsOutsidePlan;                 // bills already inside an envelope
+  const everydayNeed = Math.max(0, planned - billsInPlan - givingPlanned); // envelope spend that isn't a bill or the tithe
+  const needBills = billsTotal;                                      // floor: just the recurring bills
+  const needRun = billsTotal + everydayNeed;                         // + everyday household spending
+  const needFull = needRun + givingPlanned + goalMonthly;           // + giving and savings (== allocated + billsOutsidePlan)
+  const incomeNeeded = {
+    bills: needBills, everyday: everydayNeed, giving: givingPlanned, savings: goalMonthly,
+    run: needRun, full: needFull, income,
+    gap: income - needFull,                    // + to spare, − short (matches monthlyNet)
+    coversBills: income >= needBills - 1,
+    coversRun: income >= needRun - 1,
+    coversFull: income >= needFull - 1,
+    hasBills: billsTotal > 0, hasIncome: income > 0,
+  };
+
   const vitalDefs = [];
   if (income > 0) {
     vitalDefs.push({
@@ -1692,7 +1747,7 @@ function model(state, plan, month) {
   return {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
-    cashTotal, runwayMonths, monthlyNet, monthlyCost, health, framework,
+    cashTotal, runwayMonths, monthlyNet, monthlyCost, health, framework, incomeNeeded,
     goalStatus, history, bills, billsTotal, billsLeft, billHistory, billPaidByMonth, billMethodMix, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, celebrations, verse, verseLine, available, daysLeft, perDay,
     baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
@@ -2817,6 +2872,7 @@ const BUCKET_GROUPS = { give: ["Giving"], needs: ["Home", "Daily", "Health"], wa
 function FrameworkCard({ ctx }) {
   const { m, plan, writeMonth, patch, setView } = ctx;
   const [open, setOpen] = useState(null);
+  const [howOpen, setHowOpen] = useState(false);
   const fw = m.framework;
 
   const setPlanned = (id, v) => writeMonth((mm) => { const e = mm.envelopes.find((x) => x.id === id); if (e) e.planned = v; return mm; });
@@ -2870,10 +2926,27 @@ function FrameworkCard({ ctx }) {
       <div className="chead">
         <div>
           <h3>The balanced budget</h3>
-          <span className="meta" style={{ display: "block", marginTop: 2 }}>{income > 0 ? `50/30/20 on ${money(income)}/mo · the tithe first` : "50/30/20 · the tithe first"}</span>
+          <button className="fw-howlink" onClick={() => setHowOpen(!howOpen)} aria-expanded={howOpen}>
+            {income > 0 ? `50/30/20 on ${money(income)}/mo · the tithe first` : "50/30/20 · the tithe first"} · What's this?
+          </button>
         </div>
         {income > 0 && <button className="addbtn" onClick={applyGuide}>Auto-balance to the guide</button>}
       </div>
+
+      {howOpen && (
+        <div className="fw-how">
+          <p className="fw-how-lead">
+            The <b>50/30/20 rule</b> is a simple way to split your take-home pay so every dollar has a purpose. We put the <b>tithe first</b> — 10% to give, off the top — then split the rest, so it becomes <b>give 10 · needs 50 · wants 20 · save 20</b>.
+          </p>
+          <div className="fw-how-defs">
+            <div><span className="il-dot" style={{ background: C.good }} /><b>Give — {fw.targets.give}%</b><p>The tithe, before anything else. Honoring God with the first fruits, not the leftovers.</p></div>
+            <div><span className="il-dot" style={{ background: C.a }} /><b>Needs — {fw.targets.needs}%</b><p>The things you can't skip: home, food, health, transport, insurance, minimum debt payments.</p></div>
+            <div><span className="il-dot" style={{ background: C.b }} /><b>Wants — {fw.targets.wants}%</b><p>The good extras: eating out, subscriptions, hobbies, a little fun.</p></div>
+            <div><span className="il-dot" style={{ background: C.joint }} /><b>Save — {fw.targets.save}%</b><p>Building the future: emergency fund, your pots, and extra payments on debt.</p></div>
+          </div>
+          <p className="fw-how-foot">It's a starting point, not a law — a rhythm to aim for. Tune the percentages in <button className="seelink" style={{ display: "inline" }} onClick={() => setView("settings")}>Settings</button> to fit your season.</p>
+        </div>
+      )}
 
       {income > 0 && (
         <>
@@ -3770,6 +3843,98 @@ function BillRow({ b, m, state, plan, patch, month, togglePaid, setBillAmount, m
   );
 }
 
+// What income the month needs, built up from the bills: bills first, then
+// everyday spending, then the full plan (giving + savings). Shows the target
+// take-home and whether what actually comes in clears each tier.
+function IncomeNeededCard({ ctx }) {
+  const { m, setView } = ctx;
+  const n = m.incomeNeeded;
+
+  if (!n.hasBills && n.everyday <= 0.5 && !n.hasIncome) {
+    return (
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="chead"><div>
+          <h3>Income to cover the month</h3>
+          <div className="inc-sub">Add your bills below and this works out the take-home you need.</div>
+        </div></div>
+        <p className="fw-headline">Enter a few recurring bills and I'll show exactly what income covers them — and the full plan with giving and savings on top.</p>
+      </div>
+    );
+  }
+
+  const segs = [
+    { key: "bills", label: "Bills", amt: n.bills, color: C.a },
+    { key: "everyday", label: "Everyday", amt: n.everyday, color: "#5EA89E" },
+    { key: "giving", label: "Give", amt: n.giving, color: C.good },
+    { key: "savings", label: "Save", amt: n.savings, color: C.joint },
+  ].filter((s) => s.amt > 0.5);
+
+  const scale = Math.max(n.full, n.income, 1);
+  const incomePct = Math.min(100, (n.income / scale) * 100);
+  const shortfall = n.gap < -1 ? -n.gap : 0;
+  const surplus = n.gap > 1 ? n.gap : 0;
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="chead">
+        <div>
+          <h3>Income to cover the month</h3>
+          <div className="inc-sub">Built from your bills up — the take-home to work toward.</div>
+        </div>
+        <div className="inc-big num">{money(n.full)}<span>/mo</span></div>
+      </div>
+
+      {/* the stacked need, with a line marking what actually comes in */}
+      <div className="inc-bar" role="img" aria-label="What the month needs versus what you bring in">
+        <div className="inc-track">
+          {segs.map((s) => (
+            <div key={s.key} className="inc-seg" style={{ width: (s.amt / scale) * 100 + "%", background: s.color }}
+              title={`${s.label} · ${money(s.amt)}`} />
+          ))}
+        </div>
+        {n.hasIncome && (
+          <div className={"inc-mark" + (incomePct > 88 ? " edge" : "")} style={{ left: incomePct + "%" }} title={`Income ${money(n.income)}`}>
+            <span className="inc-mark-lab">income {money(n.income)}</span>
+          </div>
+        )}
+      </div>
+      <div className="inc-legend">
+        {segs.map((s) => (
+          <div className="il" key={s.key}>
+            <span className="il-dot" style={{ background: s.color }} />
+            <span className="il-nm">{s.label}</span>
+            <b className="num">{money(s.amt)}</b>
+          </div>
+        ))}
+      </div>
+
+      <p className="fw-headline">
+        {!n.hasIncome
+          ? <>Your month needs <b className="num">{money(n.full)}</b> in take-home — <b className="num">{money(n.bills)}</b> of that just for bills. <button className="seelink" style={{ display: "inline" }} onClick={() => setView("settings")}>Add what you each bring home</button> to see how it lines up.</>
+          : shortfall > 0
+            ? <>You bring home <b className="num">{money(n.income)}</b> — <b className="num" style={{ color: C.warn }}>{money(shortfall)}</b> short of the {money(n.full)} the full plan needs.{!n.coversBills && <> The bills alone need <b className="num">{money(n.bills)}</b>.</>}</>
+            : <>You bring home <b className="num">{money(n.income)}</b> — enough for the whole plan, with <b className="num" style={{ color: C.good }}>{money(surplus)}</b> to spare.</>}
+      </p>
+
+      {n.hasIncome && (
+        <div className="inc-tiers">
+          {[
+            { label: "Cover the bills", amt: n.bills, ok: n.coversBills },
+            { label: "Run the household", amt: n.run, ok: n.coversRun },
+            { label: "Full plan — give and save", amt: n.full, ok: n.coversFull },
+          ].map((t) => (
+            <div key={t.label} className={"inc-tier " + (t.ok ? "ok" : "no")}>
+              <span className="inc-tier-ic">{t.ok ? "✓" : "·"}</span>
+              <span className="inc-tier-lab">{t.label}</span>
+              <b className="num">{money(t.amt)}</b>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BillsView({ ctx }) {
   const { m, state, patch, plan, writeMonth, month, setMonth, setView } = ctx;
   const set = (i, f, v) => patch((s) => { s.bills[i][f] = v; return s; });
@@ -3928,6 +4093,8 @@ function BillsView({ ctx }) {
         <Kpi label="Share of income" value={m.income ? Math.round((m.billsTotal / m.income) * 100) + "%" : "—"}
           onClick={() => setView("reports")} />
       </div>
+
+      <IncomeNeededCard ctx={ctx} />
 
       <div className="card" id="billList">
         <div className="chead" style={{ gap: 10, flexWrap: "wrap" }}>
@@ -5354,6 +5521,15 @@ function buildSnapshot(state, m, plan, month) {
     cashOnHand: m.cashTotal,
     emergencyRunwayMonths: Math.round(m.runwayMonths * 10) / 10,
     netMonthlyCashFlow: m.monthlyNet,
+    incomeToCoverTheMonth: {
+      billsAlone: Math.round(m.incomeNeeded.bills),
+      plusEverydaySpending: Math.round(m.incomeNeeded.run),
+      fullPlanWithGivingAndSavings: Math.round(m.incomeNeeded.full),
+      takeHomeComingIn: Math.round(m.incomeNeeded.income),
+      shortfallOrSurplus: Math.round(m.incomeNeeded.gap),
+      coversBills: m.incomeNeeded.coversBills,
+      coversFullPlan: m.incomeNeeded.coversFull,
+    },
     financialHealth: {
       score: m.health.score, standing: m.health.label,
       vitals: m.health.vitals.map((v) => ({ what: v.label, value: v.value, status: v.status })),
