@@ -79,6 +79,14 @@ One JSON object, persisted whole under `twocolumn:v2`.
       "date": "2026-12-15", "fund": "save" }          // fund: "save" (set aside monthly) | "cash" (pay from savings)
   ],
 
+  "dreams": [                                        // Dreams view: big long-horizon goals
+    { "id": "d1", "name": "Own a home", "target": 80000, "saved": 21000,
+      "targetYear": 2032, "invest": true, "returnPct": 6, "owner": "joint" }
+      // invest: false = plain saving (cash); true = illustrative compound
+      // growth at returnPct (%/yr). model() derives the monthly it takes and
+      // feasibility vs free cash flow. All projections are estimates, not advice.
+  ],
+
   "faith": { "enabled": true, "givingTarget": 10 },  // scripture layer (absent = on) + giving % target (default 10)
 
   "framework": { "needs": 50, "wants": 20, "save": 20 }, // budget guideline targets

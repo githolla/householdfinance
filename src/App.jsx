@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v55";
+const APP_VERSION = "v56";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -130,6 +130,7 @@ function demoState() {
 
   const today = new Date();
   const cur = monthKey(today);
+  const cy = today.getFullYear();
   const dayNow = today.getDate();
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const months = {};
@@ -207,6 +208,11 @@ function demoState() {
       { id: uid(), name: "Japan, next spring", target: 6000, saved: 2150, monthly: 500, due: shiftMonth(cur, 7), owner: "joint" },
       { id: uid(), name: "Replace the car", target: 9000, saved: 1200, monthly: 350, due: shiftMonth(cur, 14), owner: "joint" },
     ],
+    dreams: [
+      { id: uid(), name: "Down payment on a home", target: 80000, saved: 21000, targetYear: cy + 6, invest: true, returnPct: 6, owner: "joint" },
+      { id: uid(), name: "Retire comfortably", target: 900000, saved: 59600, targetYear: cy + 28, invest: true, returnPct: 8, owner: "joint" },
+      { id: uid(), name: "Debt-free, all of it", target: 12400, saved: 0, targetYear: cy + 3, invest: false, returnPct: 0, owner: "joint" },
+    ],
     accounts: [
       { id: uid(), name: "Joint checking", type: "cash", balance: 4820, owner: "joint", apr: 0, minPayment: 0 },
       { id: uid(), name: "Emergency savings", type: "cash", balance: 6800, owner: "joint", apr: 0, minPayment: 0 },
@@ -243,6 +249,7 @@ const NAV_SECTIONS = [
     ["txn", "Spending"],
     ["bills", "Bills & files"],
     ["goals", "Pots"],
+    ["dreams", "Dreams"],
     ["planner", "Assistant"],
   ], false],
   ["More tools", [
@@ -263,6 +270,7 @@ const IC = {
   txn: <path d="M4 6h16M4 12h16M4 18h10" />,
   bills: <><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h4" /></>,
   goals: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" /></>,
+  dreams: <path d="M12 2l2.6 6.4L21 9l-5 4.3L17.5 20 12 16.5 6.5 20 8 13.3 3 9l6.4-.6z" />,
   plan: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>,
   calendar: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></>,
   insights: <><path d="M3 3v18h18" /><path d="M7 14l3-4 3 2 4-6" /><circle cx="20" cy="6" r="1.4" fill="currentColor" stroke="none" /></>,
@@ -771,6 +779,44 @@ body{margin:0;background:#F5F1EA;}
 .tc .inc-tier-lab{flex:1;}
 .tc .inc-tier b{font-family:'IBM Plex Mono',monospace;}
 
+/* dreams + investing sandbox */
+.tc .dreampick{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+@media(max-width:560px){.tc .dreampick{grid-template-columns:1fr;}}
+.tc .dreamopt{display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;
+ background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .12s,background .12s;}
+.tc .dreamopt:hover{border-color:var(--a);background:var(--accsoft);}
+.tc .dreamopt b{font-size:14px;}
+.tc .dreamopt span{font-size:12px;color:var(--soft);}
+.tc input.dreamname{border:none;background:none;font-family:'Bricolage Grotesque',sans-serif;font-size:19px;font-weight:800;padding:0;}
+.tc .dreamread{font-size:13.5px;color:#3A453F;line-height:1.55;margin:12px 0 2px;}
+.tc .dreamcompare{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 4px;}
+.tc .dc-opt{display:flex;flex-direction:column;gap:2px;align-items:flex-start;text-align:left;cursor:pointer;
+ background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 13px;transition:border-color .12s,box-shadow .12s;}
+.tc .dc-opt:hover{border-color:var(--a);}
+.tc .dc-opt.on{border-color:var(--joint);box-shadow:inset 0 0 0 1px var(--joint);background:#fff;}
+.tc .dc-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);}
+.tc .dc-opt b{font-size:17px;}
+.tc .dc-opt b span{font-size:11px;font-weight:400;color:var(--soft);}
+.tc .dc-sub{font-size:11.5px;color:var(--soft);}
+.tc .sbx-controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;}
+@media(max-width:560px){.tc .sbx-controls{grid-template-columns:1fr;}}
+.tc .sbx-f{display:flex;flex-direction:column;gap:5px;}
+.tc .sbx-f > span{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);}
+.tc .sbx-mixes{display:flex;flex-wrap:wrap;gap:7px;}
+.tc .sbx-mix{display:flex;flex-direction:column;gap:1px;align-items:center;min-width:78px;flex:1;
+ background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:8px 6px;cursor:pointer;transition:border-color .12s,background .12s;}
+.tc .sbx-mix:hover{border-color:var(--joint);}
+.tc .sbx-mix.on{border-color:var(--joint);background:#fff;box-shadow:inset 0 0 0 1px var(--joint);}
+.tc .sbx-mix b{font-size:12.5px;}
+.tc .sbx-mix span{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--soft);}
+.tc .sbx-blurb{font-size:12.5px;color:var(--soft);margin:8px 0 2px;}
+.tc .sbx-out{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;padding-top:14px;border-top:1px solid var(--line);}
+@media(max-width:560px){.tc .sbx-out{grid-template-columns:1fr 1fr;}}
+.tc .sbx-out > div{display:flex;flex-direction:column;gap:3px;}
+.tc .sbx-out .lbl{margin:0;}
+.tc .sbx-out b{font-size:15px;}
+.tc .sbx-foot{font-size:11.5px;color:var(--soft);line-height:1.5;margin:12px 0 0;padding-top:12px;border-top:1px solid var(--line);}
+
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
 .tc .mover:last-child{border-bottom:none;}
@@ -1247,6 +1293,7 @@ export default function App() {
           {view === "txn" && <Spending ctx={ctx} />}
           {view === "bills" && <BillsView ctx={ctx} />}
           {view === "goals" && <GoalsView ctx={ctx} />}
+          {view === "dreams" && <DreamsView ctx={ctx} />}
           {view === "calendar" && <CalendarView ctx={ctx} />}
           {view === "insights" && <Insights ctx={ctx} />}
           {view === "plan" && <PlanAhead ctx={ctx} />}
@@ -1283,8 +1330,61 @@ function upgrade(v1) {
     bills: [],
     incomes: [],
     docs: [],
+    dreams: [],
     chat: v1.chat || [],
   };
+}
+
+/* ================================================================== */
+/*  compound-growth math for the dreams + investing sandbox            */
+/*  All illustrative: a fixed assumed return, not advice or a promise. */
+/* ================================================================== */
+
+// Risk mixes map to an assumed long-run annual return. Play money only —
+// the household can edit any rate; these are just sensible starting points.
+const RISK_MIXES = [
+  { key: "cash", label: "Cash", rate: 1, blurb: "savings account — barely keeps up with prices" },
+  { key: "safe", label: "Conservative", rate: 4, blurb: "mostly bonds, a little stock" },
+  { key: "balanced", label: "Balanced", rate: 6, blurb: "a mix of stocks and bonds" },
+  { key: "growth", label: "Growth", rate: 8, blurb: "mostly stocks, long horizon" },
+  { key: "bold", label: "Aggressive", rate: 10, blurb: "all-in stocks — a bumpier ride" },
+];
+
+// Future value of a starting balance plus a fixed monthly contribution,
+// compounded monthly at annualPct for `months`.
+function fvGrow(principal, monthly, annualPct, months) {
+  const r = num(annualPct) / 100 / 12;
+  const n = Math.max(0, Math.round(months));
+  if (r === 0) return num(principal) + num(monthly) * n;
+  const g = Math.pow(1 + r, n);
+  return num(principal) * g + num(monthly) * ((g - 1) / r);
+}
+
+// The monthly contribution it takes to reach `target` by `months`, starting
+// from `principal`, growing at annualPct. Returns 0 if the balance alone
+// already grows past the target.
+function solveMonthly(target, principal, annualPct, months) {
+  const n = Math.max(1, Math.round(months));
+  const r = num(annualPct) / 100 / 12;
+  if (r === 0) return Math.max(0, (num(target) - num(principal)) / n);
+  const g = Math.pow(1 + r, n);
+  const need = num(target) - num(principal) * g;
+  if (need <= 0) return 0;
+  return Math.max(0, need / ((g - 1) / r));
+}
+
+// How many months until `principal` + `monthly`/mo at annualPct reaches
+// `target`. null if it never does within 60 years.
+function monthsToTarget(target, principal, annualPct, monthly) {
+  if (num(target) <= num(principal)) return 0;
+  const r = num(annualPct) / 100 / 12;
+  if (num(monthly) <= 0 && r <= 0) return null;
+  let bal = num(principal);
+  for (let n = 1; n <= 720; n++) {
+    bal = bal * (1 + r) + num(monthly);
+    if (bal >= num(target)) return n;
+  }
+  return null;
 }
 
 /* ================================================================== */
@@ -1704,6 +1804,46 @@ function model(state, plan, month) {
     hasBills: billsTotal > 0, hasIncome: income > 0,
   };
 
+  /* ---- dreams + the investing sandbox: the long-horizon layer. Each dream
+     is a big target with a year; the intelligence works out the monthly it
+     takes to get there by saving vs. investing at an assumed return, and uses
+     the household's real free cash flow to say whether it's within reach.
+     `invested` reads the invest-type accounts. Every figure is an illustrative
+     estimate on a fixed assumed return — not advice or a guarantee. ---- */
+  const nowYear = new Date().getFullYear();
+  const invested = assets.filter((a) => a.type === "invest").reduce((n, a) => n + a.balance, 0);
+  const freeCash = Math.max(0, monthlyNet);
+  const dreams = (state.dreams || []).map((d) => {
+    const target = num(d.target);
+    const saved = num(d.saved);
+    const rate = d.invest ? (d.returnPct != null ? num(d.returnPct) : 7) : 0;
+    const yearsUntil = Math.max(0.5, (num(d.targetYear) || nowYear + 5) - nowYear);
+    const months = Math.max(1, Math.round(yearsUntil * 12));
+    const remaining = Math.max(0, target - saved);
+    const saveMonthly = remaining / months;                       // plain saving, no growth
+    const investMonthly = solveMonthly(target, saved, rate, months); // with growth at `rate`
+    const fundMonthly = d.invest ? investMonthly : saveMonthly;
+    const pct = target > 0 ? Math.min(100, (saved / target) * 100) : 0;
+    const affordable = fundMonthly <= freeCash + 0.5;
+    // At what the household can actually spare each month, when would it land?
+    const spare = Math.min(fundMonthly > 0 ? fundMonthly : freeCash, freeCash);
+    const reachMonths = monthsToTarget(target, saved, rate, spare);
+    return {
+      ...d, target, saved, rate, months, yearsUntil, remaining, saveMonthly, investMonthly,
+      fundMonthly, pct, affordable, done: remaining <= 0 && target > 0,
+      shortfallMonthly: Math.max(0, fundMonthly - freeCash),
+      investSaves: Math.max(0, saveMonthly - investMonthly),      // $/mo less by investing
+      reachYear: reachMonths != null ? nowYear + Math.ceil(reachMonths / 12) : null,
+    };
+  });
+  const dreamsTotal = dreams.reduce((n, d) => n + d.target, 0);
+  const dreamsSaved = dreams.reduce((n, d) => n + d.saved, 0);
+  const dreamsMonthly = dreams.reduce((n, d) => n + d.fundMonthly, 0);
+  const invest = {
+    balance: invested,
+    project: (annualPct, monthly, years) => fvGrow(invested, monthly, annualPct, years * 12),
+  };
+
   const vitalDefs = [];
   if (income > 0) {
     vitalDefs.push({
@@ -1776,6 +1916,7 @@ function model(state, plan, month) {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
     cashTotal, runwayMonths, monthlyNet, monthlyCost, health, framework, incomeNeeded,
+    dreams, dreamsTotal, dreamsSaved, dreamsMonthly, invest, invested, freeCash,
     goalStatus, history, bills, billsTotal, billsLeft, billHistory, billPaidByMonth, billMethodMix, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, celebrations, verse, verseLine, available, daysLeft, perDay,
     baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
@@ -4610,6 +4751,217 @@ function PotCard({ g, ctx }) {
 }
 
 /* ================================================================== */
+/*  5c-dreams. dreams + the investing sandbox                          */
+/* ================================================================== */
+
+const DREAM_PRESETS = [
+  { name: "Own a home", target: 80000, years: 6, invest: true, rate: 6, note: "a down payment" },
+  { name: "Retire well", target: 900000, years: 28, invest: true, rate: 8, note: "the long game" },
+  { name: "Kids' college", target: 120000, years: 15, invest: true, rate: 6, note: "" },
+  { name: "Start a business", target: 40000, years: 4, invest: true, rate: 5, note: "seed money" },
+  { name: "Debt-free, all of it", target: 12000, years: 3, invest: false, rate: 0, note: "everything owed" },
+  { name: "A dream trip", target: 15000, years: 2, invest: false, rate: 0, note: "" },
+  { name: "Financial freedom", target: 600000, years: 22, invest: true, rate: 7, note: "work optional" },
+];
+
+// The dreams layer: name the big things, and the app works out — from the
+// household's real free cash flow — what it takes to get there, saving vs.
+// investing. Paired with a play-money sandbox for running scenarios.
+function DreamsView({ ctx }) {
+  const { m, state, patch, setView } = ctx;
+  const [adding, setAdding] = useState(false);
+  const nowYear = new Date().getFullYear();
+  const dreamCount = (state.dreams || []).length;
+
+  const addDream = (p) => patch((s) => {
+    s.dreams = [...(s.dreams || []), {
+      id: uid(), name: p.name, target: p.target, saved: 0,
+      targetYear: nowYear + p.years, invest: p.invest, returnPct: p.rate, owner: "joint",
+    }];
+    return s;
+  });
+
+  return (
+    <>
+      <Head title="Dreams" sub="The big things you're building toward — and exactly what it takes to get there."
+        right={<AddBtn label="Add a dream" onClick={() => setAdding(true)} />} />
+
+      {adding && (
+        <Modal title="What are you dreaming toward?" sub="Pick one to start — every number is yours to change after." onClose={() => setAdding(false)}>
+          <div className="dreampick">
+            {DREAM_PRESETS.map((p) => (
+              <button key={p.name} className="dreamopt" onClick={() => { addDream(p); setAdding(false); }}>
+                <b>{p.name}</b>
+                <span>{money(p.target)} · ~{p.years} yr{p.note ? ` · ${p.note}` : ""}</span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      <Guidance m={m} theme="diligence"
+        line={m.dreamsTotal > 0
+          ? `${money(m.dreamsSaved)} of ${money(m.dreamsTotal)} already set toward what you're building.`
+          : "Name one big thing — the app will work out what it takes to get there."} />
+
+      <div className="grid g4" style={{ marginBottom: 16 }}>
+        <Kpi label="Building toward" value={money(m.dreamsTotal)} foot={`${dreamCount} dream${dreamCount === 1 ? "" : "s"}`} />
+        <Kpi label="Saved so far" value={money(m.dreamsSaved)}
+          foot={m.dreamsTotal > 0 ? `${Math.round((m.dreamsSaved / m.dreamsTotal) * 100)}% of the way` : "—"} />
+        <Kpi label="Free each month" value={money(m.freeCash)} foot="after bills and the plan"
+          onClick={() => setView("bills")} />
+        <Kpi label="Invested today" value={money(m.invested)} foot="in your investment accounts"
+          onClick={() => setView("worth")} />
+      </div>
+
+      <InvestSandbox ctx={ctx} />
+
+      {dreamCount === 0
+        ? <div className="card"><p className="empty">No dreams yet. Add the first big thing you'd both name — a home, retiring well, a business, being debt-free.</p></div>
+        : m.dreams.map((d) => <DreamCard key={d.id} d={d} ctx={ctx} />)}
+    </>
+  );
+}
+
+// One dream: progress, the plain read of what it takes, and a save-vs-invest
+// compare — all recomputed in model() from the household's real numbers.
+function DreamCard({ d, ctx }) {
+  const { m, patch } = ctx;
+  const set = (f, v) => patch((s) => { const x = (s.dreams || []).find((y) => y.id === d.id); if (x) x[f] = v; return s; });
+  const del = () => { if (window.confirm(`Remove “${d.name}”? ${money(d.saved)} is recorded toward it.`)) patch((s) => { s.dreams = (s.dreams || []).filter((y) => y.id !== d.id); return s; }); };
+  const by = d.targetYear || "your date";
+  const mo = (n) => money(Math.round(n));
+
+  const read = d.done
+    ? `Reached — ${money(d.target)} is fully set aside.`
+    : d.invest
+      ? (d.affordable
+        ? `Investing about ${mo(d.investMonthly)}/mo at ${d.rate}% could get you there by ${by} — ${mo(d.investSaves)}/mo less than saving it as cash.`
+        : `It would take ${mo(d.investMonthly)}/mo invested at ${d.rate}% — ${mo(d.shortfallMonthly)}/mo more than the ${money(Math.round(m.freeCash))} you have free now. A longer timeline lowers it.`)
+      : (d.affordable
+        ? `Setting aside ${mo(d.saveMonthly)}/mo gets you there by ${by}.`
+        : `That needs ${mo(d.saveMonthly)}/mo — ${mo(d.shortfallMonthly)}/mo more than you have free now. Investing it or a longer timeline would bring it down.`);
+
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <div className="chead">
+        <input className="field dreamname" value={d.name} onChange={(e) => set("name", e.target.value)} aria-label="Dream name" />
+        <button className="kill" onClick={del} aria-label={`Remove ${d.name}`}>×</button>
+      </div>
+      <div className="potnum"><b className="num">{money(d.saved)}</b><span className="muted"> of {money(d.target)} · by {by} · {Math.round(d.pct)}%</span></div>
+      <div className="track"><i style={{ width: d.pct + "%", background: d.done ? C.good : d.affordable ? C.a : C.b }} /></div>
+
+      <div className="dreamread">{read}</div>
+
+      {!d.done && (
+        <div className="dreamcompare">
+          <button className={"dc-opt" + (!d.invest ? " on" : "")} onClick={() => set("invest", false)}>
+            <span className="dc-tag">Save it</span>
+            <b className="num">{mo(d.saveMonthly)}<span>/mo</span></b>
+            <span className="dc-sub">cash, no growth</span>
+          </button>
+          <button className={"dc-opt" + (d.invest ? " on" : "")} onClick={() => set("invest", true)}>
+            <span className="dc-tag">Invest it</span>
+            <b className="num">{mo(d.investMonthly)}<span>/mo</span></b>
+            <span className="dc-sub">at {d.rate}% · {mo(d.investSaves)}/mo less</span>
+          </button>
+        </div>
+      )}
+
+      <div className="fourup">
+        <div><label className="lbl">Target</label><MoneyInput value={d.target} placeholder="0" onCommit={(v) => set("target", v)} aria-label="Target" /></div>
+        <div><label className="lbl">Saved</label><MoneyInput value={d.saved} placeholder="0" onCommit={(v) => set("saved", v)} aria-label="Saved" /></div>
+        <div><label className="lbl">By year</label><input className="field num" inputMode="numeric" value={d.targetYear || ""} onChange={(e) => set("targetYear", num(e.target.value))} aria-label="Target year" /></div>
+        <div><label className="lbl">{d.invest ? "Return %/yr" : "Mode"}</label>
+          {d.invest
+            ? <input className="field num" inputMode="decimal" value={d.returnPct != null ? d.returnPct : 7} onChange={(e) => set("returnPct", num(e.target.value))} aria-label="Assumed return percent" />
+            : <div className="field num" style={{ background: "#EFEADF", color: C.soft }}>cash</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// A play-money sandbox: a starting amount, a monthly, a horizon, and a risk
+// mix, then watch it grow against plain cash. Fixed assumed returns — for
+// experimenting only, not advice and not a real transaction.
+function InvestSandbox({ ctx }) {
+  const { m } = ctx;
+  const [start, setStart] = useState(() => Math.round(m.invested) || 10000);
+  const [monthly, setMonthly] = useState(() => Math.max(50, Math.round(m.freeCash)) || 300);
+  const [years, setYears] = useState(20);
+  const [mix, setMix] = useState("balanced");
+  const rate = (RISK_MIXES.find((r) => r.key === mix) || {}).rate || 0;
+
+  const final = fvGrow(start, monthly, rate, years * 12);
+  const contributed = num(start) + num(monthly) * years * 12;
+  const growth = Math.max(0, final - contributed);
+  const cashFinal = fvGrow(start, monthly, 1, years * 12);
+
+  const data = [];
+  for (let yr = 0; yr <= years; yr++) data.push({
+    label: `${yr}y`,
+    Invested: Math.round(fvGrow(start, monthly, rate, yr * 12)),
+    Cash: Math.round(fvGrow(start, monthly, 1, yr * 12)),
+  });
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="chead">
+        <div><h3>Investing sandbox</h3><div className="inc-sub">Play money — try a scenario and watch it grow. Estimates, not advice.</div></div>
+        <div className="inc-big num">{money(Math.round(final))}<span>in {years}y</span></div>
+      </div>
+
+      <div className="sbx-controls">
+        <label className="sbx-f"><span>Starting with</span><MoneyInput value={start} placeholder="0" onCommit={(v) => setStart(v)} aria-label="Starting amount" /></label>
+        <label className="sbx-f"><span>Adding monthly</span><MoneyInput value={monthly} placeholder="0" onCommit={(v) => setMonthly(v)} aria-label="Monthly amount" /></label>
+        <label className="sbx-f"><span>For</span>
+          <select className="field" value={years} onChange={(e) => setYears(num(e.target.value))} aria-label="Years">
+            {[5, 10, 15, 20, 25, 30, 40].map((y) => <option key={y} value={y}>{y} years</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="sbx-mixes">
+        {RISK_MIXES.map((r) => (
+          <button key={r.key} className={"sbx-mix" + (mix === r.key ? " on" : "")} onClick={() => setMix(r.key)}>
+            <b>{r.label}</b><span>{r.rate}%/yr</span>
+          </button>
+        ))}
+      </div>
+      <p className="sbx-blurb">{(RISK_MIXES.find((r) => r.key === mix) || {}).blurb}</p>
+
+      <div style={{ height: 210, marginTop: 4 }}>
+        <ResponsiveContainer>
+          <AreaChart data={data} margin={{ top: 6, right: 6, left: -12, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gInv" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={C.joint} stopOpacity={0.3} />
+                <stop offset="100%" stopColor={C.joint} stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke={C.line} vertical={false} />
+            <XAxis dataKey="label" {...axis} interval="preserveStartEnd" />
+            <YAxis {...axis} tickFormatter={compact} width={46} />
+            <Tooltip content={<Tip />} />
+            <Area type="monotone" dataKey="Invested" name={`Invested (${rate}%)`} stroke={C.joint} fill="url(#gInv)" strokeWidth={2} />
+            <Line type="monotone" dataKey="Cash" name="Cash (1%)" stroke={C.soft} strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="sbx-out">
+        <div><span className="lbl">You put in</span><b className="num">{money(Math.round(contributed))}</b></div>
+        <div><span className="lbl">Growth</span><b className="num" style={{ color: C.good }}>+{money(Math.round(growth))}</b></div>
+        <div><span className="lbl">Ends at</span><b className="num">{money(Math.round(final))}</b></div>
+        <div><span className="lbl">vs. cash</span><b className="num">+{money(Math.round(Math.max(0, final - cashFinal)))}</b></div>
+      </div>
+      <p className="sbx-foot">A steady {rate}%/yr is an assumption for play — real markets rise and fall, some years lose money, and past returns never promise future ones. Nothing here is investment advice or a real transaction.</p>
+    </div>
+  );
+}
+
+/* ================================================================== */
 /*  5d. insights — the intelligence hub                                */
 /* ================================================================== */
 
@@ -5569,6 +5921,17 @@ function buildSnapshot(state, m, plan, month) {
     upcomingPlans: (state.scenarios || []).map((sc) => ({
       what: sc.name, cost: num(sc.amount), when: sc.date, funding: sc.fund === "cash" ? "from savings" : "saving monthly",
     })),
+    investedToday: Math.round(m.invested),
+    freeCashFlowForDreams: Math.round(m.freeCash),
+    ...(m.dreams.length > 0 && {
+      dreams: m.dreams.map((d) => ({
+        what: d.name, target: Math.round(d.target), saved: Math.round(d.saved), byYear: d.targetYear || null,
+        approach: d.invest ? `investing at an assumed ${d.rate}%/yr` : "saving as cash",
+        monthlyItTakes: Math.round(d.fundMonthly),
+        withinFreeCashFlow: d.affordable,
+        note: "monthly figures are illustrative estimates on an assumed return, not advice or a guarantee",
+      })),
+    }),
     lastSixMonths: m.history.map((h) => ({ month: h.label, spent: h.spent })),
     ...(m.faithOn && {
       stewardship: {
@@ -6061,6 +6424,7 @@ function Setup({ onDone }) {
       bills: [],
       incomes: [],
       docs: [],
+      dreams: [],
       chat: [],
     });
   };
