@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v48";
+const APP_VERSION = "v49";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -2976,6 +2976,8 @@ function Budget({ ctx }) {
         ...(m.faithOn ? ["Are we giving the way we mean to?"] : ["Where can we trim?"]),
       ]} />
 
+      <FrameworkCard m={m} setView={setView} />
+
       <div className="card" id="incomeCard" style={{ marginBottom: 16 }}>
         <div className="chead">
           <h3>Money coming in</h3>
@@ -3097,8 +3099,6 @@ function Budget({ ctx }) {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}><Rail m={m} plan={plan} /></div>
-
-      <FrameworkCard m={m} setView={setView} />
 
       <div className="card" id="planCard">
         {GROUPS.filter((g) => m.byGroup[g]).map((g) => {
