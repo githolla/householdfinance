@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import * as XLSX from "xlsx";
 import mammoth from "mammoth/mammoth.browser";
-import { verseForDay, VERSES } from "./scripture.js";
+import { verseForDay, VERSES, studyForDay } from "./scripture.js";
 
 /* ================================================================== */
 /*  data + helpers                                                     */
@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v44";
+const APP_VERSION = "v45";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -819,6 +819,29 @@ body{margin:0;background:#F5F1EA;}
 .tc .dropzone.big p{color:var(--soft);}
 .tc .card.dragover{border-color:var(--ink);box-shadow:0 0 0 3px rgba(22,32,29,.1);}
 
+/* daily study */
+.tc .studybanner{display:block;width:100%;text-align:left;background:linear-gradient(120deg,#12332C,#1C4A40);
+ color:#fff;border:none;border-radius:16px;padding:20px 22px;margin-bottom:16px;box-shadow:var(--shadow);
+ cursor:pointer;transition:transform .1s ease,box-shadow .15s ease;}
+.tc .studybanner:hover{box-shadow:0 14px 34px -18px rgba(15,107,96,.7);}
+.tc .sb-eyebrow{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#7FC9A9;}
+.tc .sb-verse{font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(16px,2vw,20px);font-weight:600;line-height:1.4;
+ letter-spacing:-.01em;margin:10px 0 12px;max-width:820px;}
+.tc .sb-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.tc .sb-ref{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.7);}
+.tc .sb-cta{font-size:12.5px;font-weight:600;color:#fff;}
+.tc .studyopen{display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.08em;
+ text-transform:uppercase;color:#7FC9A9;margin-top:8px;}
+.tc button.sideverse{cursor:pointer;text-align:left;width:100%;transition:background .12s;}
+.tc button.sideverse:hover{background:rgba(255,255,255,.09);}
+.tc .study{display:flex;flex-direction:column;gap:16px;}
+.tc .study-verse{background:var(--paper);border-left:3px solid var(--a);border-radius:10px;padding:14px 16px;}
+.tc .study-text{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:600;line-height:1.5;letter-spacing:-.01em;margin:0 0 8px;}
+.tc .study-ref{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--b);}
+.tc .study-block .study-lab{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);}
+.tc .study-block p{font-size:14px;line-height:1.6;color:#3A453F;margin:6px 0 0;}
+.tc .study-block.pray p{font-style:italic;color:var(--a);}
+
 /* daily bread */
 .tc .verse{font-size:19px;line-height:1.5;letter-spacing:.015em;margin:4px 0 10px;max-width:680px;font-style:italic;}
 .tc .verseref{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--b);}
@@ -928,6 +951,35 @@ function UploadModal({ ctx, onClose }) {
   );
 }
 
+// Today's short study on money and wisdom — passage, reflection, a
+// question to talk through, and a prayer. Same for both partners each day.
+function DailyStudy({ onClose }) {
+  const s = studyForDay();
+  return (
+    <Modal title="Today's study" sub={s.day} onClose={onClose}>
+      <div className="study">
+        <div className="study-verse">
+          <p className="study-text">“{s.text}”</p>
+          <span className="study-ref">{s.ref}</span>
+        </div>
+        <div className="study-block">
+          <span className="study-lab">Reflect</span>
+          <p>{s.reflect}</p>
+        </div>
+        <div className="study-block">
+          <span className="study-lab">Talk about it</span>
+          <p style={{ fontWeight: 500, color: "var(--ink)" }}>{s.ask}</p>
+        </div>
+        <div className="study-block pray">
+          <span className="study-lab">A prayer</span>
+          <p>{s.pray}</p>
+        </div>
+      </div>
+      <button className="btn" onClick={onClose} style={{ marginTop: 4 }}>Amen — close</button>
+    </Modal>
+  );
+}
+
 /* ================================================================== */
 /*  root                                                               */
 /* ================================================================== */
@@ -939,6 +991,7 @@ export default function App() {
   const [month, setMonth] = useState(monthKey(new Date()));
   const [armClean, setArmClean] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [studyOpen, setStudyOpen] = useState(false);
   const timer = useRef(null);
 
   useEffect(() => {
@@ -988,7 +1041,7 @@ export default function App() {
   if (!state) return <Setup onDone={setState} />;
 
   const m = model(state, plan, month);
-  const ctx = { state, patch, plan, writeMonth, month, setMonth, m, setView };
+  const ctx = { state, patch, plan, writeMonth, month, setMonth, m, setView, openStudy: () => setStudyOpen(true) };
   const unpaidCount = m.bills.filter((b) => !b.paid).length;
   const startClean = async () => {
     if (!armClean) { setArmClean(true); setTimeout(() => setArmClean(false), 4000); return; }
@@ -1030,18 +1083,20 @@ export default function App() {
                 {armClean ? "Tap again to erase the sample" : "Sample · start clean"}
               </button>
             )}
-            {m.faithOn && view !== "dash" && (
-              <div className="sideverse">
+            {m.faithOn && (
+              <button className="sideverse" onClick={() => setStudyOpen(true)} aria-label="Open today's study">
                 <div className="navlab" style={{ margin: "0 0 4px" }}>Daily bread</div>
                 <p className="vt">“{m.verse.text}”</p>
                 <span className="vr">{m.verse.ref}</span>
-              </div>
+                <span className="studyopen">Today's study →</span>
+              </button>
             )}
           </div>
         </aside>
         <main className="main">
           <TopBar state={state} m={m} setView={setView} onUpload={() => setUploading(true)} />
           {uploading && <UploadModal ctx={ctx} onClose={() => setUploading(false)} />}
+          {studyOpen && m.faithOn && <DailyStudy onClose={() => setStudyOpen(false)} />}
           {state.demo && (
             <div className="demobar">
               <span>You're touring the sample household — nothing here is yours yet.</span>
@@ -2374,9 +2429,10 @@ function HealthCard({ m, setView }) {
 const monthLabelForHealth = (m) => (m.income > 0 ? "this month" : "not enough entered yet");
 
 function Dashboard({ ctx }) {
-  const { m, plan, month, setMonth, state, setView, writeMonth, patch } = ctx;
+  const { m, plan, month, setMonth, state, setView, writeMonth, patch, openStudy } = ctx;
   const [showSpend, setShowSpend] = useState(false);
   const [selGroup, setSelGroup] = useState(null);
+  const study = studyForDay();
 
   const groupData = GROUPS
     .map((g) => ({ name: g, value: (m.byGroup[g] || {}).spent || 0, planned: (m.byGroup[g] || {}).planned || 0 }))
@@ -2398,7 +2454,16 @@ function Dashboard({ ctx }) {
         right={<MonthNav month={month} setMonth={setMonth} />}
       />
 
-      <Guidance m={m} line={null} />
+      {m.faithOn ? (
+        <button className="studybanner" onClick={openStudy} aria-label="Open today's study">
+          <span className="sb-eyebrow">Today's study · {study.day}</span>
+          <p className="sb-verse">“{study.text}”</p>
+          <div className="sb-foot">
+            <span className="sb-ref">{study.ref}</span>
+            <span className="sb-cta">Read &amp; reflect →</span>
+          </div>
+        </button>
+      ) : <Guidance m={m} line={null} />}
 
       {m.celebrations.map((c) => {
         const v = c.kind === "debt"
