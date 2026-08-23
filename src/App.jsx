@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v51";
+const APP_VERSION = "v53";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -702,6 +702,9 @@ body{margin:0;background:#F5F1EA;}
 .tc .il-dot{width:9px;height:9px;border-radius:3px;}
 .tc .il-nm{color:var(--soft);}
 .tc .il b{font-family:'IBM Plex Mono',monospace;}
+.tc .fwstrip{display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;margin-bottom:16px;transition:box-shadow .15s ease;}
+.tc .fwstrip:hover{box-shadow:0 4px 8px rgba(27,36,32,.06),0 16px 34px -20px rgba(27,36,32,.5);}
+.tc .fwstrip .ib-lab{color:#fff;font-family:'Instrument Sans',sans-serif;font-weight:600;letter-spacing:0;text-transform:none;}
 .tc .fw-headline{font-size:13.5px;color:#3A453F;line-height:1.5;margin:14px 0 2px;padding:12px 0 0;border-top:1px solid var(--line);}
 .tc .fw-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);margin:16px 0 2px;}
 .tc .fwrow-wrap{border-bottom:1px solid var(--hair);}
@@ -2612,6 +2615,8 @@ function Dashboard({ ctx }) {
 
       <HealthCard m={m} setView={setView} />
 
+      <FrameworkStrip m={m} setView={setView} />
+
       <div className="grid g23" style={{ marginBottom: 16 }}>
         {/* Where it went — interactive donut */}
         <div className="card">
@@ -2823,6 +2828,39 @@ function FrameworkCard({ ctx }) {
     return mm;
   });
 
+  // One tap: set the whole plan to the guide. Giving hits its target; needs
+  // and wants are distributed across their categories (proportionally when
+  // they already have amounts, evenly when they don't); saving sets the top
+  // pot's monthly to the target.
+  const tgt = Object.fromEntries(fw.rows.map((r) => [r.key, r.targetAmt]));
+  const applyGuide = () => {
+    if (!window.confirm(`Set your plan to the ${fw.targets.give}/${fw.targets.needs}/${fw.targets.wants}/${fw.targets.save} guide? This adjusts your category amounts to match the targets — you can fine-tune after.`)) return;
+    writeMonth((mm) => {
+      let g = mm.envelopes.find((e) => e.group === "Giving");
+      if (!g) { g = { id: uid(), name: "Giving", group: "Giving", planned: 0, owner: "joint" }; mm.envelopes.push(g); }
+      g.planned = Math.round(tgt.give);
+      const spread = (groups, target) => {
+        const envs = mm.envelopes.filter((e) => groups.includes(e.group || "Other"));
+        if (!envs.length) return;
+        const cur = envs.reduce((n, e) => n + e.planned, 0);
+        if (cur > 0) envs.forEach((e) => { e.planned = Math.round((e.planned / cur) * target); });
+        else { const each = Math.round(target / envs.length); envs.forEach((e) => { e.planned = each; }); }
+      };
+      spread(["Home", "Daily", "Health"], tgt.needs);
+      spread(["Lifestyle", "Other"], tgt.wants);
+      return mm;
+    });
+    patch((s) => {
+      const goals = s.goals || [];
+      if (goals.length) {
+        const cur = goals.reduce((n, g) => n + (g.monthly || 0), 0);
+        if (cur > 0) goals.forEach((g) => { g.monthly = Math.round((g.monthly / cur) * tgt.save); });
+        else { const each = Math.round(tgt.save / goals.length); goals.forEach((g) => { g.monthly = each; }); }
+      }
+      return s;
+    });
+  };
+
   const income = m.income;
   const totalPlanned = fw.rows.reduce((n, r) => n + r.amount, 0);
   const anyPlanned = totalPlanned > 0.5;
@@ -2830,8 +2868,11 @@ function FrameworkCard({ ctx }) {
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div className="chead">
-        <h3>The balanced budget</h3>
-        <span className="meta">{income > 0 ? `on ${money(income)}/mo · give first` : "50/30/20 · the tithe first"}</span>
+        <div>
+          <h3>The balanced budget</h3>
+          <span className="meta" style={{ display: "block", marginTop: 2 }}>{income > 0 ? `50/30/20 on ${money(income)}/mo · the tithe first` : "50/30/20 · the tithe first"}</span>
+        </div>
+        {income > 0 && <button className="addbtn" onClick={applyGuide}>Auto-balance to the guide</button>}
       </div>
 
       {income > 0 && (
@@ -2930,6 +2971,40 @@ function FrameworkCard({ ctx }) {
       })}
       <p className="mstone" style={{ marginTop: 12 }}>Tap a bucket to adjust it. <button className="seelink" style={{ display: "inline" }} onClick={() => setView("settings")}>Change the targets →</button></p>
     </div>
+  );
+}
+
+// A compact, read-only version of the guideline for the Overview.
+function FrameworkStrip({ m, setView }) {
+  if (m.income <= 0) return null;
+  const fw = m.framework;
+  const worst = fw.rows.slice().filter((r) => r.status !== "good").sort((a, b) => Math.abs(b.off) - Math.abs(a.off))[0];
+  return (
+    <button className="card fwstrip" onClick={() => setView("budget")} aria-label="Open the balanced budget">
+      <div className="chead" style={{ marginBottom: 12 }}>
+        <h3>The balanced budget</h3>
+        <span className="seelink">Balance it →</span>
+      </div>
+      <div className="idealbar" style={{ height: 30 }}>
+        {fw.rows.map((r) => (
+          <div key={r.key} className="ib-seg" style={{ width: r.target + "%", background: r.color }} title={`${r.label} · ${money(r.targetAmt)}`}>
+            {r.target >= 15 && <span className="ib-lab" style={{ fontSize: 10 }}>{r.label}</span>}
+          </div>
+        ))}
+      </div>
+      <div className="ideallegend" style={{ marginTop: 10 }}>
+        {fw.rows.map((r) => (
+          <span className="il" key={r.key}><span className="il-dot" style={{ background: r.color }} /><span className="il-nm">{r.label}</span><b className="num">{money(r.targetAmt)}</b></span>
+        ))}
+      </div>
+      {worst && (
+        <p className="mstone" style={{ marginTop: 10 }}>
+          {worst.key === "give" || worst.key === "save"
+            ? `${worst.label} is ${money(worst.amount)} of the ${money(worst.targetAmt)} guide.`
+            : `${worst.label} run ${money(worst.amount)} vs. a ${money(worst.targetAmt)} guide.`}
+        </p>
+      )}
+    </button>
   );
 }
 
