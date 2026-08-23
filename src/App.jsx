@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v58";
+const APP_VERSION = "v59";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -219,7 +219,7 @@ function demoState() {
       { id: uid(), name: `${A}'s 401(k)`, type: "invest", balance: 41200, owner: "a", apr: 0, minPayment: 0 },
       { id: uid(), name: `${B}'s Roth IRA`, type: "invest", balance: 18400, owner: "b", apr: 0, minPayment: 0 },
       { id: uid(), name: "Car loan", type: "debt", balance: 12400, owner: "joint", apr: 5.9, minPayment: 385 },
-      { id: uid(), name: "Credit card", type: "debt", balance: 0, owner: "joint", apr: 22.9, minPayment: 120 },
+      { id: uid(), name: "Credit card", type: "debt", balance: 4200, owner: "joint", apr: 22.9, minPayment: 120 },
     ],
     bills,
     incomes: [
@@ -248,6 +248,7 @@ const NAV_SECTIONS = [
     ["budget", "Budget"],
     ["txn", "Spending"],
     ["bills", "Bills & files"],
+    ["debt", "Debt payoff"],
     ["goals", "Pots"],
     ["dreams", "Dreams"],
     ["planner", "Assistant"],
@@ -271,6 +272,7 @@ const IC = {
   bills: <><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h4" /></>,
   goals: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" /></>,
   dreams: <path d="M12 2l2.6 6.4L21 9l-5 4.3L17.5 20 12 16.5 6.5 20 8 13.3 3 9l6.4-.6z" />,
+  debt: <><rect x="2" y="5" width="20" height="14" rx="2.5" /><path d="M2 9.5h20M6 15h5" /></>,
   plan: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>,
   calendar: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /></>,
   insights: <><path d="M3 3v18h18" /><path d="M7 14l3-4 3 2 4-6" /><circle cx="20" cy="6" r="1.4" fill="currentColor" stroke="none" /></>,
@@ -863,6 +865,17 @@ body{margin:0;background:#F5F1EA;}
 .tc .tab:hover{color:var(--ink);}
 .tc .tab.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow);}
 
+/* debt payoff */
+.tc .debt-tips{display:flex;flex-direction:column;gap:10px;}
+.tc .debt-tip{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.55;color:#3A453F;}
+.tc .dt-ic{flex:none;width:20px;height:20px;border-radius:99px;display:grid;place-items:center;font-size:12px;font-weight:700;
+ background:var(--accsoft);color:var(--a);margin-top:1px;}
+.tc .debtrow{display:grid;grid-template-columns:1.6fr 1fr .7fr 1fr 30px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--hair);}
+.tc .debtrow:last-of-type{border-bottom:none;}
+.tc .debtrow-h{padding:2px 0 6px;border-bottom:1px solid var(--line);}
+.tc .debtrow-h span{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);}
+@media(max-width:640px){.tc .debtrow{grid-template-columns:1.4fr 1fr .7fr;gap:8px 10px;}.tc .debtrow > *:nth-child(4),.tc .debtrow > *:nth-child(5){grid-column:span 1;}.tc .debtrow-h{display:none;}}
+
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
 .tc .mover:last-child{border-bottom:none;}
@@ -1339,6 +1352,7 @@ export default function App() {
           {view === "txn" && <Spending ctx={ctx} />}
           {view === "bills" && <BillsView ctx={ctx} />}
           {view === "goals" && <GoalsView ctx={ctx} />}
+          {view === "debt" && <DebtView ctx={ctx} />}
           {view === "dreams" && <DreamsView ctx={ctx} />}
           {view === "calendar" && <CalendarView ctx={ctx} />}
           {view === "insights" && <Insights ctx={ctx} />}
@@ -1890,6 +1904,44 @@ function model(state, plan, month) {
     project: (annualPct, monthly, years) => fvGrow(invested, monthly, annualPct, years * 12),
   };
 
+  /* ---- the debt-payoff read: the optimal way out, plus plain suggestions
+     built from the actual balances and rates. Avalanche (highest APR first)
+     is the interest-optimal order; snowball (smallest first) is the most
+     motivating. `suggestExtra` is whatever free cash flow could go here. ---- */
+  const debtPlan = (() => {
+    const owing = debts.filter((d) => d.balance > 0);   // a paid-off card isn't a target
+    if (!owing.length) return { hasDebt: false, tips: [] };
+    const byApr = owing.slice().sort((a, b) => (b.apr || 0) - (a.apr || 0));
+    const top = byApr[0];
+    const monthlyInterest = owing.reduce((n, d) => n + (d.balance * ((d.apr || 0) / 100)) / 12, 0);
+    const avgApr = debtTotal > 0 ? owing.reduce((n, d) => n + (d.apr || 0) * d.balance, 0) / debtTotal : 0;
+    const suggestExtra = Math.max(0, Math.round(freeCash));
+    const atMin = payoff(0, "avalanche");
+    const withFree = suggestExtra > 0 ? payoff(suggestExtra, "avalanche") : atMin;
+    const interestSaved = Math.max(0, atMin.interest - withFree.interest);
+    const monthsSaved = Math.max(0, atMin.months - withFree.months);
+    const minsCoverInterest = debtMin > monthlyInterest;
+
+    const tips = [];
+    if (top && top.apr)
+      tips.push(`Attack ${top.name} first — at ${top.apr}% it's your most expensive debt, costing about ${money(Math.round((top.balance * (top.apr / 100)) / 12))}/mo in interest alone.`);
+    if (!minsCoverInterest)
+      tips.push(`Right now your minimums barely outpace the interest — the balances will crawl. Even a small extra payment changes the math sharply.`);
+    if (suggestExtra >= 25 && monthsSaved > 0)
+      tips.push(`You have about ${money(suggestExtra)}/mo free after bills and the plan. Routing it here clears everything ${monthsSaved} month${monthsSaved === 1 ? "" : "s"} sooner and saves roughly ${money(Math.round(interestSaved))} in interest.`);
+    if (byApr.some((d) => (d.apr || 0) >= 18))
+      tips.push(`Anything above ~18% costs more than investing reliably returns — clear those before putting money in the market.`);
+    if (debts.length > 1)
+      tips.push(`As each balance hits zero, roll its whole payment onto the next debt in line — the payoff speeds up on its own (the "snowball" effect).`);
+
+    return {
+      hasDebt: true, top, byApr, monthlyInterest, avgApr, suggestExtra,
+      order: atMin.order, atMinMonths: atMin.months, atMinInterest: atMin.interest,
+      withFreeMonths: withFree.months, interestSaved, monthsSaved, minsCoverInterest,
+      tips: tips.slice(0, 4),
+    };
+  })();
+
   const vitalDefs = [];
   if (income > 0) {
     vitalDefs.push({
@@ -1962,7 +2014,7 @@ function model(state, plan, month) {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
     cashTotal, runwayMonths, monthlyNet, monthlyCost, health, framework, incomeNeeded,
-    dreams, dreamsTotal, dreamsSaved, dreamsMonthly, invest, invested, freeCash,
+    dreams, dreamsTotal, dreamsSaved, dreamsMonthly, invest, invested, freeCash, debtPlan,
     goalStatus, history, bills, billsTotal, billsLeft, billHistory, billPaidByMonth, billMethodMix, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, celebrations, verse, verseLine, available, daysLeft, perDay,
     baseIncome, extrasTotal, expected, incomingLeft, upcoming, paychecks, singleIncome, covered,
@@ -5181,6 +5233,167 @@ function InvestGuide({ ctx }) {
 }
 
 /* ================================================================== */
+/*  5c-debt. debt payoff planner                                       */
+/* ================================================================== */
+
+const COMMON_DEBTS = [
+  { name: "Credit card", apr: 22.9 },
+  { name: "Car loan", apr: 6.5 },
+  { name: "Student loan", apr: 5.5 },
+  { name: "Personal loan", apr: 12 },
+  { name: "Medical bill", apr: 0 },
+];
+
+// Enter each card/loan with its balance, rate, and minimum, then see the
+// fastest, cheapest way out — avalanche vs snowball, what an extra payment
+// does, and plain suggestions read off the real numbers (m.debtPlan). The
+// debts are the same type:"debt" accounts as Net worth.
+function DebtView({ ctx }) {
+  const { m, state, patch, month } = ctx;
+  const [strategy, setStrategy] = useState("avalanche");
+  const [extra, setExtra] = useState("");
+  const [adding, setAdding] = useState(false);
+  const dp = m.debtPlan;
+  const debts = state.accounts.filter((a) => a.type === "debt");
+  const sortedDebts = debts.slice().sort((a, b) => (b.apr || 0) - (a.apr || 0));
+
+  const setD = (id, f, v) => patch((s) => { const x = s.accounts.find((a) => a.id === id); if (x) x[f] = v; return s; });
+  const addDebt = (preset) => patch((s) => {
+    s.accounts = [...(s.accounts || []), { id: uid(), name: preset.name, type: "debt", balance: 0, owner: "joint", apr: preset.apr, minPayment: 0 }];
+    return s;
+  });
+  const delDebt = (id, name) => { if (window.confirm(`Remove ${name}?`)) patch((s) => { s.accounts = s.accounts.filter((a) => a.id !== id); return s; }); };
+
+  const base = m.payoff(0, strategy);
+  const withX = m.payoff(num(extra), strategy);
+  const interestSaved = Math.max(0, base.interest - withX.interest);
+  const monthsSaved = Math.max(0, base.months - withX.months);
+  const hasExtra = num(extra) > 0;
+  const maxLen = Math.max(base.series.length, withX.series.length);
+  const chart = [];
+  for (let i = 0; i < maxLen; i++) chart.push({
+    label: monthLabel(shiftMonth(month, i), true),
+    "At minimums": base.series[i] ? Math.round(base.series[i].balance) : 0,
+    "With extra": withX.series[i] ? Math.round(withX.series[i].balance) : 0,
+  });
+
+  return (
+    <>
+      <Head title="Debt payoff" sub="Put in each balance and rate, and see the fastest, cheapest way out."
+        right={<AddBtn label="Add a debt" onClick={() => setAdding(true)} />} />
+
+      {adding && (
+        <Modal title="Add a debt" sub="A card or a loan — anything you owe. Tap a common one to prefill a typical rate." onClose={() => setAdding(false)}>
+          <div className="dreampick">
+            {COMMON_DEBTS.map((d) => (
+              <button key={d.name} className="dreamopt" onClick={() => { addDebt(d); setAdding(false); }}>
+                <b>{d.name}</b><span>{d.apr ? `typical ${d.apr}% APR` : "set your own rate"}</span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      <Guidance m={m} theme="debt"
+        line={dp.hasDebt ? `${money(m.debtTotal)} owed — here's the way out.` : "Nothing owed right now — a strong place to build from."} />
+
+      {debts.length === 0 ? (
+        <div className="card"><p className="empty">No debts entered yet. Tap <b>Add a debt</b> to put in a card or loan with its balance and rate, and I'll map the fastest, cheapest payoff.</p></div>
+      ) : !dp.hasDebt ? (
+        <>
+          <div className="card" style={{ marginBottom: 16 }}><p className="empty">Every debt here is paid off — nothing owed. Keep it that way, and let that freed-up money go to work in Pots or Dreams.</p></div>
+          <DebtList debts={sortedDebts} setD={setD} delDebt={delDebt} onAdd={() => setAdding(true)} />
+        </>
+      ) : (
+        <>
+          <div className="grid g4" style={{ marginBottom: 16 }}>
+            <Kpi label="Total owed" value={money(m.debtTotal)} foot={`${debts.length} debt${debts.length === 1 ? "" : "s"}`} dark />
+            <Kpi label="Interest a month" value={money(Math.round(dp.monthlyInterest))} foot="what it costs just to carry" tone="mid" />
+            <Kpi label="Average rate" value={dp.avgApr ? dp.avgApr.toFixed(1) + "%" : "—"} foot="weighted by balance" />
+            <Kpi label="Minimums" value={money(m.debtMin)} foot="due every month" />
+          </div>
+
+          {dp.tips.length > 0 && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="chead"><div><h3>What I'd do</h3><div className="inc-sub">Read straight off your balances and rates.</div></div></div>
+              <div className="debt-tips">
+                {dp.tips.map((t, i) => (
+                  <div className="debt-tip" key={i}><span className="dt-ic">→</span><span>{t}</span></div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="chead"><div><h3>Your payoff plan</h3><div className="inc-sub">Avalanche saves the most interest; snowball feels the best.</div></div></div>
+            <div className="toolbar" style={{ marginBottom: 14 }}>
+              <div className="chips" style={{ marginBottom: 0 }}>
+                <button className={"chip " + (strategy === "avalanche" ? "on" : "")} onClick={() => setStrategy("avalanche")}>Avalanche · highest rate first</button>
+                <button className={"chip " + (strategy === "snowball" ? "on" : "")} onClick={() => setStrategy("snowball")}>Snowball · smallest first</button>
+              </div>
+              <label className="srt" style={{ marginLeft: "auto" }}><span>Extra / mo</span>
+                <input className="field num" style={{ width: 110 }} inputMode="decimal" placeholder="$0" value={extra}
+                  onChange={(e) => setExtra(e.target.value)} aria-label="Extra per month" />
+              </label>
+            </div>
+            {!hasExtra && dp.suggestExtra > 0 && (
+              <button className="btn ghost tiny" style={{ marginBottom: 14 }} onClick={() => setExtra(String(dp.suggestExtra))}>
+                Try your {money(dp.suggestExtra)}/mo of free cash →
+              </button>
+            )}
+            <div className="grid g3" style={{ gap: 12, marginBottom: 16 }}>
+              <div className="tripstat"><span className="v-l">Debt-free in</span><b className="num">{withX.months ? `${withX.months} mo` : "—"}</b><span className="muted" style={{ fontSize: 11.5 }}>{withX.months ? monthLabel(shiftMonth(month, withX.months)) : "add a payment"}</span></div>
+              <div className="tripstat"><span className="v-l">Interest you'll pay</span><b className="num">{money(Math.round(withX.interest))}</b>{interestSaved > 0 && <span className="muted" style={{ fontSize: 11.5, color: C.good }}>saves {money(Math.round(interestSaved))}</span>}</div>
+              <div className="tripstat"><span className="v-l">Sooner by</span><b className="num" style={{ color: monthsSaved > 0 ? C.good : undefined }}>{monthsSaved ? `${monthsSaved} mo` : "—"}</b><span className="muted" style={{ fontSize: 11.5 }}>{hasExtra ? `with ${money(num(extra))}/mo extra` : "add extra to compare"}</span></div>
+            </div>
+            <div style={{ height: 220 }}>
+              <ResponsiveContainer>
+                <LineChart data={chart} margin={{ top: 6, right: 10, left: -6, bottom: 0 }}>
+                  <CartesianGrid stroke={C.line} vertical={false} />
+                  <XAxis dataKey="label" {...axis} interval="preserveStartEnd" />
+                  <YAxis {...axis} tickFormatter={compact} width={46} />
+                  <Tooltip content={<Tip />} />
+                  <Line type="monotone" dataKey="At minimums" stroke={C.soft} strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+                  <Line type="monotone" dataKey="With extra" stroke={C.a} strokeWidth={2.5} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="railkey" style={{ marginTop: 10 }}>
+              <span><i className="dot" style={{ background: C.soft }} />At minimums</span>
+              {hasExtra && <span><i className="dot" style={{ background: C.a }} />With {money(num(extra))}/mo extra</span>}
+            </div>
+            <p className="mstone" style={{ marginTop: 12 }}>Order to attack: <b>{withX.order.join(" → ")}</b>. {strategy === "avalanche" ? "Highest rate first is the cheapest path out." : "Smallest balance first clears whole debts fast — the most motivating."}</p>
+          </div>
+
+          <DebtList debts={sortedDebts} setD={setD} delDebt={delDebt} onAdd={() => setAdding(true)} />
+        </>
+      )}
+    </>
+  );
+}
+
+// The editable list of debts — shared by the active and all-paid states.
+function DebtList({ debts, setD, delDebt, onAdd }) {
+  return (
+    <div className="card">
+      <div className="chead"><div><h3>Your debts</h3><div className="inc-sub">Balance, rate, and the minimum due — edit any time.</div></div>
+        <AddBtn label="Add a debt" onClick={onAdd} /></div>
+      <div className="debtrow debtrow-h"><span>Debt</span><span>Balance</span><span>Rate %</span><span>Min / mo</span><span /></div>
+      {debts.map((d) => (
+        <div className="debtrow" key={d.id}>
+          <input className="field" value={d.name} onChange={(e) => setD(d.id, "name", e.target.value)} aria-label="Debt name" />
+          <MoneyInput value={d.balance} placeholder="0" onCommit={(v) => setD(d.id, "balance", v)} aria-label="Balance" />
+          <input className="field num" inputMode="decimal" value={d.apr != null ? d.apr : ""} onChange={(e) => setD(d.id, "apr", num(e.target.value))} aria-label="Rate percent" />
+          <MoneyInput value={d.minPayment} placeholder="0" onCommit={(v) => setD(d.id, "minPayment", v)} aria-label="Minimum payment" />
+          <button className="kill" onClick={() => delDebt(d.id, d.name)} aria-label={`Remove ${d.name}`}>×</button>
+        </div>
+      ))}
+      <p className="empty" style={{ marginTop: 10 }}>These are the same accounts as Net worth — change them here or there.</p>
+    </div>
+  );
+}
+
+/* ================================================================== */
 /*  5d. insights — the intelligence hub                                */
 /* ================================================================== */
 
@@ -6114,6 +6327,16 @@ function buildSnapshot(state, m, plan, month) {
     })),
     netWorth: m.netWorth,
     totalDebt: m.debtTotal,
+    ...(m.debtPlan.hasDebt && {
+      debtPayoff: {
+        interestPerMonthNow: Math.round(m.debtPlan.monthlyInterest),
+        averageRatePct: Math.round(m.debtPlan.avgApr * 10) / 10,
+        optimalOrderHighestRateFirst: m.debtPlan.order,
+        monthsToDebtFreeAtMinimums: m.debtPlan.atMinMonths,
+        freeCashThatCouldGoToDebt: m.debtPlan.suggestExtra,
+        suggestions: m.debtPlan.tips,
+      },
+    }),
     unassignedEachMonth: m.unallocated,
     availableToSpendRestOfMonth: m.available,
     savingsRatePct: Math.round(m.savingsRate),
