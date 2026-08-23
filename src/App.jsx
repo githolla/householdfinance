@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v49";
+const APP_VERSION = "v50";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -694,8 +694,14 @@ body{margin:0;background:#F5F1EA;}
 .tc .bs-v{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;}
 
 /* balanced-budget guideline */
-.tc .fwrow{display:grid;grid-template-columns:auto minmax(120px,1.4fr) 1fr 44px 44px 78px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--hair);}
-.tc .fwrow:last-child{border-bottom:none;}
+.tc .fwrow-wrap{border-bottom:1px solid var(--hair);}
+.tc .fwrow-wrap:last-child{border-bottom:none;}
+.tc .fwrow{display:grid;grid-template-columns:16px auto minmax(120px,1.4fr) 1fr 44px 44px 78px;gap:10px;align-items:center;padding:11px 0;
+ width:100%;background:none;border:none;text-align:left;color:inherit;font:inherit;border-radius:9px;}
+.tc .fwrow.click{cursor:pointer;}
+.tc .fwrow.click:hover{background:var(--accsoft);padding-left:8px;padding-right:8px;margin:0 -8px;width:calc(100% + 16px);}
+.tc .fw-chev{color:var(--soft);display:grid;place-items:center;transition:transform .15s;}
+.tc .fwrow-wrap.open .fw-chev{transform:rotate(90deg);color:var(--a);}
 .tc .fw-dot{width:10px;height:10px;border-radius:3px;}
 .tc .fw-nm{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tc .fw-bar{position:relative;height:9px;background:var(--track);border-radius:99px;overflow:visible;}
@@ -704,7 +710,12 @@ body{margin:0;background:#F5F1EA;}
 .tc .fw-pct{font-size:13px;font-weight:600;text-align:right;}
 .tc .fw-tg{font-size:12px;text-align:right;}
 .tc .fw-amt{font-size:12.5px;text-align:right;}
-@media(max-width:640px){.tc .fwrow{grid-template-columns:auto 1fr 42px;}.tc .fw-bar,.tc .fw-tg,.tc .fw-amt{display:none;}}
+.tc .fw-exp{padding:6px 0 14px 26px;}
+.tc .fw-exp-read{font-size:13px;color:#3A453F;margin:0 0 10px;}
+.tc .fw-exp-body{display:flex;flex-direction:column;gap:8px;align-items:flex-start;}
+.tc .fw-envrow{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;max-width:420px;font-size:13.5px;}
+.tc .fw-envrow .field{width:110px;}
+@media(max-width:640px){.tc .fwrow{grid-template-columns:16px auto 1fr 42px;}.tc .fw-bar,.tc .fw-tg,.tc .fw-amt{display:none;}}
 
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
@@ -2786,36 +2797,91 @@ function Dashboard({ ctx }) {
 /* ================================================================== */
 
 // The balanced-budget guideline — 50/30/20 with the tithe put first.
-// Shows each bucket's share of income against its target, with a marker.
-function FrameworkCard({ m, setView }) {
+// Interactive: click a bucket to see the categories inside it, adjust their
+// planned amounts inline, and fund it toward its target in one tap.
+const BUCKET_GROUPS = { give: ["Giving"], needs: ["Home", "Daily", "Health"], wants: ["Lifestyle", "Other"], save: [] };
+function FrameworkCard({ ctx }) {
+  const { m, plan, writeMonth, patch, setView } = ctx;
+  const [open, setOpen] = useState(null);
   const fw = m.framework;
-  const worst = fw.rows.slice().filter((r) => r.status !== "good" && r.status !== "na")
-    .sort((a, b) => Math.abs(b.off) - Math.abs(a.off))[0];
-  const read = m.income === 0 ? "Add your income and the guideline fills in."
-    : !worst ? "Your plan lines up with the guideline — give first, live within needs, and keep saving."
-      : worst.key === "give" ? `Giving is ${Math.round(worst.pct)}% — the guide is ${worst.target}%. About ${money(Math.max(0, worst.targetAmt - worst.amount))} more would reach the tithe.`
-        : worst.key === "save" ? `Saving is ${Math.round(worst.pct)}% — aim for ${worst.target}%. Around ${money(Math.max(0, worst.targetAmt - worst.amount))} more a month gets there.`
-          : `${worst.label} run ${Math.round(worst.pct)}% of income — the guide is ${worst.target}%. Trimming ${money(Math.max(0, worst.amount - worst.targetAmt))} brings it in line.`;
+
+  const setPlanned = (id, v) => writeMonth((mm) => { const e = mm.envelopes.find((x) => x.id === id); if (e) e.planned = v; return mm; });
+  // Give the full target: set (or create) a Giving envelope to the tithe amount.
+  const fundGiving = (amt) => writeMonth((mm) => {
+    let g = mm.envelopes.find((e) => e.group === "Giving");
+    if (!g) { g = { id: uid(), name: "Giving", group: "Giving", planned: 0, owner: "joint" }; mm.envelopes.push(g); }
+    g.planned = Math.round(amt);
+    return mm;
+  });
+
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div className="chead">
         <h3>The balanced budget</h3>
-        <span className="meta">50/30/20 — the tithe first ({m.framework.targets.give}/{m.framework.targets.needs}/{m.framework.targets.wants}/{m.framework.targets.save})</span>
+        <span className="meta">50/30/20 — the tithe first ({fw.targets.give}/{fw.targets.needs}/{fw.targets.wants}/{fw.targets.save})</span>
       </div>
-      {fw.rows.map((r) => (
-        <div className="fwrow" key={r.key}>
-          <span className="fw-dot" style={{ background: r.color }} />
-          <span className="fw-nm">{r.label}<span className="muted"> · {r.note}</span></span>
-          <span className="fw-bar">
-            <i style={{ width: Math.min(100, r.pct) + "%", background: r.status === "serious" ? C.warn : r.color }} />
-            <span className="fw-target" style={{ left: Math.min(100, r.target) + "%" }} title={`Target ${r.target}%`} />
-          </span>
-          <span className="fw-pct num" style={{ color: r.status === "serious" ? C.warn : "var(--ink)" }}>{Math.round(r.pct)}%</span>
-          <span className="fw-tg num muted">/ {r.target}%</span>
-          <span className="fw-amt num muted">{money(r.amount)}</span>
-        </div>
-      ))}
-      <p className="mstone" style={{ marginTop: 12 }}>{read} <button className="seelink" style={{ display: "inline" }} onClick={() => setView("settings")}>Adjust the guide →</button></p>
+      {fw.rows.map((r) => {
+        const isOpen = open === r.key;
+        const gap = r.targetAmt - r.amount; // + = under target, - = over
+        const envs = r.key === "save" ? [] : plan.envelopes.filter((e) => (BUCKET_GROUPS[r.key] || []).includes(e.group || "Other"));
+        return (
+          <div key={r.key} className={"fwrow-wrap" + (isOpen ? " open" : "")}>
+            <button className="fwrow click" onClick={() => setOpen(isOpen ? null : r.key)} aria-expanded={isOpen}
+              aria-label={`${r.label}: ${Math.round(r.pct)} percent of ${r.target} percent target`}>
+              <span className="fw-chev">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+              </span>
+              <span className="fw-dot" style={{ background: r.color }} />
+              <span className="fw-nm">{r.label}<span className="muted"> · {r.note}</span></span>
+              <span className="fw-bar">
+                <i style={{ width: Math.min(100, r.pct) + "%", background: r.status === "serious" ? C.warn : r.color }} />
+                <span className="fw-target" style={{ left: Math.min(100, r.target) + "%" }} title={`Target ${r.target}%`} />
+              </span>
+              <span className="fw-pct num" style={{ color: r.status === "serious" ? C.warn : "var(--ink)" }}>{Math.round(r.pct)}%</span>
+              <span className="fw-tg num muted">/ {r.target}%</span>
+              <span className="fw-amt num muted">{money(r.amount)}</span>
+            </button>
+            {isOpen && (
+              <div className="fw-exp">
+                <p className="fw-exp-read">
+                  {m.income === 0 ? "Add your income and this fills in."
+                    : gap > 1 ? <><b className="num">{money(gap)}</b> under the {r.target}% target of {money(r.targetAmt)}.</>
+                      : gap < -1 ? <><b className="num" style={{ color: C.warn }}>{money(-gap)}</b> over the {r.target}% target of {money(r.targetAmt)}.</>
+                        : <>Right on the {r.target}% target ({money(r.targetAmt)}).</>}
+                </p>
+                {r.key === "give" ? (
+                  <div className="fw-exp-body">
+                    {envs.length === 0 ? <p className="empty" style={{ padding: "4px 0" }}>No giving category yet.</p> :
+                      envs.map((e) => (
+                        <div className="fw-envrow" key={e.id}>
+                          <span>{e.name}</span>
+                          <MoneyInput value={e.planned} placeholder="0" onCommit={(v) => setPlanned(e.id, v)} aria-label={`${e.name} planned`} />
+                        </div>
+                      ))}
+                    {gap > 1 && <button className="btn tiny" onClick={() => fundGiving(r.targetAmt)}>Give the full {fw.targets.give}% — set aside {money(r.targetAmt)}</button>}
+                  </div>
+                ) : r.key === "save" ? (
+                  <div className="fw-exp-body">
+                    <p className="empty" style={{ padding: "2px 0" }}>Saving flows through your pots — {money(m.goalMonthly)}/mo going in now.</p>
+                    <button className="btn tiny" onClick={() => setView("goals")}>Manage pots →</button>
+                  </div>
+                ) : (
+                  <div className="fw-exp-body">
+                    {envs.length === 0 ? <p className="empty" style={{ padding: "4px 0" }}>No categories here yet — add some on the plan below.</p> :
+                      envs.map((e) => (
+                        <div className="fw-envrow" key={e.id}>
+                          <span>{e.name}<span className="muted"> · {e.group}</span></span>
+                          <MoneyInput value={e.planned} placeholder="0" onCommit={(v) => setPlanned(e.id, v)} aria-label={`${e.name} planned`} />
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <p className="mstone" style={{ marginTop: 12 }}>Tap a bucket to adjust it. <button className="seelink" style={{ display: "inline" }} onClick={() => setView("settings")}>Change the targets →</button></p>
     </div>
   );
 }
@@ -2976,7 +3042,7 @@ function Budget({ ctx }) {
         ...(m.faithOn ? ["Are we giving the way we mean to?"] : ["Where can we trim?"]),
       ]} />
 
-      <FrameworkCard m={m} setView={setView} />
+      <FrameworkCard ctx={ctx} />
 
       <div className="card" id="incomeCard" style={{ marginBottom: 16 }}>
         <div className="chead">
