@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v56";
+const APP_VERSION = "v57";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -816,6 +816,33 @@ body{margin:0;background:#F5F1EA;}
 .tc .sbx-out .lbl{margin:0;}
 .tc .sbx-out b{font-size:15px;}
 .tc .sbx-foot{font-size:11.5px;color:var(--soft);line-height:1.5;margin:12px 0 0;padding-top:12px;border-top:1px solid var(--line);}
+.tc .dreamcustom{display:flex;gap:8px;}
+.tc .dreamcustom .field{flex:1;}
+.tc .dreamcustom .btn{white-space:nowrap;}
+
+/* learn-to-invest guide */
+.tc .guide-ladder{display:flex;flex-direction:column;gap:8px;margin-bottom:6px;}
+.tc .gl-step{display:flex;gap:12px;align-items:flex-start;padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:var(--paper);}
+.tc .gl-step.done{background:#F1F5EE;border-color:#D6E4CC;}
+.tc .gl-step.now{border-color:var(--joint);box-shadow:inset 0 0 0 1px var(--joint);background:#fff;}
+.tc .gl-ic{flex:none;width:24px;height:24px;border-radius:99px;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;background:var(--track);color:var(--soft);}
+.tc .gl-step.done .gl-ic{background:var(--good);color:#fff;}
+.tc .gl-step.now .gl-ic{background:var(--joint);color:#fff;}
+.tc .gl-h{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.tc .gl-tag{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#fff;background:var(--joint);border-radius:99px;padding:2px 7px;}
+.tc .gl-sub{font-size:12.5px;color:var(--ink);margin-top:2px;}
+.tc .gl-why{font-size:12px;color:var(--soft);line-height:1.5;margin-top:4px;}
+.tc .guide-acc{margin-top:14px;border-top:1px solid var(--line);}
+.tc .ga-item{border-bottom:1px solid var(--hair);}
+.tc .ga-q{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:none;
+ padding:13px 2px;font-size:14px;font-weight:600;color:var(--ink);text-align:left;cursor:pointer;}
+.tc .ga-q:hover{color:var(--a);}
+.tc .ga-chev{transition:transform .15s;color:var(--soft);font-size:15px;}
+.tc .ga-item.open .ga-chev{transform:rotate(90deg);color:var(--a);}
+.tc .ga-a{font-size:13px;color:#3A453F;line-height:1.6;padding:0 2px 14px;}
+.tc .ga-a p{margin:0 0 8px;}
+.tc .ga-list{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;}
+.tc .ga-ref{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--soft);}
 
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
@@ -4755,14 +4782,39 @@ function PotCard({ g, ctx }) {
 /* ================================================================== */
 
 const DREAM_PRESETS = [
-  { name: "Own a home", target: 80000, years: 6, invest: true, rate: 6, note: "a down payment" },
+  { name: "Mission trip", target: 4000, years: 1, invest: false, rate: 0, note: "give and go" },
+  { name: "Buy an RV", target: 55000, years: 4, invest: false, rate: 0, note: "hit the road" },
+  { name: "Debt-free, all of it", target: 12000, years: 3, invest: false, rate: 0, note: "everything owed" },
+  { name: "Pay off the house", target: 200000, years: 12, invest: false, rate: 0, note: "own it outright" },
   { name: "Retire well", target: 900000, years: 28, invest: true, rate: 8, note: "the long game" },
   { name: "Kids' college", target: 120000, years: 15, invest: true, rate: 6, note: "" },
   { name: "Start a business", target: 40000, years: 4, invest: true, rate: 5, note: "seed money" },
-  { name: "Debt-free, all of it", target: 12000, years: 3, invest: false, rate: 0, note: "everything owed" },
-  { name: "A dream trip", target: 15000, years: 2, invest: false, rate: 0, note: "" },
   { name: "Financial freedom", target: 600000, years: 22, invest: true, rate: 7, note: "work optional" },
 ];
+
+// Auto-enter: turn any typed dream name into sensible starting numbers by
+// keyword. Debt/emergency targets come off the household's real figures.
+// Everything is editable on the card after — this is just a smart default.
+function guessDream(name, m) {
+  const n = (name || "").toLowerCase();
+  const rules = [
+    [/mission|missions|ministry/, { target: 4000, years: 1, invest: false, rate: 0 }],
+    [/rv|camper|motorhome|trailer|boat/, { target: 55000, years: 4, invest: false, rate: 0 }],
+    [/pay ?off|mortgage|house|home ?loan/, { target: 200000, years: 12, invest: false, rate: 0 }],
+    [/down ?payment|first home|buy a home|buy a house/, { target: 80000, years: 6, invest: true, rate: 6 }],
+    [/retire|retirement/, { target: 900000, years: 28, invest: true, rate: 8 }],
+    [/college|tuition|school|kids/, { target: 120000, years: 15, invest: true, rate: 6 }],
+    [/business|startup|shop|store/, { target: 40000, years: 4, invest: true, rate: 5 }],
+    [/debt|loans?/, { target: Math.max(1000, Math.round(m.debtTotal) || 12000), years: 3, invest: false, rate: 0 }],
+    [/wedding/, { target: 30000, years: 2, invest: false, rate: 0 }],
+    [/emergency|rainy/, { target: Math.max(6000, Math.round(m.monthlyCost * 6) || 15000), years: 1, invest: false, rate: 0 }],
+    [/freedom|independen|fire/, { target: 600000, years: 22, invest: true, rate: 7 }],
+    [/car|truck|vehicle/, { target: 30000, years: 3, invest: false, rate: 0 }],
+    [/trip|travel|vacation|honeymoon|cruise/, { target: 8000, years: 2, invest: false, rate: 0 }],
+  ];
+  for (const [re, d] of rules) if (re.test(n)) return d;
+  return { target: 10000, years: 5, invest: false, rate: 0 };
+}
 
 // The dreams layer: name the big things, and the app works out — from the
 // household's real free cash flow — what it takes to get there, saving vs.
@@ -4770,8 +4822,12 @@ const DREAM_PRESETS = [
 function DreamsView({ ctx }) {
   const { m, state, patch, setView } = ctx;
   const [adding, setAdding] = useState(false);
+  const [custom, setCustom] = useState("");
   const nowYear = new Date().getFullYear();
   const dreamCount = (state.dreams || []).length;
+  // Debt-free target reflects what's actually owed, when there is any.
+  const presets = DREAM_PRESETS.map((p) =>
+    /debt/i.test(p.name) && m.debtTotal > 0 ? { ...p, target: Math.round(m.debtTotal) } : p);
 
   const addDream = (p) => patch((s) => {
     s.dreams = [...(s.dreams || []), {
@@ -4780,6 +4836,12 @@ function DreamsView({ ctx }) {
     }];
     return s;
   });
+  const addCustom = () => {
+    const name = custom.trim();
+    if (!name) return;
+    addDream({ name, ...guessDream(name, m) });
+    setCustom(""); setAdding(false);
+  };
 
   return (
     <>
@@ -4787,14 +4849,20 @@ function DreamsView({ ctx }) {
         right={<AddBtn label="Add a dream" onClick={() => setAdding(true)} />} />
 
       {adding && (
-        <Modal title="What are you dreaming toward?" sub="Pick one to start — every number is yours to change after." onClose={() => setAdding(false)}>
+        <Modal title="What are you dreaming toward?" sub="Pick one, or type your own — every number is yours to change after." onClose={() => setAdding(false)}>
           <div className="dreampick">
-            {DREAM_PRESETS.map((p) => (
+            {presets.map((p) => (
               <button key={p.name} className="dreamopt" onClick={() => { addDream(p); setAdding(false); }}>
                 <b>{p.name}</b>
                 <span>{money(p.target)} · ~{p.years} yr{p.note ? ` · ${p.note}` : ""}</span>
               </button>
             ))}
+          </div>
+          <label className="lbl" style={{ marginTop: 14 }}>Or name your own — I'll fill in a sensible start</label>
+          <div className="dreamcustom">
+            <input className="field" placeholder="e.g. Mission trip, an RV, be debt-free…" value={custom}
+              onChange={(e) => setCustom(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCustom()} aria-label="Custom dream" />
+            <button className="btn" onClick={addCustom} disabled={!custom.trim()}>Add it</button>
           </div>
         </Modal>
       )}
@@ -4815,6 +4883,8 @@ function DreamsView({ ctx }) {
       </div>
 
       <InvestSandbox ctx={ctx} />
+
+      <InvestGuide ctx={ctx} />
 
       {dreamCount === 0
         ? <div className="card"><p className="empty">No dreams yet. Add the first big thing you'd both name — a home, retiring well, a business, being debt-free.</p></div>
@@ -4957,6 +5027,98 @@ function InvestSandbox({ ctx }) {
         <div><span className="lbl">vs. cash</span><b className="num">+{money(Math.round(Math.max(0, final - cashFinal)))}</b></div>
       </div>
       <p className="sbx-foot">A steady {rate}%/yr is an assumption for play — real markets rise and fall, some years lose money, and past returns never promise future ones. Nothing here is investment advice or a real transaction.</p>
+    </div>
+  );
+}
+
+// Learn-to-invest: a readiness ladder built from the household's real numbers
+// (cushion → high-cost debt → tax-smart accounts → investing toward dreams),
+// then plain-language lessons on how investing works, the safe practices, what
+// you can invest in, and a biblical view. Education, not product advice.
+function InvestGuide({ ctx }) {
+  const { m } = ctx;
+  const [open, setOpen] = useState(null);
+
+  const topDebt = (m.debts || []).filter((d) => d.balance > 0).sort((a, b) => (b.apr || 0) - (a.apr || 0))[0];
+  const highCost = topDebt && (topDebt.apr || 0) >= 8;
+  const steps = [
+    { done: m.runwayMonths >= 3, h: "Build a cash cushion first",
+      sub: m.assets && m.assets.length ? `${m.runwayMonths.toFixed(1)} month${m.runwayMonths === 1 ? "" : "s"} saved — aim for 3–6.` : "3–6 months of expenses in plain savings.",
+      why: "Investing money you might need next month is a gamble. A cushion lets your investments ride out the dips instead of selling low in a pinch." },
+    { done: !highCost, h: "Clear high-cost debt",
+      sub: highCost ? `${topDebt.name} at ${topDebt.apr}% — pay this down before investing.` : "Nothing above ~8% standing in the way.",
+      why: "A card at 22% is a guaranteed 22% loss each year. No fund reliably beats that, so paying it off is the surest “return” you can get." },
+    { done: m.invested > 0, h: "Use tax-smart accounts",
+      sub: m.invested > 0 ? `${money(Math.round(m.invested))} already invested — keep it going.` : "A 401(k) match or a Roth/IRA, before a plain brokerage.",
+      why: "An employer match is free money, and these accounts let your growth compound without the taxman taking a cut each year." },
+    { done: (m.dreams || []).some((d) => d.invest), h: "Invest steadily toward your dreams",
+      sub: "Pick a dream above, switch it to “invest it”, and add a little every month.",
+      why: "Steady monthly investing over years is what the sandbox is showing you — time does the heavy lifting, not timing." },
+  ];
+  const nextStep = steps.findIndex((s) => !s.done);
+
+  const LESSONS = [
+    { q: "How investing actually works",
+      a: <>You buy a small share of real companies — a <b>stock</b> — or a basket of hundreds at once — an <b>index fund</b>. As those businesses grow and pay dividends, your share grows with them. The engine is <b>compounding</b>: your growth earns its own growth, then that earns more. It needs one thing above all — <b>time</b>. Markets fall some years and rise more over decades, so the long horizon is what turns a bumpy ride into real reward.</> },
+    { q: "The safe, wise way to do it",
+      a: <ul className="ga-list">
+        <li>Cushion and high-cost debt first (the ladder above).</li>
+        <li><b>Spread it out.</b> A low-cost index fund holds hundreds of companies, so no single failure sinks you.</li>
+        <li><b>Invest steadily</b> — the same amount every month — instead of trying to guess the market's highs and lows.</li>
+        <li><b>Keep costs low</b> and leave it alone; fees and constant trading quietly eat returns.</li>
+        <li>Only invest money you <b>won't need for 5+ years</b>.</li>
+        <li>Ignore hype, hot tips, and anything that smells like get-rich-quick.</li>
+      </ul> },
+    { q: "What you can invest in",
+      a: <ul className="ga-list">
+        <li><b>Index funds / ETFs</b> — a whole market in one cheap basket. The simplest wise default.</li>
+        <li><b>Individual stocks</b> — one company; higher risk, needs homework.</li>
+        <li><b>Bonds</b> — lending to governments or companies for steadier, lower returns.</li>
+        <li><b>Retirement accounts</b> (401(k), IRA, Roth) — not investments themselves, but tax-smart buckets you hold the above inside.</li>
+        <li><b>Real estate</b> — property to rent or resell; bigger, slower to sell.</li>
+        <li><b>High-yield savings / CDs</b> — not really investing, but a safe home for your cushion.</li>
+      </ul> },
+    ...(m.faithOn ? [{ q: "A faithful view of investing",
+      a: <><p>Scripture treats putting money to work as wise stewardship, not worldly. In the parable of the talents the servant who invested was praised and the one who buried his was not <span className="ga-ref">(Matthew 25)</span>. But it draws clear lines:</p>
+        <ul className="ga-list">
+          <li><b>Patience over quick riches.</b> “Wealth gained dishonestly dwindles away, but he who gathers by hand makes it grow.” <span className="ga-ref">Proverbs 13:11</span></li>
+          <li><b>Spread the risk.</b> “Give a portion to seven, yes, even to eight; for you don't know what evil will be on the earth.” <span className="ga-ref">Ecclesiastes 11:2</span></li>
+          <li><b>Guard your heart.</b> Trust God, not riches, and “the love of money is a root of all kinds of evil.” <span className="ga-ref">1 Timothy 6:10</span></li>
+          <li><b>Give as you grow.</b> Invest to provide and to be generous, not to hoard.</li>
+        </ul></> }] : []),
+  ];
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="chead"><div>
+        <h3>Learning to invest</h3>
+        <div className="inc-sub">Work up to it in order — then let time do the work.</div>
+      </div></div>
+
+      <div className="guide-ladder">
+        {steps.map((s, i) => (
+          <div key={s.h} className={"gl-step" + (s.done ? " done" : i === nextStep ? " now" : "")}>
+            <span className="gl-ic">{s.done ? "✓" : i + 1}</span>
+            <div className="gl-txt">
+              <div className="gl-h">{s.h}{i === nextStep && !s.done && <span className="gl-tag">start here</span>}</div>
+              <div className="gl-sub">{s.sub}</div>
+              <div className="gl-why">{s.why}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="guide-acc">
+        {LESSONS.map((l, i) => (
+          <div key={l.q} className={"ga-item" + (open === i ? " open" : "")}>
+            <button className="ga-q" onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}>
+              {l.q}<span className="ga-chev">›</span>
+            </button>
+            {open === i && <div className="ga-a">{l.a}</div>}
+          </div>
+        ))}
+      </div>
+      <p className="sbx-foot">This is general education to help you learn, not personalized investment advice. For your own plan, a fee-only fiduciary advisor is worth the conversation.</p>
     </div>
   );
 }
