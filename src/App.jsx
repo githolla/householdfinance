@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v60";
+const APP_VERSION = "v61";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -875,6 +875,18 @@ body{margin:0;background:#F5F1EA;}
 .tc .debtrow-h{padding:2px 0 6px;border-bottom:1px solid var(--line);}
 .tc .debtrow-h span{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);}
 @media(max-width:640px){.tc .debtrow{grid-template-columns:1.4fr 1fr .7fr;gap:8px 10px;}.tc .debtrow > *:nth-child(4),.tc .debtrow > *:nth-child(5){grid-column:span 1;}.tc .debtrow-h{display:none;}}
+.tc .chip-lead{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);align-self:center;margin-right:2px;}
+.tc .gp-focus{background:var(--accsoft);border:1px solid #CFE4E0;border-radius:12px;padding:13px 15px;margin-bottom:14px;}
+.tc .gp-focus-tag{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--a);margin-bottom:5px;}
+.tc .gp-focus p{font-size:13.5px;line-height:1.55;color:var(--ink);margin:0;}
+.tc .gp-steps{display:flex;flex-direction:column;}
+.tc .gp-step{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--hair);}
+.tc .gp-step:last-child{border-bottom:none;}
+.tc .gp-n{flex:none;width:22px;height:22px;border-radius:99px;display:grid;place-items:center;background:var(--ink);color:#fff;
+ font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;}
+.tc .gp-h{font-size:14px;}
+.tc .gp-when{font-size:12.5px;color:var(--soft);margin-top:2px;}
+.tc .gp-roll{color:var(--soft);}
 
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
@@ -1603,17 +1615,18 @@ function model(state, plan, month) {
   const perDay = liveMonth && daysLeft > 0 && available > 0 ? available / daysLeft : null;
 
   const payoff = (extra, strategy) => {
-    const list = debts.map((d) => ({ ...d }));
-    if (!list.length) return { months: 0, interest: 0, order: [], series: [] };
+    const list = debts.map((d) => ({ ...d, _start: d.balance }));
+    if (!list.some((d) => d.balance > 0)) return { months: 0, interest: 0, order: [], series: [], paidOff: [] };
     list.sort((x, y) => (strategy === "snowball" ? x.balance - y.balance : (y.apr || 0) - (x.apr || 0)));
-    const order = list.map((d) => d.name);
+    const order = list.filter((d) => d.balance > 0).map((d) => d.name);
     if (list.reduce((n, d) => n + (d.minPayment || 0), 0) + extra <= 0)
-      return { months: 0, interest: 0, order, series: [] };
+      return { months: 0, interest: 0, order, series: [], paidOff: [] };
     let months = 0, interest = 0;
+    const paidOff = [];
     const series = [{ month: 0, balance: list.reduce((n, d) => n + d.balance, 0) }];
     while (list.some((d) => d.balance > 0) && months < 600) {
       months++;
-      let pool = extra;
+      // interest, then the minimum, on everything still owed
       list.forEach((d) => {
         if (d.balance <= 0) return;
         const i = (d.balance * ((d.apr || 0) / 100)) / 12;
@@ -1621,15 +1634,27 @@ function model(state, plan, month) {
         d.balance += i;
         d.balance -= Math.min(d.balance, d.minPayment || 0);
       });
+      // the attack pool: the extra, plus — once you're actively paying down —
+      // every freed-up minimum from debts already cleared (the rollover that
+      // makes avalanche/snowball accelerate). At pure minimums it doesn't roll.
+      const freed = extra > 0 ? list.filter((d) => d.balance <= 0 && d._cleared).reduce((n, d) => n + (d.minPayment || 0), 0) : 0;
+      let pool = extra + freed;
       for (const d of list) {
         if (pool <= 0) break;
         if (d.balance <= 0) continue;
         const pay = Math.min(d.balance, pool);
         d.balance -= pay; pool -= pay;
       }
+      // record debts as they fall — only ones that actually owed
+      list.forEach((d) => {
+        if (d.balance <= 0.005 && !d._cleared && d._start > 0) {
+          d._cleared = true;
+          paidOff.push({ name: d.name, id: d.id, apr: d.apr || 0, month: months });
+        }
+      });
       series.push({ month: months, balance: Math.max(0, list.reduce((n, d) => n + d.balance, 0)) });
     }
-    return { months, interest, order, series };
+    return { months, interest, order, series, paidOff };
   };
 
   const notes = [];
@@ -5277,6 +5302,13 @@ function DebtView({ ctx }) {
     "At minimums": baseSeries[i] ? Math.round(baseSeries[i].balance) : 0,
     "With extra": xSeries[i] ? Math.round(xSeries[i].balance) : 0,
   });
+  // The step-by-step play: which debt to attack now and when each one falls.
+  const steps = withX.paidOff || [];
+  const focusName = withX.order[0];
+  const focusDebt = sortedDebts.find((d) => d.name === focusName);
+  const focusFall = steps.find((p) => p.name === focusName);
+  const monthlyToDebt = m.debtMin + num(extra);
+  const setExtraQuick = (v) => setExtra(String(v));
 
   return (
     <>
@@ -5337,11 +5369,18 @@ function DebtView({ ctx }) {
                   onChange={(e) => setExtra(e.target.value)} aria-label="Extra per month" />
               </label>
             </div>
-            {!hasExtra && dp.suggestExtra > 0 && (
-              <button className="btn ghost tiny" style={{ marginBottom: 14 }} onClick={() => setExtra(String(dp.suggestExtra))}>
-                Try your {money(dp.suggestExtra)}/mo of free cash →
-              </button>
-            )}
+            <div className="chips" style={{ marginBottom: 14 }}>
+              <span className="chip-lead">Try adding</span>
+              {[50, 100, 250, 500].map((a) => (
+                <button key={a} className={"chip " + (num(extra) === a ? "on" : "")} onClick={() => setExtraQuick(a)}>+{money(a)}</button>
+              ))}
+              {dp.suggestExtra >= 25 && (
+                <button className={"chip " + (num(extra) === dp.suggestExtra ? "on" : "")} onClick={() => setExtraQuick(dp.suggestExtra)}>
+                  All free cash · {money(dp.suggestExtra)}
+                </button>
+              )}
+              {hasExtra && <button className="chip" onClick={() => setExtra("")}>Reset</button>}
+            </div>
             <div className="grid g3" style={{ gap: 12, marginBottom: 16 }}>
               <div className="tripstat"><span className="v-l">Debt-free in</span><b className="num">{withX.months ? `${withX.months} mo` : "—"}</b><span className="muted" style={{ fontSize: 11.5 }}>{withX.months ? monthLabel(shiftMonth(month, withX.months)) : "add a payment"}</span></div>
               <div className="tripstat"><span className="v-l">Interest you'll pay</span><b className="num">{money(Math.round(withX.interest))}</b>{interestSaved > 0 && <span className="muted" style={{ fontSize: 11.5, color: C.good }}>saves {money(Math.round(interestSaved))}</span>}</div>
@@ -5365,6 +5404,31 @@ function DebtView({ ctx }) {
             </div>
             <p className="mstone" style={{ marginTop: 12 }}>Order to attack: <b>{withX.order.join(" → ")}</b>. {strategy === "avalanche" ? "Highest rate first is the cheapest path out." : "Smallest balance first clears whole debts fast — the most motivating."}</p>
           </div>
+
+          {/* The step-by-step play — exactly where every dollar goes, and when each debt falls */}
+          {steps.length > 0 && (
+            <div className="card" style={{ marginBottom: 16 }}>
+              <div className="chead"><div><h3>Your game plan</h3><div className="inc-sub">Do these in order — one debt at a time.</div></div></div>
+              {focusDebt && (
+                <div className="gp-focus">
+                  <div className="gp-focus-tag">Right now</div>
+                  <p>Pay the minimums on everything ({money(m.debtMin)}/mo), then throw <b>{hasExtra ? money(num(extra)) + " extra" : "every spare dollar"}</b> at <b>{focusName}</b>{focusDebt.apr ? ` (${focusDebt.apr}%)` : ""} — your {strategy === "avalanche" ? "priciest" : "smallest"} debt. That's <b>{money(monthlyToDebt)}/mo</b> going to debt.{focusFall ? <> It's gone by <b>{monthLabel(shiftMonth(month, focusFall.month))}</b>.</> : null}</p>
+                </div>
+              )}
+              <div className="gp-steps">
+                {steps.map((p, i) => (
+                  <div className="gp-step" key={p.id || p.name}>
+                    <span className="gp-n">{i + 1}</span>
+                    <div className="gp-body">
+                      <div className="gp-h"><b>{p.name}</b>{p.apr ? <span className="muted"> · {p.apr}%</span> : null}</div>
+                      <div className="gp-when">gone by {monthLabel(shiftMonth(month, p.month))} · {p.month} mo{steps[i + 1] ? <span className="gp-roll"> — then its payment rolls onto {steps[i + 1].name}</span> : <span className="gp-roll" style={{ color: C.good }}> — debt-free</span>}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mstone" style={{ marginTop: 12 }}>Each time one falls, its whole payment rolls onto the next — that's why the last debts go fastest. Debt-free by <b>{withX.months ? monthLabel(shiftMonth(month, withX.months)) : "—"}</b>.</p>
+            </div>
+          )}
 
           <DebtList debts={sortedDebts} setD={setD} delDebt={delDebt} onAdd={() => setAdding(true)} />
         </>
