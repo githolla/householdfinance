@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v61";
+const APP_VERSION = "v62";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -887,6 +887,20 @@ body{margin:0;background:#F5F1EA;}
 .tc .gp-h{font-size:14px;}
 .tc .gp-when{font-size:12.5px;color:var(--soft);margin-top:2px;}
 .tc .gp-roll{color:var(--soft);}
+
+/* smart money moves (the coach) */
+.tc .moves{display:flex;flex-direction:column;gap:8px;}
+.tc .move{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;cursor:pointer;
+ background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:border-color .12s,background .12s;}
+.tc .move:hover{border-color:var(--a);background:var(--accsoft);}
+.tc .move-cat{flex:none;font-family:'IBM Plex Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+ border-radius:99px;padding:4px 9px;margin-top:1px;min-width:64px;text-align:center;}
+.tc .move-body{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;}
+.tc .move-title{font-size:14px;font-weight:600;color:var(--ink);}
+.tc .move-detail{font-size:12.5px;color:var(--soft);line-height:1.5;}
+.tc .move-go{flex:none;color:var(--soft);font-size:16px;align-self:center;transition:transform .12s,color .12s;}
+.tc .move:hover .move-go{color:var(--a);transform:translateX(2px);}
+@media(max-width:560px){.tc .move-cat{min-width:0;}}
 
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
@@ -2035,10 +2049,92 @@ function model(state, plan, month) {
     actions: worst.filter((v) => v.status !== "good").slice(0, 3).map((v) => v.note),
   };
 
+  /* ---- the coach: once income + bills are in, a prioritized set of concrete,
+     personalized moves — across debt, spending, food/gas, saving, giving, and
+     investing — read straight off everything the model already knows. Ordered
+     most urgent first; each points at the view where you'd act on it. ---- */
+  const advice = [];
+  if (income > 0) {
+    const A = (cat, tone, view, title, detail) => advice.push({ cat, tone, view, title, detail });
+    const envLike = (re) => plan.envelopes
+      .map((e) => ({ e, spent: spentBy[e.id] || 0 }))
+      .filter((x) => re.test((x.e.name || "").toLowerCase()));
+    const overBucket = framework.rows
+      .filter((r) => (r.key === "needs" || r.key === "wants") && r.off > 2)
+      .sort((a, b) => b.off - a.off)[0];
+
+    // 1) Not covering the essentials — the alarms come first
+    if (!incomeNeeded.coversBills)
+      A("Fix first", "urgent", "bills", "Income isn't covering the bills",
+        `Your bills need ${money(incomeNeeded.bills)}/mo and ${money(income)} comes in. Add any missing income in Settings, or trim a recurring bill.`);
+    else if (monthlyNet < -1)
+      A("Fix first", "urgent", "budget", `You're ${money(-monthlyNet)}/mo in the red`,
+        `The plan and bills run ${money(-monthlyNet)} past your ${money(income)} income.${overBucket ? ` ${overBucket.label} is furthest over the guide — start trimming there.` : ""}`);
+
+    // 2) High-interest debt — the best guaranteed return there is
+    if (debtPlan.hasDebt && debtPlan.top && (debtPlan.top.apr || 0) >= 10) {
+      const topInt = Math.round((debtPlan.top.balance * (debtPlan.top.apr / 100)) / 12);
+      A("Debt", "watch", "debt", `Hit ${debtPlan.top.name} at ${debtPlan.top.apr}% first`,
+        debtPlan.suggestExtra >= 25 && debtPlan.monthsSaved > 0
+          ? `It costs ${money(topInt)}/mo in interest. Route your ${money(debtPlan.suggestExtra)}/mo free cash here — debt-free ${debtPlan.monthsSaved} mo sooner, saving ${money(Math.round(debtPlan.interestSaved))}.`
+          : `It costs ${money(topInt)}/mo in interest — the priciest money you owe. Even $50 extra a month starts to bite into it.`);
+    }
+
+    // 3) Overspending — biggest category over plan, then food and gas by name
+    const bigOver = overEnvs.map((e) => ({ e, over: (spentBy[e.id] || 0) - e.planned }))
+      .sort((a, b) => b.over - a.over)[0];
+    if (bigOver && bigOver.over > 5)
+      A("Spend", "watch", "txn", `${bigOver.e.name} is over plan`,
+        `${money(spentBy[bigOver.e.id] || 0)} spent against ${money(bigOver.e.planned)} planned — ${money(bigOver.over)} over. Reining it in frees that up for debt or savings.`);
+    const food = envLike(/food|grocer|dining|eat|restaurant/)[0];
+    if (food && food.e.planned > 0 && food.spent > food.e.planned * 1.1 && (!bigOver || food.e.id !== bigOver.e.id))
+      A("Food", "watch", "txn", "Food is running hot",
+        `${money(food.spent)} on ${food.e.name.toLowerCase()} vs ${money(food.e.planned)} planned. A few more meals cooked at home — about ${money(Math.max(5, Math.round((food.spent - food.e.planned) / 4)))}/week — closes the gap.`);
+    const gas = envLike(/gas|fuel|transport|commut/)[0];
+    if (gas && gas.e.planned > 0 && gas.spent > gas.e.planned * 1.1 && (!bigOver || gas.e.id !== bigOver.e.id))
+      A("Gas", "watch", "txn", "Gas is above plan",
+        `${money(gas.spent)} on ${gas.e.name.toLowerCase()} vs ${money(gas.e.planned)} planned. Combining trips or a cheaper station could save about ${money(Math.round(gas.spent - gas.e.planned))}/mo.`);
+
+    // 4) Emergency cushion
+    if (assets.length && runwayMonths < 3 && monthlyCost > 0) {
+      const perMo = Math.max(25, Math.round((monthlyCost * 3 - cashTotal) / 12));
+      A("Save", "watch", "goals", "Build your safety cushion",
+        `${runwayMonths.toFixed(1)} months of expenses saved so far. About ${money(perMo)}/mo reaches a full 3-month cushion within a year — what keeps a bad month off the credit card.`);
+    }
+
+    // 5) Wants ahead of the guide
+    const wants = framework.rows.find((r) => r.key === "wants");
+    if (wants && wants.amount > wants.targetAmt * 1.12 && (!overBucket || overBucket.key !== "wants"))
+      A("Spend", "info", "budget", "Wants are ahead of the guide",
+        `Wants are ${money(wants.amount)} (${Math.round(wants.pct)}% of income vs the ${wants.target}% guide). Shifting ${money(Math.round(wants.amount - wants.targetAmt))} toward debt or savings would strengthen the month.`);
+
+    // 6) Giving short of target
+    if (faithOn && giving.target > 0 && !giving.metTarget)
+      A("Give", "info", "budget", "Giving is short of your target",
+        `${money(giving.planned)} set aside vs a ${giving.targetPct}% target of ${money(giving.target)}. Another ${money(Math.round(giving.target - giving.planned))}/mo meets it — first fruits, off the top.`);
+
+    // 7) Invest the surplus — only once debt and cushion are handled
+    const debtClear = !debtPlan.hasDebt || (debtPlan.top && (debtPlan.top.apr || 0) < 10);
+    if (freeCash >= 50 && debtClear && (!assets.length || runwayMonths >= 3))
+      A("Invest", "good", "dreams", "Put your surplus to work",
+        `Debt's in hand and your cushion's set. Investing your ${money(Math.round(freeCash))}/mo free cash at a modest 7% could grow to about ${money(Math.round(fvGrow(0, Math.round(freeCash), 7, 240)))} in 20 years — try it in the sandbox.`);
+
+    // 8) A dream that's within reach
+    const reach = dreams.find((d) => !d.done && d.affordable && d.fundMonthly > 0);
+    if (reach && advice.length < 6)
+      A("Dream", "good", "dreams", `“${reach.name}” is within reach`,
+        `About ${money(Math.round(reach.fundMonthly))}/mo${reach.invest ? ` invested at ${reach.rate}%` : ""} gets you there by ${reach.targetYear || "your date"} — and it fits inside your free cash flow.`);
+
+    if (!advice.length)
+      A("Steady", "good", "dash", "You're in good shape",
+        "Bills covered, plan balanced, nothing over the line. Keep logging as you go and let it compound.");
+  }
+  const advice6 = advice.slice(0, 6);
+
   return {
     pA, pB, income, spentBy, spentByWho, planned, spent, goalMonthly, allocated, unallocated,
     leftToSpend, savingsRate, assets, debts, assetTotal, debtTotal, netWorth, debtMin, byGroup,
-    cashTotal, runwayMonths, monthlyNet, monthlyCost, health, framework, incomeNeeded,
+    cashTotal, runwayMonths, monthlyNet, monthlyCost, health, framework, incomeNeeded, advice: advice6,
     dreams, dreamsTotal, dreamsSaved, dreamsMonthly, invest, invested, freeCash, debtPlan,
     goalStatus, history, bills, billsTotal, billsLeft, billHistory, billPaidByMonth, billMethodMix, payoff, notes, thesis, shareA, jointCost,
     faithOn, giving, celebrations, verse, verseLine, available, daysLeft, perDay,
@@ -2883,6 +2979,37 @@ function HealthCard({ m, setView }) {
 }
 const monthLabelForHealth = (m) => (m.income > 0 ? "this month" : "not enough entered yet");
 
+// The coach card: the model's prioritized, personalized suggestions across
+// debt, spending, food/gas, saving, giving, and investing. Each taps through
+// to the view where you'd act on it.
+function MoneyMoves({ m, setView }) {
+  if (!m.advice || !m.advice.length) return null;
+  const toneC = { urgent: C.warn, watch: C.b, info: C.joint, good: C.good };
+  return (
+    <div className="card" id="moneymoves" style={{ marginBottom: 16 }}>
+      <div className="chead"><div>
+        <h3>Smart money moves</h3>
+        <div className="inc-sub">Your next best steps, from your income, bills, and spending.</div>
+      </div></div>
+      <div className="moves">
+        {m.advice.map((a, i) => {
+          const c = toneC[a.tone] || C.soft;
+          return (
+            <button className="move" key={i} onClick={() => a.view && setView(a.view)}>
+              <span className="move-cat" style={{ color: c, background: c + "18" }}>{a.cat}</span>
+              <span className="move-body">
+                <span className="move-title">{a.title}</span>
+                <span className="move-detail">{a.detail}</span>
+              </span>
+              <span className="move-go">→</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Dashboard({ ctx }) {
   const { m, plan, month, setMonth, state, setView, writeMonth, patch, openStudy, study } = ctx;
   const [showSpend, setShowSpend] = useState(false);
@@ -2961,6 +3088,8 @@ function Dashboard({ ctx }) {
       ]} />
 
       <HealthCard m={m} setView={setView} />
+
+      <MoneyMoves m={m} setView={setView} />
 
       <FrameworkStrip m={m} setView={setView} />
 
@@ -6421,6 +6550,9 @@ function buildSnapshot(state, m, plan, month) {
       score: m.health.score, standing: m.health.label,
       vitals: m.health.vitals.map((v) => ({ what: v.label, value: v.value, status: v.status })),
     },
+    ...(m.advice.length > 0 && {
+      topSuggestions: m.advice.map((a) => ({ area: a.cat, move: a.title, why: a.detail })),
+    }),
     budgetGuideline: {
       rule: `${m.framework.targets.give}/${m.framework.targets.needs}/${m.framework.targets.wants}/${m.framework.targets.save} — give first, then needs/wants/save`,
       buckets: m.framework.rows.map((r) => ({ bucket: r.label, actualPct: Math.round(r.pct), targetPct: r.target })),
