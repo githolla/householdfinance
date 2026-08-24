@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v63";
+const APP_VERSION = "v64";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -901,6 +901,12 @@ body{margin:0;background:#F5F1EA;}
 .tc .move-go{flex:none;color:var(--soft);font-size:16px;align-self:center;transition:transform .12s,color .12s;}
 .tc .move:hover .move-go{color:var(--a);transform:translateX(2px);}
 @media(max-width:560px){.tc .move-cat{min-width:0;}}
+.tc .showmore-wrap{display:flex;justify-content:center;margin:2px 0 16px;}
+.tc .showmore{display:inline-flex;align-items:center;gap:7px;background:none;border:1px solid var(--line);border-radius:99px;
+ padding:8px 18px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--soft);transition:border-color .12s,color .12s;}
+.tc .showmore:hover{border-color:var(--a);color:var(--ink);}
+.tc .sm-chev{transition:transform .18s;}
+.tc .sm-chev.up{transform:rotate(180deg);}
 
 /* insights */
 .tc .mover{display:grid;grid-template-columns:auto 110px 1fr 58px 64px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--hair);}
@@ -3014,6 +3020,7 @@ function Dashboard({ ctx }) {
   const { m, plan, month, setMonth, state, setView, writeMonth, patch, openStudy, study } = ctx;
   const [showSpend, setShowSpend] = useState(false);
   const [selGroup, setSelGroup] = useState(null);
+  const [showMore, setShowMore] = useState(false);
 
   const groupData = GROUPS
     .map((g) => ({ name: g, value: (m.byGroup[g] || {}).spent || 0, planned: (m.byGroup[g] || {}).planned || 0 }))
@@ -3091,9 +3098,70 @@ function Dashboard({ ctx }) {
 
       <MoneyMoves m={m} setView={setView} />
 
+      {/* Always visible: what just happened, and what's due */}
+      <div className="grid g23" style={{ marginBottom: 16 }}>
+        {/* Recent transactions */}
+        <div className="card">
+          <div className="chead"><h3>Recent transactions</h3>
+            <button className="seelink" onClick={() => setView("txn")}>View all →</button></div>
+          {recentTx.length === 0 ? <p className="empty">Nothing logged yet. Use the bar above to log a spend.</p> :
+            recentTx.map((t) => {
+              const e = plan.envelopes.find((x) => x.id === t.envId);
+              return (
+                <div className="txrow" key={t.id}>
+                  <span className="tx-av" style={{ background: m.ownerColor(t.who) }}>{m.ownerName(t.who).charAt(0)}</span>
+                  <span className="tx-main">
+                    <span className="tx-nm">{t.note || (e ? e.name : "Spending")}</span>
+                    <span className="tx-sub muted">{e ? e.name : "unfiled"} · {t.date}</span>
+                  </span>
+                  <span className="tx-am num">−{money(t.amount).replace(/^-/, "")}</span>
+                </div>
+              );
+            })}
+        </div>
+
+        {/* Recurring bills status */}
+        <div className="card">
+          <div className="chead"><h3>Recurring bills</h3>
+            <button className="seelink" onClick={() => setView("bills")}>See all →</button></div>
+          <div className="billstat">
+            <div className="bs" style={{ borderColor: C.good }}>
+              <span className="bs-l">Paid this month</span>
+              <span className="bs-v num">{money(m.billsTotal - m.billsLeft)}</span>
+            </div>
+            <div className="bs" style={{ borderColor: C.b }}>
+              <span className="bs-l">Still upcoming</span>
+              <span className="bs-v num">{money(m.billsLeft)}</span>
+            </div>
+            <div className="bs" style={{ borderColor: overdueTotal > 0 ? C.warn : C.line }}>
+              <span className="bs-l">Overdue</span>
+              <span className="bs-v num" style={{ color: overdueTotal > 0 ? C.warn : undefined }}>{money(overdueTotal)}</span>
+            </div>
+          </div>
+          {m.bills.slice(0, 4).map((b) => (
+            <div className="note" key={b.id} style={{ justifyContent: "space-between" }}>
+              <span style={{ display: "flex", gap: 9, alignItems: "center" }}>
+                <span className="tick" style={{ background: b.paid ? C.good : b.overdue ? C.warn : C.b, minHeight: 15 }} />
+                <span>{b.name}<span className="muted"> · {ordinal(b.day)}</span></span>
+              </span>
+              <span className={"num " + (b.paid ? "muted" : "")}>{money(b.amount)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="showmore-wrap">
+        <button className="showmore" onClick={() => setShowMore(!showMore)} aria-expanded={showMore}>
+          {showMore ? "Show less" : "Show more of the month"}
+          <svg className={"sm-chev" + (showMore ? " up" : "")} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+        </button>
+      </div>
+
+      {showMore && (
+        <>
       <FrameworkStrip m={m} setView={setView} />
 
-      <div className="grid g23" style={{ marginBottom: 16 }}>
+      <div className="grid g2" style={{ marginBottom: 16 }}>
         {/* Where it went — interactive donut */}
         <div className="card">
           <div className="chead">
@@ -3138,28 +3206,6 @@ function Dashboard({ ctx }) {
           )}
         </div>
 
-        {/* Recent transactions */}
-        <div className="card">
-          <div className="chead"><h3>Recent transactions</h3>
-            <button className="seelink" onClick={() => setView("txn")}>View all →</button></div>
-          {recentTx.length === 0 ? <p className="empty">Nothing logged yet. Use the bar above to log a spend.</p> :
-            recentTx.map((t) => {
-              const e = plan.envelopes.find((x) => x.id === t.envId);
-              return (
-                <div className="txrow" key={t.id}>
-                  <span className="tx-av" style={{ background: m.ownerColor(t.who) }}>{m.ownerName(t.who).charAt(0)}</span>
-                  <span className="tx-main">
-                    <span className="tx-nm">{t.note || (e ? e.name : "Spending")}</span>
-                    <span className="tx-sub muted">{e ? e.name : "unfiled"} · {t.date}</span>
-                  </span>
-                  <span className="tx-am num">−{money(t.amount).replace(/^-/, "")}</span>
-                </div>
-              );
-            })}
-        </div>
-      </div>
-
-      <div className="grid g2" style={{ marginBottom: 16 }}>
         {/* Pots */}
         <div className="card">
           <div className="chead"><h3>Pots</h3>
@@ -3177,35 +3223,6 @@ function Dashboard({ ctx }) {
                 </div>
               );
             })}
-        </div>
-
-        {/* Recurring bills status */}
-        <div className="card">
-          <div className="chead"><h3>Recurring bills</h3>
-            <button className="seelink" onClick={() => setView("bills")}>See all →</button></div>
-          <div className="billstat">
-            <div className="bs" style={{ borderColor: C.good }}>
-              <span className="bs-l">Paid this month</span>
-              <span className="bs-v num">{money(m.billsTotal - m.billsLeft)}</span>
-            </div>
-            <div className="bs" style={{ borderColor: C.b }}>
-              <span className="bs-l">Still upcoming</span>
-              <span className="bs-v num">{money(m.billsLeft)}</span>
-            </div>
-            <div className="bs" style={{ borderColor: overdueTotal > 0 ? C.warn : C.line }}>
-              <span className="bs-l">Overdue</span>
-              <span className="bs-v num" style={{ color: overdueTotal > 0 ? C.warn : undefined }}>{money(overdueTotal)}</span>
-            </div>
-          </div>
-          {m.bills.slice(0, 4).map((b) => (
-            <div className="note" key={b.id} style={{ justifyContent: "space-between" }}>
-              <span style={{ display: "flex", gap: 9, alignItems: "center" }}>
-                <span className="tick" style={{ background: b.paid ? C.good : b.overdue ? C.warn : C.b, minHeight: 15 }} />
-                <span>{b.name}<span className="muted"> · {ordinal(b.day)}</span></span>
-              </span>
-              <span className={"num " + (b.paid ? "muted" : "")}>{money(b.amount)}</span>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -3278,6 +3295,8 @@ function Dashboard({ ctx }) {
           <Notes notes={m.notes} limit={6} />
         </div>
       </div>
+        </>
+      )}
     </>
   );
 }
