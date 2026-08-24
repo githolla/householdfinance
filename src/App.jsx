@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v62";
+const APP_VERSION = "v63";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -4365,6 +4365,19 @@ function BillsView({ ctx }) {
   const [billQ, setBillQ] = useState("");
   const [nbErr, setNbErr] = useState("");
   const [adding, setAdding] = useState(false);
+  const [addingDebt, setAddingDebt] = useState(false);
+
+  // Debts live in state.accounts (type "debt") — the same ones as the Debt
+  // payoff planner and Net worth — so a balance + rate entered here feeds the
+  // health score, income-needed, the coach, and the payoff plan all at once.
+  const debts = state.accounts.filter((a) => a.type === "debt");
+  const sortedDebts = debts.slice().sort((a, b) => (b.apr || 0) - (a.apr || 0));
+  const setDebt = (id, f, v) => patch((s) => { const x = s.accounts.find((a) => a.id === id); if (x) x[f] = v; return s; });
+  const addDebtAcct = (preset) => patch((s) => {
+    s.accounts = [...(s.accounts || []), { id: uid(), name: preset.name, type: "debt", balance: 0, owner: "joint", apr: preset.apr, minPayment: 0 }];
+    return s;
+  });
+  const delDebtAcct = (id, name) => { if (window.confirm(`Remove ${name}?`)) patch((s) => { s.accounts = s.accounts.filter((a) => a.id !== id); return s; }); };
 
   // Typing an amount changes THIS month only; the usual amount stays as
   // the default for future months until "make usual" adopts the new one.
@@ -4607,6 +4620,49 @@ function BillsView({ ctx }) {
             ].filter(Boolean).join(" · ")}
           </p>
         </div>
+      </div>
+
+      {addingDebt && (
+        <Modal title="Add a debt" sub="A card or a loan — anything you owe. Tap a common one to prefill a typical rate." onClose={() => setAddingDebt(false)}>
+          <div className="dreampick">
+            {COMMON_DEBTS.map((d) => (
+              <button key={d.name} className="dreamopt" onClick={() => { addDebtAcct(d); setAddingDebt(false); }}>
+                <b>{d.name}</b><span>{d.apr ? `typical ${d.apr}% APR` : "set your own rate"}</span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      <div className="card" id="debtsCard" style={{ marginTop: 24 }}>
+        <div className="chead"><div>
+          <h3>Debts you owe</h3>
+          <div className="inc-sub">Balance and rate — these feed your health, income needed, and the payoff plan.</div>
+        </div>{debts.length > 0 && <button className="seelink" onClick={() => setView("debt")}>Plan the payoff →</button>}</div>
+        {debts.length === 0 ? (
+          <p className="empty">No debts yet. Add a card or loan with its balance and rate — <button className="seelink" style={{ display: "inline" }} onClick={() => setAddingDebt(true)}>add one</button> — and it factors into your whole picture.</p>
+        ) : (
+          <>
+            {m.debtPlan.hasDebt && (
+              <div className="grid g3" style={{ gap: 12, marginBottom: 14 }}>
+                <div className="tripstat"><span className="v-l">Total owed</span><b className="num">{money(m.debtTotal)}</b></div>
+                <div className="tripstat"><span className="v-l">Interest a month</span><b className="num">{money(Math.round(m.debtPlan.monthlyInterest))}</b></div>
+                <div className="tripstat"><span className="v-l">Minimums</span><b className="num">{money(m.debtMin)}</b></div>
+              </div>
+            )}
+            <div className="debtrow debtrow-h"><span>Debt</span><span>Balance</span><span>Rate %</span><span>Min / mo</span><span /></div>
+            {sortedDebts.map((d) => (
+              <div className="debtrow" key={d.id}>
+                <input className="field" value={d.name} onChange={(e) => setDebt(d.id, "name", e.target.value)} aria-label="Debt name" />
+                <MoneyInput value={d.balance} placeholder="0" onCommit={(v) => setDebt(d.id, "balance", v)} aria-label="Balance" />
+                <input className="field num" inputMode="decimal" value={d.apr != null ? d.apr : ""} onChange={(e) => setDebt(d.id, "apr", num(e.target.value))} aria-label="Rate percent" />
+                <MoneyInput value={d.minPayment} placeholder="0" onCommit={(v) => setDebt(d.id, "minPayment", v)} aria-label="Minimum payment" />
+                <button className="kill" onClick={() => delDebtAcct(d.id, d.name)} aria-label={`Remove ${d.name}`}>×</button>
+              </div>
+            ))}
+            <button className="btn ghost tiny" style={{ marginTop: 12 }} onClick={() => setAddingDebt(true)}>+ Add a debt</button>
+          </>
+        )}
       </div>
 
       <div style={{ marginTop: 28, marginBottom: 12 }}>
