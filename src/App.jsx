@@ -17,7 +17,7 @@ const KEY = "twocolumn:v2";
 const KEY_V1 = "twocolumn:v1";
 
 // Bump on every push — shown in the sidebar so a stale build is obvious.
-const APP_VERSION = "v64";
+const APP_VERSION = "v65";
 
 const money = (n, cents) => {
   const v = Number(n) || 0;
@@ -4385,6 +4385,7 @@ function BillsView({ ctx }) {
   const [nbErr, setNbErr] = useState("");
   const [adding, setAdding] = useState(false);
   const [addingDebt, setAddingDebt] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   // Debts live in state.accounts (type "debt") — the same ones as the Debt
   // payoff planner and Net worth — so a balance + rate entered here feeds the
@@ -4584,7 +4585,14 @@ function BillsView({ ctx }) {
         ))}
       </div>
 
-      <div className="grid g23" style={{ marginTop: 16 }} id="billStats">
+      <div className="showmore-wrap" style={{ marginTop: 16 }}>
+        <button className="showmore" onClick={() => setShowStats(!showStats)} aria-expanded={showStats}>
+          {showStats ? "Hide bill trends" : "Show bill trends"}
+          <svg className={"sm-chev" + (showStats ? " up" : "")} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+        </button>
+      </div>
+      {showStats && (
+      <div className="grid g23" id="billStats">
         <div className="card">
           <div className="chead">
             <h3>What the bills have cost</h3>
@@ -4640,6 +4648,7 @@ function BillsView({ ctx }) {
           </p>
         </div>
       </div>
+      )}
 
       {addingDebt && (
         <Modal title="Add a debt" sub="A card or a loan — anything you owe. Tap a common one to prefill a typical rate." onClose={() => setAddingDebt(false)}>
